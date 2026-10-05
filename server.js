@@ -1,5 +1,6 @@
 import express from "express";
 const app=express();
+app.use((req,res,next)=>{res.setHeader("Access-Control-Allow-Origin","https://cut-keep-assistant.onrender.com");res.setHeader("Access-Control-Allow-Methods","GET,POST,OPTIONS");res.setHeader("Access-Control-Allow-Headers","Content-Type");if(req.method==="OPTIONS")return res.sendStatus(204);next()});
 app.use(express.json({limit:"15mb"}));
 app.get("/health",(req,res)=>res.json({ok:true,version:"1.2.0"}));
 app.post("/api/analyze-food",async(req,res)=>{
