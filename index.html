@@ -197,20 +197,19 @@ function kcalFoodReference(remainKcal){
  if(saved.length){
    const preferred=saved.sort((a,b)=>Math.abs((+a.k)-Math.min(remainKcal,900))-Math.abs((+b.k)-Math.min(remainKcal,900)))[0];
    if(preferred){
-     const ratio=remainKcal/(+preferred.k);
-     const qty=ratio>=2?ratio.toFixed(1):ratio>=1?ratio.toFixed(1):ratio.toFixed(1);
-     return "热量参照：约 "+qty+" 份「"+preferred.n+"」（按 "+Math.round(+preferred.k)+" kcal/份）";
+     const one=Math.round(+preferred.k),whole=Math.floor(remainKcal/one),left=Math.round(remainKcal-whole*one);
+     if(whole>=1)return "按你记录的「"+preferred.n+"」计算：还能完整吃 "+whole+" 份（每份约 "+one+" kcal），吃完还剩约 "+left+" kcal";
+     return "按你记录的「"+preferred.n+"」计算：1份约 "+one+" kcal；你现在剩 "+Math.round(remainKcal)+" kcal，整份吃完会超约 "+Math.round(one-remainKcal)+" kcal";
    }
  }
- if(remainKcal<=120)return "热量参照：约 1 个鸡蛋（≈70 kcal）";
- if(remainKcal<=220)return "热量参照：约 1 根香蕉 + 1 杯无糖酸奶（≈180 kcal）";
- if(remainKcal<=350)return "热量参照：约 1 个饭团（≈280 kcal）";
- if(remainKcal<=500)return "热量参照：约 1 份小碗牛肉粉/米线（≈450 kcal）";
- if(remainKcal<=700)return "热量参照：约 1 份少油鸡胸肉盖饭（≈600 kcal）";
- if(remainKcal<=900)return "热量参照：约 1 份普通牛肉饭（≈800 kcal）";
- if(remainKcal<=1200)return "热量参照：约 1 份鸡腿饭（≈1000 kcal）";
- if(remainKcal<=1700)return "热量参照：约 1.5 份鸡腿饭（≈1500 kcal）";
- return "热量参照：约 2 份鸡腿饭（≈2000 kcal）";
+ if(remainKcal<=120)return "参照：1个鸡蛋约70 kcal；现在剩 "+Math.round(remainKcal)+" kcal";
+ if(remainKcal<=220)return "参照：香蕉1根 + 无糖酸奶1杯约180 kcal；吃完还剩约 "+Math.max(0,Math.round(remainKcal-180))+" kcal";
+ if(remainKcal<=350)return "参照：1个饭团约280 kcal；吃完还剩约 "+Math.max(0,Math.round(remainKcal-280))+" kcal";
+ if(remainKcal<=500)return "参照：1份小碗牛肉粉/米线约450 kcal；吃完还剩约 "+Math.max(0,Math.round(remainKcal-450))+" kcal";
+ if(remainKcal<=700)return "参照：1份少油鸡胸肉盖饭约600 kcal；吃完还剩约 "+Math.max(0,Math.round(remainKcal-600))+" kcal";
+ if(remainKcal<=900)return "参照：1份普通牛肉饭约800 kcal；吃完还剩约 "+Math.max(0,Math.round(remainKcal-800))+" kcal";
+ const meals=Math.floor(remainKcal/1000),left=Math.round(remainKcal-meals*1000);
+ return "参照鸡腿饭：还能完整吃 "+Math.max(1,meals)+" 份（约 "+Math.max(1,meals)*1000+" kcal），吃完还剩约 "+Math.max(0,left)+" kcal";
 }
 function render(){let k=meals.reduce((a,x)=>a+(+x.kcal||0),0),p=meals.reduce((a,x)=>a+(+x.protein||0),0),cg=meals.reduce((a,x)=>a+(+x.carbs||0),0),ft=meals.reduce((a,x)=>a+(+x.fat||0),0);eaten.textContent=Math.round(k);remainLabel.textContent=k>target?"今天已超出":"今天还可以吃";const remainNow=Math.max(0,target-k);remain.textContent=Math.abs(Math.round(target-k));kcalHint.textContent=kcalFoodReference(remainNow);proteinLeft.textContent=Math.max(0,Math.round(pt-p));progress.style.width=Math.min(100,k/target*100)+"%";dietKcal.textContent=Math.round(k);dietProtein.textContent=p.toFixed(1);dietCarbs.textContent=cg.toFixed(1);dietFat.textContent=ft.toFixed(1);dietAdvice.textContent=k>target?"今天已超过目标热量，后续优先低脂蛋白和蔬菜。":p<pt?"今天蛋白质还差约 "+Math.max(0,Math.round(pt-p))+"g。":ft<60?"蛋白质已达标，但脂肪还偏低，全天尽量达到60g左右。":"今天核心营养目标基本达成。";dietTrainingLink.innerHTML="<b>明日训练联动</b>"+tomorrowPreview();mealList.innerHTML=meals.length?meals.map((m,i)=>`<div class="meal"><div><strong>${m.text}</strong><small>${Math.round(m.kcal)} kcal · 蛋白质 ${(+m.protein).toFixed(1)}g</small></div><button class="del" onclick="delMeal(${i})">删除</button></div>`).join(""):'<div class="muted">还没有记录</div>';renderTraining();renderProgress();renderCustomFoods();renderWeeklyReport();}
 function delMeal(i){meals.splice(i,1);localStorage.setItem(key,JSON.stringify(meals));render()}
