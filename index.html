@@ -169,7 +169,7 @@ const coachLoads={
 };
 function localDate(d=new Date()){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 const key="ckMeals-"+localDate();let meals=JSON.parse(localStorage.getItem(key)||"[]"),pending=null;
-const trainKey="ckTrain-"+localDate();let trainDone=localStorage.getItem(trainKey)==="1";
+const trainKey="ckTrain-"+localDate();let trainDone=localStorage.getItem(trainKey)==="1";const exerciseDoneKey="ckExerciseDone-"+localDate();let exerciseDone=JSON.parse(localStorage.getItem(exerciseDoneKey)||"{}");
 let weights=JSON.parse(localStorage.getItem("ckWeights")||"[]");
 let customFoods=JSON.parse(localStorage.getItem("ckCustomFoods")||"[]");
 if(!localStorage.getItem("ckTrainingStartDate"))localStorage.setItem("ckTrainingStartDate",localDate());
