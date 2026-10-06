@@ -180,7 +180,8 @@ function trainingIndex(){const idx=syncTrainingCursor();localStorage.setItem("ck
 function trainingIndexForDate(ds){const saved=localStorage.getItem("ckTrainPlanIndex-"+ds);return saved!==null&&Number.isInteger(+saved)?+saved:dayDiff(trainingStartDate,ds)%7}
 function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k||!k.startsWith("ckTrain-")||localStorage.getItem(k)!=="1")continue;const ds=k.slice(8),idx=trainingIndexForDate(ds);if([0,2,4].includes(idx))dates.push(ds)}return [...new Set(dates)].sort()}
 function completedStrengthSessions(){return strengthSessionDates().length}
-function phaseWeek(){return Math.min(12,Math.floor(completedStrengthSessions()/3)+1)}
+function completedStrengthSessionsBeforeToday(){return strengthSessionDates().filter(ds=>ds<localDate()).length}
+function phaseWeek(){return Math.min(12,Math.floor(completedStrengthSessionsBeforeToday()/3)+1)}
 function phaseComplete(){return completedStrengthSessions()>=36}
 function trainingWeekWindow(weekNo,partial=true){const sd=strengthSessionDates(),today=localDate(),prevIdx=(weekNo-1)*3-1,finishIdx=weekNo*3-1;let start=weekNo===1?trainingStartDate:(sd[prevIdx]?shiftDate(sd[prevIdx],1):today),end=sd[finishIdx]||today;if(end>today)end=today;if(start>today)start=today;return {start,end,complete:!!sd[finishIdx],strengthDone:sd.filter(x=>x>=start&&x<=end).length}}
 function roundTo(v,step){return Math.round(v/step)*step}
