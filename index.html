@@ -90,7 +90,7 @@ input,select{font-size:16px!important}
 
 <section class="view" id="view-diet"><h2 class="sectionTitle">饮食</h2><section class="card"><h2>今天已记录</h2><div id="mealList" class="list"><div class="muted">还没有记录</div></div></section><section class="card"><h2>今日汇总</h2><div class="summaryGrid"><div class="summaryBox">热量<b id="dietKcal">0</b><small>kcal</small></div><div class="summaryBox">蛋白质<b id="dietProtein">0</b><small>g</small></div></div><div class="sub" id="dietAdvice" style="margin-top:14px"></div></section><section class="card" id="customFoodCard"><h2>个人食品库</h2><div class="sub">遇到未收录的品牌餐或外卖，手动录一次营养值，以后输入同名食品就直接计算，不再猜。</div><div class="formGrid" style="margin-top:12px"><input id="cfName" placeholder="食品名称"><select id="cfMode"><option value="100g">每100g</option><option value="serving">每份</option></select><input id="cfKcal" inputmode="decimal" type="number" placeholder="热量 kcal"><input id="cfProtein" inputmode="decimal" type="number" placeholder="蛋白质 g"><input id="cfCarbs" inputmode="decimal" type="number" placeholder="碳水 g"><input id="cfFat" inputmode="decimal" type="number" placeholder="脂肪 g"></div><button class="btn dark" style="width:100%;margin-top:12px" onclick="saveCustomFood()">保存到个人食品库</button><div id="customFoodList" class="list"></div></section></section>
 
-<section class="view" id="view-training"><h2 class="sectionTitle">训练</h2><section class="card"><h2>当前训练周期</h2><div class="cycleNote" id="cycleNote"></div><div class="calibNote">这是12周减脂保肌训练阶段。力量重量由系统按周给出明确处方，你只需要执行；第4/8/12周自动减量恢复。若第一组就无法达到次数下限且动作开始变形，当天该动作立刻减重10%继续，不硬顶。</div><details class="planDetails todayPlan" id="todayPlanDetails"><summary><span>查看今天详细动作</span><span class="chev">⌄</span></summary><div class="planBody" id="todayExerciseList"></div></details></section><section class="card"><h2>本周训练安排</h2><div class="sub" style="margin-bottom:4px">12周阶段内每周保持同一结构，但力量重量和减量周会自动变化。点训练日查看本周明确处方。</div><div id="weekPlan"></div></section><section class="card"><h2>训练原则</h2><div class="sub">目标是减脂同时保住肌肉，不追求继续把上半身练宽。胸部单独训练一天；腿后链、背部与核心分别安排。每组保留约2次余力，不练到力竭。重量按12周处方自动推进：第1周适应，第2–3周加重，第4周减量；第5–8周、第9–12周各重复一轮并提高基准。12周结束后不继续无限循环，重新评估体重、围度和力量后再生成下一阶段。</div></section></section>
+<section class="view" id="view-training"><h2 class="sectionTitle">训练</h2><section class="card"><h2>当前训练周期</h2><div class="cycleNote" id="cycleNote"></div><div class="calibNote">这是12周减脂保肌训练阶段。力量训练重量已经按周安排，你只需要执行；第4/8/12周自动减量恢复。若第一组就无法达到次数下限且动作开始变形，当天该动作立刻减重10%继续，不硬顶。</div><details class="planDetails todayPlan" id="todayPlanDetails"><summary><span>查看今天详细动作</span><span class="chev">⌄</span></summary><div class="planBody" id="todayExerciseList"></div></details></section><section class="card"><h2>本周训练安排</h2><div class="sub" style="margin-bottom:4px">12周阶段内每周保持同一结构，但力量重量和减量周会自动变化。点训练日查看本周动作、组数、次数和推荐重量。</div><div id="weekPlan"></div></section><section class="card"><h2>训练原则</h2><div class="sub">目标是减脂同时保住肌肉，不追求继续把上半身练宽。胸部单独训练一天；腿后链、背部与核心分别安排。每组保留约2次余力，不练到力竭。重量按12周推荐自动推进：第1周适应，第2–3周加重，第4周减量；第5–8周、第9–12周各重复一轮并提高基准。12周结束后不继续无限循环，重新评估体重、围度和力量后再生成下一阶段。</div></section></section>
 
 <section class="view" id="view-progress"><h2 class="sectionTitle">进度</h2><section class="card"><h2>记录体重</h2><input id="weightInput" class="weightinput" inputmode="decimal" type="number" step="0.1" placeholder="例如：79.2 kg"><button class="btn dark" style="width:100%;margin-top:12px" onclick="saveWeight()">保存今天体重</button></section><section class="card"><h2>趋势</h2><div class="summaryGrid"><div class="summaryBox">最近体重<b id="latestWeight">—</b><small>kg</small></div><div class="summaryBox">7日平均<b id="avgWeight">—</b><small>kg</small></div></div><div id="weightList" class="list"></div></section><section class="card"><h2>目标设置</h2><div class="formGrid"><input id="targetKcalInput" type="number" inputmode="numeric" placeholder="每日 kcal"><input id="targetProteinInput" type="number" inputmode="numeric" placeholder="蛋白质 g"></div><button class="btn dark" style="width:100%;margin-top:12px" onclick="saveTargets()">保存目标</button></section></section>
 </main>
@@ -103,9 +103,9 @@ const db=[
 ];
 const planTemplates=[
 ["训练日1","胸部力量","45–55分钟",[
-"杠铃卧推｜3组 × 6–8次｜处方重量：@bench｜休2–3分钟",
-"上斜哑铃卧推｜3组 × 8–10次｜处方重量：@incline｜休90秒–2分钟",
-"平板哑铃飞鸟｜2组 × 10–12次｜处方重量：@fly｜休60–90秒"
+"杠铃卧推｜3组 × 6–8次｜推荐重量：@bench｜休2–3分钟",
+"上斜哑铃卧推｜3组 × 8–10次｜推荐重量：@incline｜休90秒–2分钟",
+"平板哑铃飞鸟｜2组 × 10–12次｜推荐重量：@fly｜休60–90秒"
 ]],
 ["训练日2","Zone 2 骑车","45–50分钟 · RPE 3–4/10",[
 "热身｜5分钟轻松骑",
@@ -114,9 +114,9 @@ const planTemplates=[
 "放松｜最后5分钟逐步降速"
 ]],
 ["训练日3","腿部 + 后链","45–55分钟",[
-"杠铃深蹲｜3组 × 6–8次｜处方重量：@squat｜休2–3分钟",
-"杠铃罗马尼亚硬拉｜3组 × 8–10次｜处方重量：@rdl｜休2–3分钟",
-"保加利亚分腿蹲｜2组 × 每侧8–10次｜处方重量：@split｜休90秒–2分钟"
+"杠铃深蹲｜3组 × 6–8次｜推荐重量：@squat｜休2–3分钟",
+"杠铃罗马尼亚硬拉｜3组 × 8–10次｜推荐重量：@rdl｜休2–3分钟",
+"保加利亚分腿蹲｜2组 × 每侧8–10次｜推荐重量：@split｜休90秒–2分钟"
 ]],
 ["训练日4","休息 / 快走","8000–10000步",[
 "不安排力量训练",
@@ -125,10 +125,10 @@ const planTemplates=[
 "优先睡眠与恢复"
 ]],
 ["训练日5","背部 + 核心","45–50分钟",[
-"单臂哑铃划船｜3组 × 每侧8–10次｜处方重量：@row｜休90秒–2分钟",
-"中立握高位下拉｜2组 × 8–10次｜处方重量：@pulldown｜休90秒–2分钟",
-"绳索面拉｜2组 × 12–15次｜处方重量：@facepull｜休60–90秒",
-"Pallof Press 抗旋转｜2组 × 每侧10–12次｜处方重量：@pallof｜休45–60秒",
+"单臂哑铃划船｜3组 × 每侧8–10次｜推荐重量：@row｜休90秒–2分钟",
+"中立握高位下拉｜2组 × 8–10次｜推荐重量：@pulldown｜休90秒–2分钟",
+"绳索面拉｜2组 × 12–15次｜推荐重量：@facepull｜休60–90秒",
+"Pallof Press 抗旋转｜2组 × 每侧10–12次｜推荐重量：@pallof｜休45–60秒",
 "平板支撑｜2组 × 30–45秒｜自重｜休45–60秒"
 ]],
 ["训练日6","Zone 2 骑车","50–60分钟",[
@@ -179,7 +179,7 @@ function normalizeFoodName(seg){return seg.toLowerCase().replace(/\s+/g,"").repl
 function qty(seg,item){let m;if(item.unit==="个"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*个/)))return{factor:+m[1],label:m[1]+"个"};if(item.unit==="根"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*根/)))return{factor:+m[1],label:m[1]+"根"};if(item.unit==="杯"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*杯/)))return{factor:+m[1],label:m[1]+"杯"};if(item.unit==="罐"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*罐/)))return{factor:+m[1],label:m[1]+"罐"};if(item.unit==="份"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*份/)))return{factor:+m[1],label:m[1]+"份"};if((m=seg.match(/(\d+(?:\.\d+)?)\s*(g|克)/i)))return{factor:+m[1]/100,label:m[1]+"g"};if(item.ml&&(m=seg.match(/(\d+(?:\.\d+)?)\s*(ml|毫升)/i)))return{factor:+m[1]/100,label:m[1]+"ml"};return item.unit?{factor:1,label:"1"+item.unit}:{factor:1,label:"100g"}}
 function judgeFood(){const text=foodText.value.trim();if(!text)return alert("先输入食物和份量");const segs=text.split(/[+＋,，、;；\n]/).flatMap(x=>x.trim().split(/\s+(?=[\u4e00-\u9fa5])/)).filter(Boolean);let items=[],unknown=[];for(const seg of segs){const item=findFood(seg);if(!item){unknown.push(seg);continue}const q=qty(seg,item);items.push({name:item.n,label:q.label,k:item.k*q.factor,p:item.p*q.factor,c:item.c*q.factor,f:item.f*q.factor})}if(!items.length){result.style.display="block";judgeTag.textContent="未匹配";judgeTitle.textContent="暂时没有这个食物";judgeDesc.textContent="这个食物目前未收录，为避免误算不会用相似关键词代替。请到「饮食 → 个人食品库」录一次营养值，以后同名直接识别。";rKcal.textContent=rProtein.textContent=rCarbs.textContent="—";pending=null;return}const total=items.reduce((a,x)=>({k:a.k+x.k,p:a.p+x.p,c:a.c+x.c,f:a.f+x.f}),{k:0,p:0,c:0,f:0});const eatenNow=meals.reduce((a,x)=>a+x.kcal,0),remainNow=target-eatenNow;let tag,title,desc;if(total.k>Math.max(700,remainNow*.55)){tag="注意份量";title="这顿热量偏高";desc="会占掉今天较大一部分热量，建议减少高油主食或炸物份量。"}else if(total.p>=30&&total.k<=650){tag="适合减脂";title="这顿结构不错";desc="蛋白质够、热量也比较容易控制。"}else if(total.p<20&&total.k>350){tag="蛋白质偏低";title="能吃，但建议补蛋白质";desc="可以加鸡肉、牛肉、鱼虾、鸡蛋、牛奶或豆制品。"}else{tag="可以吃";title="关键看全天总量";desc="这顿没有明显问题，继续控制全天总热量。"}if(unknown.length)desc+=" 未识别："+unknown.join("、")+"。";judgeTag.textContent=tag;judgeTitle.textContent=title;judgeDesc.textContent=desc;rKcal.textContent=Math.round(total.k);rProtein.textContent=total.p.toFixed(1);rCarbs.textContent=total.c.toFixed(1);pending={text,kcal:total.k,protein:total.p,carbs:total.c,fat:total.f,items};result.style.display="block";}
 function saveAnalyzed(){if(!pending)return alert("先分析这顿");meals.push({...pending,time:Date.now()});localStorage.setItem(key,JSON.stringify(meals));foodText.value="";result.style.display="none";pending=null;render();}
-function exerciseHtml(a,i){const s=a.split("｜"),name=s[0],parts=s.slice(1);let weight=parts.find(v=>v.includes("处方重量")||v==="自重")||"";let rest=parts.find(v=>v.startsWith("休"))||"";let volume=parts.filter(v=>v!==weight&&v!==rest).join(" · ");let rx=weight?weight.replace("处方重量：",""):"";return `<div class="exerciseRow"><b>${String(i+1).padStart(2,"0")} · ${name}${weight==="自重"?'<span class="weightTag">自重</span>':""}</b><small>${[volume,rest].filter(Boolean).join(" · ")}</small>${rx&&weight!=="自重"?'<div class="coachRx"><span class="rxLabel">本周处方</span><span class="rxWeight">'+rx+'</span></div>':""}</div>`}
+function exerciseHtml(a,i){const s=a.split("｜"),name=s[0],parts=s.slice(1);let weight=parts.find(v=>v.includes("推荐重量")||v==="自重")||"";let rest=parts.find(v=>v.startsWith("休"))||"";let volume=parts.filter(v=>v!==weight&&v!==rest).join(" · ");let rx=weight?weight.replace("推荐重量：",""):"";return `<div class="exerciseRow"><b>${String(i+1).padStart(2,"0")} · ${name}${weight==="自重"?'<span class="weightTag">自重</span>':""}</b><small>${[volume,rest].filter(Boolean).join(" · ")}</small>${rx&&weight!=="自重"?'<div class="coachRx"><span class="rxWeight">'+rx+'</span></div>':""}</div>`}
 function renderExerciseList(list){return `<div class="exerciseGrid">${list.map(exerciseHtml).join("")}</div>`}
 function planKind(i){return i===0||i===2||i===4?"strength":i===1||i===5?"cardio":"rest"}function renderTraining(){const d=trainingIndex(),plans=currentPlans(),p=plans[d],w=phaseWeek(),deload=(w%4===0);todayTrainingName.textContent=p[1];todayTrainingDesc.textContent=p[2]+(deload?" · 减量周":"");todayTrainingBtn.textContent=trainDone?"已完成 ✓":"整项训练完成";todayTrainingBtn.classList.toggle("done",trainDone);cycleNote.innerHTML=phaseComplete()?"12周阶段已完成。停止继续自动加量，保持第12周减量安排，重新评估后再进入下一阶段。":"第 <span class='phaseBadge'>"+w+"/12 周</span> · "+(deload?"减量恢复周":"正常训练周")+" · 今天执行 "+p[0]+"。";todayPlanDetails.className="planDetails todayPlan "+planKind(d);todayExerciseList.innerHTML=renderExerciseList(p[3]);weekPlan.innerHTML=plans.map((x,i)=>`<details class="planDetails ${planKind(i)}"><summary><span class="planSummaryMain"><b>${x[0]} · ${x[1]}${i===d?'<span class="todayBadge">今天</span>':''}</b><small>${x[2]}${deload&&planKind(i)==="strength"?" · 减量周":""}</small></span><span class="chev">⌄</span></summary><div class="planBody">${renderExerciseList(x[3])}</div></details>`).join("")}
 function toggleTodayTraining(){trainDone=!trainDone;localStorage.setItem(trainKey,trainDone?"1":"0");renderTraining()}
