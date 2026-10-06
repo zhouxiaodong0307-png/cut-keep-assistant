@@ -96,7 +96,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261006-data-safe-8",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261006-data-safe-9",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -240,33 +240,63 @@ function kcalFoodReference(remainKcal){
  const meals=Math.floor(remainKcal/1000),left=Math.round(remainKcal-meals*1000);
  return "参照鸡腿饭：还能完整吃 "+Math.max(1,meals)+" 份（约 "+Math.max(1,meals)*1000+" kcal），吃完还剩约 "+Math.max(0,left)+" kcal";
 }
-function renderDailyCoachTip(k,p,cg,ft){const social=meals.find(x=>x.social);if(social){const sx=totalsForDate(localDate()).socialExcess;todayCoachTitle.textContent="今天已记录聚餐估算";todayCoachText.textContent="按今日总摄入约超出 "+Math.round(sx)+" kcal 记录。聚餐宏量不精确，今天不再用蛋白质/脂肪数字做判断；明天照原训练计划，不补偿性加练。";return}
- const idx=trainingIndex(),strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx),rest=[3,6].includes(idx);
- const kcalLeft=target-k,proteinLeft=Math.max(0,pt-p);
- let title="",text="";
- if(k>target){
-   title="今天先把热量收住";
-   text="已经超过目标约 "+Math.round(k-target)+" kcal。后续如果还饿，优先低脂蛋白、蔬菜和无糖饮品，不用靠加练补回来。";
- }else if(p>=pt){
-   title="蛋白质已经够了";
-   text="今天蛋白质已达标，剩余约 "+Math.max(0,Math.round(kcalLeft))+" kcal。后面重点是不把总热量吃超。";
- }else if(k>target*.7&&p<pt*.7){
-   title="热量用了不少，蛋白质还没跟上";
-   text="还差约 "+Math.round(proteinLeft)+"g 蛋白质。接下来优先鸡胸、鱼虾、瘦牛肉、蛋清或低脂奶，减少高油主食。";
- }else if(strength){
-   title="今天是力量训练日";
-   text="先保证蛋白质，全天目标约 "+pt+"g；主食正常吃，不需要为了减脂把训练日碳水压得太低。";
- }else if(cardio){
-   title="今天是 Zone 2";
-   text="饮食不用额外补偿有氧消耗。蛋白质照常做到约 "+pt+"g，全天热量继续按 "+target+" kcal 左右控制。";
- }else if(rest){
-   title="今天是恢复日";
-   text="休息日蛋白质照常，不需要故意少吃。控制总热量，给恢复留足营养。";
- }else{
-   title="今天先保证蛋白质";
-   text="还差约 "+Math.round(proteinLeft)+"g 蛋白质，优先把蛋白质补齐，再看剩余热量安排其他食物。";
+function renderDailyCoachTip(k,p,cg,ft){
+ const social=meals.find(x=>x.social),idx=trainingIndex(),plan=planTemplates[idx],planName=plan?plan[1]:"今日训练",strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx),rest=[3,6].includes(idx),done=!!trainDone;
+ const kcalLeft=Math.max(0,target-k),proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),over=Math.max(0,k-target),poor=recovery.state==="poor",pain=!!recovery.painArea;
+ const numbers=()=>{let x=[];if(k<=target)x.push("还剩约 "+Math.round(kcalLeft)+" kcal");if(proteinLeft>0)x.push("蛋白质还差约 "+Math.round(proteinLeft)+"g");if(ft<60)x.push("脂肪还差约 "+Math.round(fatLeft)+"g");return x.slice(0,2).join("，")};
+ if(social){
+   const sx=totalsForDate(localDate()).socialExcess;
+   todayCoachTitle.textContent="今天已记录聚餐估算";
+   todayCoachText.textContent="按今日总摄入约超出 "+Math.round(sx)+" kcal 记录。聚餐宏量不够精确，今天不再追着蛋白质、碳水或脂肪数字补；明天照原训练顺序，不用补偿性少吃或加练。";
+   return
  }
- todayCoachTitle.textContent=title;todayCoachText.textContent=text;
+ if(over>0){
+   todayCoachTitle.textContent="今天先把总热量收住";
+   if(proteinLeft>25)todayCoachText.textContent="目前约超出 "+Math.round(over)+" kcal，但蛋白质还差约 "+Math.round(proteinLeft)+"g。后续如果还需要进食，优先低脂高蛋白和蔬菜，不再追加高油主食；不要靠加练补偿。";
+   else todayCoachText.textContent="目前约超出 "+Math.round(over)+" kcal，蛋白质已经接近目标。后续不用为了凑宏量继续吃，也不要靠额外有氧补偿，明天重新按 "+target+" kcal 目标开始。";
+   return
+ }
+ if(poor){
+   todayCoachTitle.textContent=planName+" · 今天优先恢复";
+   todayCoachText.textContent=(strength?"力量日仍按计划下调执行；":"今天不额外加码；")+"不要因为状态差再主动砍热量。"+(proteinLeft>0?"先把蛋白质补到约 "+pt+"g；":"蛋白质已基本够；")+(strength&&!done?"训练前后正常安排主食，避免空着碳水硬练。":"总热量继续控制在目标附近。");
+   return
+ }
+ if(pain&&strength){
+   todayCoachTitle.textContent=planName+" · 营养照常，动作按疼痛调整";
+   todayCoachText.textContent="疼痛状态不需要靠额外热量或补剂“顶过去”。"+(proteinLeft>0?"今天仍优先补齐约 "+Math.round(proteinLeft)+"g 蛋白质；":"蛋白质已基本达标；")+"总热量按原目标，受影响动作按训练页提示处理。";
+   return
+ }
+ if(strength){
+   const heavyLower=idx===0||idx===2,session=heavyLower?"全身/腿背训练":"胸部训练";
+   if(done){
+     todayCoachTitle.textContent=planName+"已完成";
+     if(proteinLeft>20)todayCoachText.textContent="训练已经完成，"+numbers()+"。下一餐优先瘦肉、鱼虾、蛋奶或豆制品把蛋白质补齐；不需要因为训练结束再额外加一顿高热量“恢复餐”。";
+     else if(ft<60)todayCoachText.textContent="训练已完成，蛋白质基本达标。剩余约 "+Math.round(kcalLeft)+" kcal，脂肪还差约 "+Math.round(fatLeft)+"g，可在总热量内用鸡蛋、鱼类、坚果等补足，不必继续堆蛋白质。";
+     else todayCoachText.textContent="训练已完成，蛋白质和脂肪都基本到位，剩余约 "+Math.round(kcalLeft)+" kcal。后面按饥饿程度正常吃，不需要为了“训练后窗口”强行补餐。";
+   }else{
+     todayCoachTitle.textContent="今天是"+planName;
+     if(k===0)todayCoachText.textContent=session+"还没开始记录饮食。今天先把蛋白质做到约 "+pt+"g；"+(heavyLower?"这类训练对糖原需求更高，主食不要刻意压得太低。":"训练前后正常保留主食即可。")+"全天仍以 "+target+" kcal 为总框架。";
+     else if(proteinLeft>35)todayCoachText.textContent=numbers()+"。训练还没完成，下一餐优先“主食 + 低脂蛋白”；"+(heavyLower?"腿部参与较多，碳水比胸日更值得保留。":"不需要额外加脂肪或甜食来补能量。");
+     else if(p>=pt)todayCoachText.textContent="蛋白质已经达标，剩余约 "+Math.round(kcalLeft)+" kcal。训练还没完成，后续热量更适合留给正常主食和蔬菜，不必继续堆蛋白质。";
+     else todayCoachText.textContent=numbers()+"。训练前后正常安排一份主食并继续补蛋白质；减脂期不需要把力量训练日做成低碳日。";
+   }
+   return
+ }
+ if(cardio){
+   todayCoachTitle.textContent=done?planName+"已完成":"今天是 "+planName;
+   if(done)todayCoachText.textContent="Zone 2 已完成，不需要把运动消耗“吃回来”。"+(proteinLeft>0?"蛋白质还差约 "+Math.round(proteinLeft)+"g，优先补齐；":"蛋白质基本达标；")+"全天仍按 "+target+" kcal 左右收尾。";
+   else todayCoachText.textContent="Zone 2 以低到中等强度为主，不需要专门加餐。"+(proteinLeft>0?"今天蛋白质还差约 "+Math.round(proteinLeft)+"g；":"蛋白质已经基本够；")+"正常吃主食、按 "+target+" kcal 左右控制即可。";
+   return
+ }
+ if(rest){
+   todayCoachTitle.textContent="今天是恢复日";
+   if(proteinLeft>25)todayCoachText.textContent=numbers()+"。休息日也要维持蛋白质，不建议为了“没训练”明显少吃；把热量控制在目标附近，优先恢复和睡眠。";
+   else if(ft<60)todayCoachText.textContent="蛋白质基本达标，脂肪还差约 "+Math.round(fatLeft)+"g。休息日可以在总热量内补适量蛋、鱼、坚果等，不需要刻意压低碳水。";
+   else todayCoachText.textContent="今天没有力量训练，蛋白质和脂肪都基本到位。剩余约 "+Math.round(kcalLeft)+" kcal，按饥饿程度正常安排，不需要因为休息日故意少吃。";
+   return
+ }
+ todayCoachTitle.textContent="今天按总量和蛋白质推进";
+ todayCoachText.textContent=numbers()+"。优先完成蛋白质目标，再在剩余热量里安排主食、蔬菜和脂肪来源。";
 }
 function render(){renderBackupStatus();const sm=summarizeMeals(meals,target);let k=sm.k,p=sm.p,cg=sm.c,ft=sm.f,hasSocial=sm.social>0,socialExcessNow=sm.socialExcess;eaten.textContent=Math.round(k);goalProtein.textContent=Math.round(pt);stepGoalText.textContent=stepGoalRange();stageTargetText.textContent="当前目标："+Math.round(target)+" kcal/天 · 蛋白质"+Math.round(pt)+"g/天 · 脂肪至少60g/天 · "+stepGoalRange()+"步/天 · 每周体重下降0.4–0.6kg。步数目标按实际7日平均逐级提高；若连续2周7日均重几乎不降，再结合饮食、步数和训练执行调整。";remainLabel.textContent=k>target?"今天已超出":"今天还可以吃";const remainNow=Math.max(0,target-k);remain.textContent=Math.abs(Math.round(target-k));kcalHint.textContent=kcalFoodReference(remainNow);proteinLeftLabel.textContent=hasSocial?"已明确记录蛋白质":"蛋白质还差";proteinLeft.textContent=hasSocial?Math.round(p):Math.max(0,Math.round(pt-p));progress.style.width=Math.min(100,k/target*100)+"%";dietKcal.textContent=Math.round(k);dietProtein.textContent=p.toFixed(1);dietCarbs.textContent=cg.toFixed(1);dietFat.textContent=ft.toFixed(1);dietAdvice.textContent=hasSocial?"今天含聚餐估算：总热量用于趋势判断；蛋白质、碳水和脂肪只代表已明确记录的部分，不据此判定是否达标。":k>target?"今天已超过目标热量，后续优先低脂蛋白和蔬菜。":p<pt?"今天蛋白质还差约 "+Math.max(0,Math.round(pt-p))+"g。":ft<60?"蛋白质已达标，但脂肪还偏低，全天尽量达到60g左右。":"今天核心营养目标基本达成。";dietTrainingLink.innerHTML="<b>明日训练联动</b>"+tomorrowPreview();renderDailyCoachTip(k,p,cg,ft);mealList.innerHTML=meals.length?meals.map((m,i)=>m.social?`<div class="meal"><div><strong>聚餐估算 <span class="socialBadge">估算</span></strong><small>今日总摄入按约 +${Math.round(socialExcessNow)} kcal 超额记录 · 宏量不拆分</small></div><button class="del" onclick="delMeal(${i})">删除</button></div>`:`<div class="meal"><div><strong>${m.text}</strong><small>${Math.round(m.kcal)} kcal · 蛋白质 ${(+m.protein).toFixed(1)}g</small></div><button class="del" onclick="delMeal(${i})">删除</button></div>`).join(""):'<div class="muted">还没有记录</div>';renderTraining();renderProgress();renderCustomFoods();renderWeeklyReport();}
 function delMeal(i){meals.splice(i,1);localStorage.setItem(key,JSON.stringify(meals));render()}
