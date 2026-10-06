@@ -5,6 +5,14 @@
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;background:#f3f5f6}
 button,input,select{font-family:inherit}
 button{touch-action:manipulation}
+a,button,summary,.card,.planDetails{-webkit-tap-highlight-color:transparent}
+summary,button{outline:none}
+summary:focus,summary:active,button:focus,button:active{outline:none;box-shadow:none!important}
+.planDetails,.planDetails:focus,.planDetails:active,.planDetails[open]{box-shadow:none!important;filter:none!important}
+.planDetails summary,.planDetails summary:focus,.planDetails summary:active{box-shadow:none!important;filter:none!important}
+.planDetails[open] summary{box-shadow:none!important}
+.card,.card:focus,.card:active{box-shadow:none!important}
+
 .btn{min-height:50px}
 input,select{font-size:16px!important}
 .planDetails{--day:#9a9a92;border-top:4px solid var(--day)!important}
@@ -12,7 +20,7 @@ input,select{font-size:16px!important}
 .planDetails.cardio{--day:#4f8a6d}
 .planDetails.mixed{--day:#8867a4}
 .planDetails.rest{--day:#9a9a92}
-.planDetails summary{box-shadow:none!important}
+.planDetails summary{box-shadow:none!important;-webkit-user-select:none;user-select:none}
 .todayPlan{border-top:4px solid var(--day)!important}
 .liftControl{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
 .liftControl label{font-size:12px;color:#777}
