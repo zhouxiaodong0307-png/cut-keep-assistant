@@ -355,29 +355,29 @@ function toggleSocialMeal(){const open=socialMealPanel.style.display==="block";s
 function setSocialExcess(v,btn){socialExcessChoice=v;socialCustomExcess.value="";document.querySelectorAll(".socialChoice").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active")}
 function saveSocialMeal(){let extra=+(socialCustomExcess.value||socialExcessChoice);if(!extra||extra<100||extra>2500)return alert("请输入约100–2500 kcal的吃超估算");meals=meals.filter(x=>!x.social);const exact=meals.reduce((a,x)=>a+(+x.kcal||0),0),knownOver=Math.max(0,exact-target);extra=Math.max(extra,knownOver);meals.push({text:"聚餐估算",kcal:0,protein:0,carbs:0,fat:0,social:true,estimated:true,excess:Math.round(extra),targetAtEntry:target,time:Date.now()});localStorage.setItem(key,JSON.stringify(meals));socialMealPanel.style.display="none";socialCustomExcess.value="";render()}
 function openManualMeal(name=""){manualMeal.style.display="block";mmName.value=(name||mmName.value||"").trim();if(window.mmPasteHint)mmPasteHint.textContent="";manualMeal.scrollIntoView({behavior:"smooth",block:"center"})}
-function cleanNutritionPaste(text){return String(text||"").replace(/[\\*_~`]/g,"").replace(/\u00a0/g," ").replace(/[ \\t]+/g," ").trim()}
+function cleanNutritionPaste(text){return String(text||"").replace(/[\\*_~\x60]/g,"").replace(/\u00a0/g," ").replace(/[ \t]+/g," ").trim()}
 function parseNutritionNumber(text,labels){const s=cleanNutritionPaste(text),joined=labels.join("|"),re=new RegExp("(?:^|[\\s｜|,，;；\\-])(?:"+joined+")\\s*(?:g|克)?\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:g|克)?","i"),m=s.match(re);return m?{value:+m[1],unit:"g"}:null}
-function parseEnergyNumber(text){const s=cleanNutritionPaste(text);let m=s.match(/(?:热量|能量|calories?)\\s*(kcal|千卡|大卡|kj|千焦)?\\s*[:：]?\\s*(?:约\\s*)?([0-9]+(?:\\.[0-9]+)?)\\s*(kcal|千卡|大卡|kj|千焦)?/i);if(m)return {value:+m[2],unit:(m[1]||m[3]||"kcal").toLowerCase()};m=s.match(/([0-9]+(?:\\.[0-9]+)?)\\s*(kcal|千卡|大卡|kj|千焦)\\b/i);return m?{value:+m[1],unit:m[2].toLowerCase()}:null}
-function inferNutritionName(text){let first=cleanNutritionPaste(text).split(/[｜|\\n,，;；]/)[0].trim();first=first.replace(/^[\\-•·]\\s*/,"").replace(/(?:热量|能量|calories?).*$/i,"").replace(/\\s*[0-9]+(?:\\.[0-9]+)?\\s*(?:kcal|千卡|大卡|kj|千焦)\\s*$/i,"").replace(/[：:·\\-]+$/,"").trim();if(/^(?:每\\s*100|每份|营养成分|nutrition)/i.test(first))return "";return first.length<=30?first:""}
+function parseEnergyNumber(text){const s=cleanNutritionPaste(text);let m=s.match(/(?:热量|能量|calories?)\s*(kcal|千卡|大卡|kj|千焦)?\s*[:：]?\s*(?:约\s*)?([0-9]+(?:\.[0-9]+)?)\s*(kcal|千卡|大卡|kj|千焦)?/i);if(m)return {value:+m[2],unit:(m[1]||m[3]||"kcal").toLowerCase()};m=s.match(/([0-9]+(?:\.[0-9]+)?)\s*(kcal|千卡|大卡|kj|千焦)\b/i);return m?{value:+m[1],unit:m[2].toLowerCase()}:null}
+function inferNutritionName(text){let first=cleanNutritionPaste(text).split(/[｜|\n,，;；]/)[0].trim();first=first.replace(/^[\-•·]\s*/,"").replace(/(?:热量|能量|calories?).*$/i,"").replace(/\s*[0-9]+(?:\.[0-9]+)?\s*(?:kcal|千卡|大卡|kj|千焦)\s*$/i,"").replace(/[：:·\-]+$/,"").trim();if(/^(?:每\s*100|每份|营养成分|nutrition)/i.test(first))return "";return first.length<=30?first:""}
 function parseNutritionBasis(text){
  const s=cleanNutritionPaste(text);
- let m=s.match(/每\\s*100\\s*(g|克|ml|毫升)/i);
+ let m=s.match(/每\s*100\s*(g|克|ml|毫升)/i);
  if(m){const volume=/ml|毫升/i.test(m[1]);return {type:volume?"100ml":"100g",size:100,unit:volume?"ml":"g",label:volume?"每100ml":"每100g"}}
- m=s.match(/每\\s*(?:1\\s*)?份(?:\\s*[（(]?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(g|克|ml|毫升)\\s*[）)]?)?/i);
+ m=s.match(/每\s*(?:1\s*)?份(?:\s*[（(]?\s*([0-9]+(?:\.[0-9]+)?)\s*(g|克|ml|毫升)\s*[）)]?)?/i);
  if(m){const unit=m[2]?(/ml|毫升/i.test(m[2])?"ml":"g"):null;return {type:"serving",size:m[1]?+m[1]:null,unit,label:m[1]?"每份"+m[1]+(unit==="ml"?"ml":"g"):"每份"}}
- m=s.match(/每\\s*(?:1\\s*)?(包|包装|袋|瓶|盒|杯)/);
+ m=s.match(/每\s*(?:1\s*)?(包|包装|袋|瓶|盒|杯)/);
  if(m)return {type:"serving",size:null,unit:null,label:"每"+m[1]};
  return {type:"total",size:null,unit:null,label:"本次总量"}
 }
 function parseNetAmount(text){
- const s=cleanNutritionPaste(text),m=s.match(/净含量\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(g|克|ml|毫升)/i);
+ const s=cleanNutritionPaste(text),m=s.match(/净含量\s*[:：]?\s*([0-9]+(?:\.[0-9]+)?)\s*(g|克|ml|毫升)/i);
  if(!m)return null;return {value:+m[1],unit:/ml|毫升/i.test(m[2])?"ml":"g",label:"净含量"+m[1]+(/ml|毫升/i.test(m[2])?"ml":"g")}
 }
 function parseConsumedAmount(text){
  const s=cleanNutritionPaste(text);
- let m=s.match(/(?:实际(?:食用|吃了|吃|喝了|喝)|食用量|摄入量|本次(?:食用|吃了|吃|喝了|喝)|已(?:食用|吃了|喝了)|吃了|喝了)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(g|克|ml|毫升|份|包|袋|瓶|盒|杯)/i);
+ let m=s.match(/(?:实际(?:食用|吃了|吃|喝了|喝)|食用量|摄入量|本次(?:食用|吃了|吃|喝了|喝)|已(?:食用|吃了|喝了)|吃了|喝了)\s*[:：]?\s*([0-9]+(?:\.[0-9]+)?)\s*(g|克|ml|毫升|份|包|袋|瓶|盒|杯)/i);
  if(m){const raw=m[2],unit=/g|克/i.test(raw)?"g":/ml|毫升/i.test(raw)?"ml":"serving";return {value:+m[1],unit,label:"实际"+m[1]+(unit==="g"?"g":unit==="ml"?"ml":"份")}}
- m=s.match(/(?:吃|喝|食用|摄入)\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(份|包|袋|瓶|盒|杯)/i);
+ m=s.match(/(?:吃|喝|食用|摄入)\s*([0-9]+(?:\.[0-9]+)?)\s*(份|包|袋|瓶|盒|杯)/i);
  if(m)return {value:+m[1],unit:"serving",label:"实际"+m[1]+"份"};
  const whole=/(?:整包|整袋|整瓶|整盒|全部|全吃完|吃完(?:一整)?(?:包|袋|盒)?|喝完(?:一整)?(?:瓶|盒)?)/.test(s),net=parseNetAmount(s);
  if(whole&&net)return {value:net.value,unit:net.unit,label:"整包装"+net.value+(net.unit==="ml"?"ml":"g")};
