@@ -167,7 +167,7 @@ const coachLoads={
  incline:{base:12,inc:2,unit:"每手 kg",round:1},
  fly:{base:8,inc:1,unit:"每手 kg",round:1}
 };
-function localDate(d=new Date()){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}function shiftDate(ds,days){const d=new Date(ds+"T12:00:00");d.setDate(d.getDate()+days);return localDate(d)}
+function localDate(d=new Date()){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}function shiftDate(ds,days){const d=new Date(ds+"T12:00:00");d.setDate(d.getDate()+days);return localDate(d)}function totalsForDate(ds){let arr=[];try{arr=JSON.parse(localStorage.getItem("ckMeals-"+ds)||"[]")}catch(e){}return {count:arr.length,kcal:arr.reduce((a,x)=>a+(+x.kcal||0),0)}}
 const key="ckMeals-"+localDate();let meals=JSON.parse(localStorage.getItem(key)||"[]"),pending=null;
 const trainKey="ckTrain-"+localDate();let trainDone=localStorage.getItem(trainKey)==="1";const exerciseDoneKey="ckExerciseDone-"+localDate();let exerciseDone=JSON.parse(localStorage.getItem(exerciseDoneKey)||"{}");
 let weights=JSON.parse(localStorage.getItem("ckWeights")||"[]");
