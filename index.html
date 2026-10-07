@@ -270,12 +270,12 @@ function kcalFoodReference(remainKcal,k,p,cg,ft){
 }
 function renderDailyCoachTip(k,p,cg,ft){
  const social=meals.find(x=>x.social),idx=trainingIndex(),plan=planTemplates[idx],planName=plan?plan[1]:"今日训练",strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx),rest=[3,6].includes(idx),done=!!trainDone;
- const kcalLeft=Math.max(0,target-k),proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),over=Math.max(0,k-target),poor=recovery.state==="poor",pain=!!recovery.painArea,b=basicsForDate(localDate()),sleepLow=validSleep(b.sleep)&&+b.sleep<7.5,tail=todayBasicsTail();
+ const kcalLeft=Math.max(0,target-k),proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),over=Math.max(0,k-target),poor=recovery.state==="poor",pain=!!recovery.painArea,sleepGuard=sleepLoadGuard(),tail=todayBasicsTail();
  const finish=(title,text)=>{todayCoachTitle.textContent=title;todayCoachText.textContent=text+tail};
  const numbers=()=>{let x=[];if(k<=target)x.push("还剩约 "+Math.round(kcalLeft)+" kcal");if(proteinLeft>0)x.push("蛋白质还差约 "+Math.round(proteinLeft)+"g");if(ft<60)x.push("脂肪还差约 "+Math.round(fatLeft)+"g");return x.slice(0,2).join("，")};
  if(social){finish("今天已记录聚餐估算",over>0?"当前总摄入约 "+Math.round(k)+" kcal，约超出目标 "+Math.round(over)+" kcal。聚餐宏量不够精确，后续不要为了凑蛋白质或其他宏量继续硬吃，也不用补偿性加练。":"当前总摄入约 "+Math.round(k)+" kcal，距离目标还约 "+Math.round(kcalLeft)+" kcal。聚餐宏量不够精确，后续按饥饿程度正常安排，不追着宏量数字硬补。");return}
  if(over>0){finish("今天先把总热量收住",proteinLeft>25?"目前约超出 "+Math.round(over)+" kcal，但蛋白质还差约 "+Math.round(proteinLeft)+"g。后续如果还需要进食，优先低脂高蛋白和蔬菜，不再追加高油主食；不要靠加练补偿。":"目前约超出 "+Math.round(over)+" kcal，蛋白质已经接近目标。后续不用为了凑宏量继续吃，也不要靠额外有氧补偿，明天重新按 "+target+" kcal 目标开始。");return}
- if(sleepLow){finish(planName+" · 今天优先恢复",(strength&&!done?"睡眠低于7.5小时目标，今天力量训练按计划完成但不追求加量；":"睡眠低于7.5小时目标，今天不额外增加训练量；")+(proteinLeft>0?"蛋白质仍尽量做到约 "+pt+"g。":"蛋白质已基本够。"));return}
+ if(sleepGuard.suppress){finish(planName+" · 今天优先恢复",(strength&&!done?sleepGuard.reason+"；力量训练按计划完成但不追求加量。":sleepGuard.reason+"。")+(proteinLeft>0?"蛋白质仍尽量做到约 "+pt+"g。":"蛋白质已基本够。"));return}
  if(poor){finish(planName+" · 今天优先恢复",(strength?"力量日仍按计划下调执行；":"今天不额外加码；")+"不要因为状态差再主动砍热量。"+(proteinLeft>0?"先把蛋白质补到约 "+pt+"g；":"蛋白质已基本够；")+(strength&&!done?"训练前后正常安排主食，避免空着碳水硬练。":"总热量继续控制在目标附近。"));return}
  if(pain&&strength){finish(planName+" · 营养照常，动作按疼痛调整","疼痛状态不需要靠额外热量或补剂“顶过去”。"+(proteinLeft>0?"今天仍优先补齐约 "+Math.round(proteinLeft)+"g 蛋白质；":"蛋白质已基本达标；")+"总热量按原目标，受影响动作按训练页提示处理。");return}
  if(strength){
