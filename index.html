@@ -245,9 +245,8 @@ function renderDailyCoachTip(k,p,cg,ft){
  const kcalLeft=Math.max(0,target-k),proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),over=Math.max(0,k-target),poor=recovery.state==="poor",pain=!!recovery.painArea;
  const numbers=()=>{let x=[];if(k<=target)x.push("还剩约 "+Math.round(kcalLeft)+" kcal");if(proteinLeft>0)x.push("蛋白质还差约 "+Math.round(proteinLeft)+"g");if(ft<60)x.push("脂肪还差约 "+Math.round(fatLeft)+"g");return x.slice(0,2).join("，")};
  if(social){
-   const st=totalsForDate(localDate()),remainSocial=Math.max(0,target-st.kcal);
    todayCoachTitle.textContent="今天已记录聚餐估算";
-   todayCoachText.textContent=st.socialExcess>0?"当前总摄入约 "+Math.round(st.kcal)+" kcal，约超出目标 "+Math.round(st.socialExcess)+" kcal。聚餐宏量不够精确，后续不要为了凑蛋白质或其他宏量继续硬吃，也不用补偿性加练。":"当前总摄入约 "+Math.round(st.kcal)+" kcal，距离目标还约 "+Math.round(remainSocial)+" kcal。聚餐宏量不够精确，后续按饥饿程度正常安排，不追着宏量数字硬补。";
+   todayCoachText.textContent=over>0?"当前总摄入约 "+Math.round(k)+" kcal，约超出目标 "+Math.round(over)+" kcal。聚餐宏量不够精确，后续不要为了凑蛋白质或其他宏量继续硬吃，也不用补偿性加练。":"当前总摄入约 "+Math.round(k)+" kcal，距离目标还约 "+Math.round(kcalLeft)+" kcal。聚餐宏量不够精确，后续按饥饿程度正常安排，不追着宏量数字硬补。";
    return
  }
  if(over>0){
