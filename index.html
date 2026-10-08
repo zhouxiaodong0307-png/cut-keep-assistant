@@ -119,7 +119,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261008-cardio-record-39",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261008-release-audit-40",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -242,7 +242,7 @@ function todayBasicsTail(){
  return parts.length?" 恢复基础："+parts.join("；")+"。":""
 }
 const WATER_SERVINGS=6,WATER_PER_L=.45,WATER_TARGET_L=WATER_SERVINGS*WATER_PER_L;
-function waterCountFor(b){if(Number.isInteger(+b.waterCount)&&+b.waterCount>=0)return Math.min(WATER_SERVINGS,+b.waterCount);if(validWater(b.water))return Math.min(WATER_SERVINGS,Math.max(0,Math.round(+b.water/WATER_PER_L)));return 0}
+function waterCountFor(b){if(b.waterCount!==null&&b.waterCount!==undefined&&b.waterCount!==""&&Number.isInteger(+b.waterCount)&&+b.waterCount>=0)return Math.min(WATER_SERVINGS,+b.waterCount);if(validWater(b.water))return Math.min(WATER_SERVINGS,Math.max(0,Math.round(+b.water/WATER_PER_L)));return 0}
 function updateBasicsSummary(){const b=basicsForDate(localDate()),parts=[];if(validSleep(b.sleep))parts.push("睡眠 "+(+b.sleep).toFixed(1)+"h");if(validWater(b.water))parts.push("饮水 "+(+b.water).toFixed(1)+"L");basicsSummary.textContent=parts.length?parts.join(" · "):"未记录"}
 function renderWaterTracker(){const b=basicsForDate(localDate()),count=waterCountFor(b),liters=validWater(b.water)?+b.water:count*WATER_PER_L;waterProgressText.textContent=count+" / "+WATER_SERVINGS;waterProgressBars.innerHTML=Array.from({length:WATER_SERVINGS},(_,i)=>'<i class="waterDot '+(i<count?"done":"")+'"></i>').join("");waterMeta.textContent="已喝 "+Math.round(liters*1000)+" ml · 目标约 "+Math.round(WATER_TARGET_L*1000)+" ml";waterAddBtn.disabled=count>=WATER_SERVINGS;waterAddBtn.textContent=count>=WATER_SERVINGS?"今日饮水已达标 ✓":"完成一次 · +450 ml";waterUndoBtn.disabled=count<=0}
 function persistWaterCount(count){const next={...basicsForDate(localDate())},safe=Math.max(0,Math.min(WATER_SERVINGS,Math.round(count)));next.waterCount=safe;next.water=Math.round(safe*WATER_PER_L*100)/100;localStorage.setItem(basicsKey,JSON.stringify(next));recoveryBasics=next;renderWaterTracker();updateBasicsSummary();refreshNutritionGuidance();renderWeeklyReport()}

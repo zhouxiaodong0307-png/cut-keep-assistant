@@ -52,3 +52,42 @@ for(let week=1;week<=12;week++)for(let day=0;day<7;day++)for(const poor of [fals
 }
 if(errors.length){console.error(errors.slice(0,30).join('\n'));process.exitCode=1}
 else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 unique strength actions, '+cycling+' cycling variants; artwork unchanged.');
+
+
+// Release safety checks: historic water, sleep arithmetic and cycling vs recovery.
+{
+ const releaseHelpers=func('validWater','function updateBasicsSummary(');
+ const check=new Function(releaseHelpers+';return {waterCountFor,calculateSleepHours};')();
+ for(const [value,want] of [
+  [{water:2.7,waterCount:null},6],[{water:1.8},4],
+  [{water:1.35,waterCount:3},3],[{water:0,waterCount:0},0],
+  [{water:1.8,waterCount:""},4]
+ ]) if(check.waterCountFor(value)!==want)throw Error('Wrong legacy water amount: '+JSON.stringify(value));
+ if(check.calculateSleepHours('23:30','07:00')!==7.5||
+    check.calculateSleepHours('22:45','06:15')!==7.5||
+    check.calculateSleepHours('24:00','08:00')!==null)throw Error('Sleep time arithmetic changed');
+ const rideJs=func('rideStorageKey','function exerciseName(');
+ function mockRide(day){
+  const memo=new Map(),notices=[];
+  const harness='const localStorage={getItem:k=>memo.has(k)?memo.get(k):null,setItem:(k,v)=>memo.set(k,String(v)),removeItem:k=>memo.delete(k)};'+
+   'const localDate=()=>"2026-10-08",trainKey="ckTrain-2026-10-08";'+
+   'const safeJsonParse=(v,f)=>{try{return v?JSON.parse(v):f}catch(e){return f}};'+
+   'let trainDone=false,recovery={state:"ok"};'+
+   'const planKind=idx=>[0,2,4].includes(idx)?"strength":[1,5].includes(idx)?"cardio":"rest",trainingIndex=()=>DAY;'+
+   'const document={getElementById:k=>({value:k==="rideMinutes"?"47":"4"})};'+
+   'const alert=s=>notices.push(s),renderTraining=()=>{},refreshNutritionGuidance=()=>{};';
+  return new Function('memo','notices','DAY',harness+rideJs+'return {saveTodayRide,undoTodayRide,storedRide,restDayHtml,cardioDayHtml,getDone:()=>trainDone};')(memo,notices,day);
+ }
+ for(let day=0;day<7;day++){
+  const p=mockRide(day);
+  p.saveTodayRide();
+  if(day===1||day===5){
+   const r=p.storedRide();
+   if(!p.getDone()||r?.minutes!==47||r?.rpe!==4)throw Error('Ride save failed on day '+(day+1));
+   p.undoTodayRide();if(p.getDone()||p.storedRide())throw Error('Ride undo failed on day '+(day+1));
+  }else if(p.getDone()||p.storedRide())throw Error('Non-ride day incorrectly marked: '+(day+1));
+  if((day===3||day===6)&&!p.restDayHtml(["优先恢复"]).includes("无需打卡"))
+   throw Error('Recovery day requires unwanted checklist');
+ }
+ console.log('PASS: legacy hydration, overnight sleep and all 7 cycling/recovery/strength day routes.');
+}
