@@ -1,0 +1,21 @@
+name: package-v29
+on:
+  push:
+    branches:
+      - package-v29-20261008
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cut-keep-assistant-v29
+          path: |
+            index.html
+            package.json
+            server.js
+          if-no-files-found: error
+          retention-days: 7
