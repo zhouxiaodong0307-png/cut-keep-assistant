@@ -87,8 +87,8 @@ input,select{font-size:16px!important}
 .nav button[data-view="progress"].active{color:#45725a;background:#eef7f1}
 
 /* 独立解剖插画图集：图片文件部署在本项目，无外链；保留训练卡片布局 */
-.anatomyThumb{display:block;width:33px;height:33px;flex:none;border-radius:6px;background-image:url("./assets/anatomy-thumbnails.webp");background-size:700% 200%;background-repeat:no-repeat;background-color:#fff}
-.anatomyScene{width:100%;max-width:380px;aspect-ratio:2/3;margin:0 auto;background-image:url("./assets/anatomy-guides.webp");background-size:200% 700%;background-repeat:no-repeat;background-color:#fff}
+.anatomyThumb{display:block;width:33px;height:33px;flex:none;border-radius:6px;background-image:url("./assets/anatomy-thumbnails.webp?v=20261008-male-anatomy-37");background-size:700% 200%;background-repeat:no-repeat;background-color:#fff}
+.anatomyScene{width:100%;max-width:380px;aspect-ratio:2/3;margin:0 auto;background-image:url("./assets/anatomy-guides.webp?v=20261008-male-anatomy-37");background-size:200% 700%;background-repeat:no-repeat;background-color:#fff}
 .exerciseGuideVisual{background:#fff}
 .guideBtn.active .anatomyThumb{background-color:#fff}
 @media(max-width:430px){.guideBtn .anatomyThumb{width:31px;height:31px}}
@@ -109,7 +109,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261008-coach-card-36",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261008-male-anatomy-37",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
