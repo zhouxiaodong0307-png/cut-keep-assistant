@@ -1,0 +1,25 @@
+name: Verify training illustration mappings
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - assets/**
+      - scripts/verify-exercise-guides.cjs
+      - .github/workflows/verify-exercise-guides.yml
+  pull_request:
+    paths:
+      - index.html
+      - assets/**
+      - scripts/verify-exercise-guides.cjs
+      - .github/workflows/verify-exercise-guides.yml
+jobs:
+  exercise-guide-match:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit 12 weeks and all 7 days against exact anatomy sprite panels
+        run: node scripts/verify-exercise-guides.cjs
