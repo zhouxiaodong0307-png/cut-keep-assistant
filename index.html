@@ -109,7 +109,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261008-male-anatomy-37",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261008-guide-dedupe-38",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -480,7 +480,7 @@ function guideSvg(name,compact=false){
 function toggleExerciseGuide(name){openExerciseGuide=openExerciseGuide===name?"":name;renderTraining()}
 function exerciseGuideHtml(name){
  const g=exerciseGuides[name];if(!g||openExerciseGuide!==name)return "";
- return '<div class="exerciseGuide"><div class="exerciseGuideVisual">'+guideSvg(name,false)+'</div><div class="exerciseGuideMeta"><div class="exerciseGuideBox"><small>主要训练</small><b>'+g.muscle+'</b></div><div class="exerciseGuideBox"><small>标准动作</small><b>'+g.steps+'</b></div></div><div class="exerciseGuideCue">口诀：'+g.cue+'</div><div class="exerciseGuideBox" style="margin-top:8px"><small>常见错误</small><b>'+g.mistake+'</b></div></div>';
+ return '<div class="exerciseGuide"><div class="exerciseGuideVisual">'+guideSvg(name,false)+'</div><div class="exerciseGuideCue">口诀：'+g.cue+'</div><div class="exerciseGuideBox" style="margin-top:8px"><small>常见错误</small><b>'+g.mistake+'</b></div></div>';
 }
 
 function exerciseName(a){return a.split("｜")[0]}
