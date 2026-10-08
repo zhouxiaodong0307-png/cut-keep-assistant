@@ -85,6 +85,13 @@ input,select{font-size:16px!important}
 .nav button[data-view="diet"].active{color:#a85f21;background:#fff3e6}
 .nav button[data-view="training"].active{color:#315f88;background:#eef5fb}
 .nav button[data-view="progress"].active{color:#45725a;background:#eef7f1}
+
+/* 独立解剖插画图集：图片文件部署在本项目，无外链；保留训练卡片布局 */
+.anatomyThumb{display:block;width:33px;height:33px;flex:none;border-radius:6px;background-image:url("./assets/anatomy-thumbnails.webp");background-size:700% 200%;background-repeat:no-repeat;background-color:#fff}
+.anatomyScene{width:100%;max-width:380px;aspect-ratio:2/3;margin:0 auto;background-image:url("./assets/anatomy-guides.webp");background-size:200% 700%;background-repeat:no-repeat;background-color:#fff}
+.exerciseGuideVisual{background:#fff}
+.guideBtn.active .anatomyThumb{background-color:#fff}
+@media(max-width:430px){.guideBtn .anatomyThumb{width:31px;height:31px}}
 </style></head><body><main class="app">
 <section class="view active" id="view-today"><span class="date" id="dateLabel"></span><h1>今天</h1>
 <section class="hero"><div class="muted" id="remainLabel">今天还可以吃</div><div class="big"><span id="remain">2250</span><small style="font-size:23px;color:#aaa"> kcal</small></div><div class="kcalHint" id="kcalHint">热量参照：—</div><div class="bar"><i id="progress"></i></div><div class="stats"><div class="stat"><span class="muted">已摄入</span><b><span id="eaten">0</span> kcal</b></div><div class="stat"><span class="muted" id="proteinLeftLabel">蛋白质还差</span><b><span id="proteinLeft">155</span> g</b></div></div></section><div class="goalStrip"><div class="goalPill"><small>每日步数</small><b id="stepGoalText">6,500–7,500</b></div><div class="goalPill"><small>蛋白质</small><b><span id="goalProtein">155</span> g</b></div><div class="goalPill"><small>目标降重</small><b>0.4–0.6 kg/周</b></div></div>
@@ -102,7 +109,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261008-form-guide-34",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261008-anatomy-35",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -453,93 +460,22 @@ const exerciseGuides={
  "平板哑铃飞鸟":{pose:"fly",muscle:"胸大肌 · 前束稳定",cue:"肘保持微弯，像抱大树一样开合，不追求过深下放。",steps:"肩胛稳定；双臂弧形打开；胸部拉伸后沿原路线合回。",mistake:"手肘伸直锁死 / 下放过深 / 用推举代替飞鸟"}
 };
 let openExerciseGuide="";
+const GUIDE_ATLAS={
+ squat:[0,0],split:[0,1],chestpress:[1,0],row:[1,1],
+ rdl:[2,0],legcurl:[2,1],pulldown:[3,0],facepull:[3,1],
+ pallof:[4,0],deadbug:[4,1],plank:[5,0],bench:[5,1],
+ incline:[6,0],fly:[6,1]
+};
 function guideSvg(name,compact=false){
- const g=exerciseGuides[name];if(!g)return "";
- const skin="#dbe4e9",edge="#526a79",accent="#d45155",equip="#7f919c",floor="#d9e0e4";
- const seg=(x1,y1,x2,y2,w=12)=>{
-  const dx=x2-x1,dy=y2-y1,len=Math.max(1,Math.hypot(dx,dy)),nx=-dy/len,ny=dx/len;
-  const p=(x,y,r,k)=>(x+nx*r*k).toFixed(1)+" "+(y+ny*r*k).toFixed(1);
-  const r1=w*.60,r2=w*.42;
-  return '<path d="M'+p(x1,y1,r1,1)+' L'+p(x2,y2,r2,1)+' Q'+x2+' '+y2+' '+p(x2,y2,r2,-1)+' L'+p(x1,y1,r1,-1)+' Q'+x1+' '+y1+' '+p(x1,y1,r1,1)+' Z" fill="'+skin+'" stroke="'+edge+'" stroke-width="1.65" stroke-linejoin="round"/>';
- };
- const torso=(x1,y1,x2,y2,w=25)=>{
-  const dx=x2-x1,dy=y2-y1,len=Math.max(1,Math.hypot(dx,dy)),nx=-dy/len,ny=dx/len;
-  const P=(x,y,r)=>(x+nx*r).toFixed(1)+" "+(y+ny*r).toFixed(1);
-  return '<path d="M'+P(x1,y1,w*.57)+' Q'+P((x1+x2)/2,(y1+y2)/2,w*.55)+' '+P(x2,y2,w*.40)+' Q'+x2+' '+y2+' '+P(x2,y2,-w*.40)+' Q'+P((x1+x2)/2,(y1+y2)/2,-w*.55)+' '+P(x1,y1,-w*.57)+' Z" fill="'+skin+'" stroke="'+edge+'" stroke-width="2"/>';
- };
- const head=(x,y,r=10)=>'<ellipse cx="'+x+'" cy="'+y+'" rx="'+r+'" ry="'+(r*1.14)+'" fill="'+skin+'" stroke="'+edge+'" stroke-width="2"/><circle cx="'+(x+5)+'" cy="'+(y-1)+'" r="1.3" fill="'+edge+'"/>';
- const joint=(x,y,r=4)=>'<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+skin+'" stroke="'+edge+'" stroke-width="1.5"/>';
- const line=(x1,y1,x2,y2,w=4,col=equip)=>'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round"/>';
- const rect=(x,y,w,h)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="4" fill="#eef2f4" stroke="'+equip+'" stroke-width="2"/>';
- const bar=(x1,y,x2)=>line(x1,y,x2,y,5,edge)+line(x1,y-7,x1,y+7,3,edge)+line(x2,y-7,x2,y+7,3,edge);
- const target=(x,y,rx,ry)=>'<ellipse cx="'+x+'" cy="'+y+'" rx="'+rx+'" ry="'+ry+'" fill="'+accent+'" opacity=".82"/>';
- const ground=(x1,x2,y=145)=>line(x1,y,x2,y,2,floor);
- const arrow='<path d="M166 78h28m-9-9 9 9-9 9" fill="none" stroke="#91a2ad" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
- const frame=(ox,stage)=>{
-  const X=v=>ox+v;
-  let s="";
-  if(g.pose==="squat"){
-   s+=ground(X(5),X(125)); s+=bar(X(31),stage===0?47:69,X(99));
-   if(stage===0){s+=head(X(65),45)+torso(X(65),58,X(65),88)+seg(X(55),62,X(38),34,10)+seg(X(75),62,X(92),34,10)+seg(X(58),91,X(49),124,13)+seg(X(72),91,X(82),124,13)+joint(X(49),124)+joint(X(82),124)+target(X(58),96,8,17)+target(X(72),96,8,17)}
-   else{s+=head(X(65),51)+torso(X(65),63,X(61),91)+seg(X(55),67,X(38),36,10)+seg(X(75),67,X(92),36,10)+seg(X(57),92,X(38),111,13)+seg(X(38),111,X(27),137,12)+seg(X(68),92,X(91),111,13)+seg(X(91),111,X(103),137,12)+target(X(48),104,11,11)+target(X(79),104,11,11)}
-  } else if(g.pose==="split"){
-   s+=ground(X(4),X(126));s+=rect(X(88),118,38,10);s+=line(X(94),128,X(94),143,3,equip);
-   if(stage===0){s+=head(X(57),37)+torso(X(57),50,X(57),83)+seg(X(50),56,X(37),73,10)+seg(X(64),56,X(77),73,10)+seg(X(53),85,X(39),113,13)+seg(X(39),113,X(31),140,12)+seg(X(62),85,X(89),108,13)+seg(X(89),108,X(105),118,12)+target(X(49),92,10,15)}
-   else{s+=head(X(57),47)+torso(X(57),60,X(56),91)+seg(X(49),66,X(37),83,10)+seg(X(64),66,X(76),83,10)+seg(X(52),93,X(33),112,13)+seg(X(33),112,X(25),140,12)+seg(X(62),93,X(87),111,13)+seg(X(87),111,X(104),118,12)+target(X(44),102,11,13)}
-  } else if(g.pose==="pulldown"){
-   s+=rect(X(38),123,54,8);s+=line(X(110),10,X(110),139,3,equip);s+=line(X(65),10,X(110),10,3,equip);s+=line(X(65),10,X(65),stage===0?25:48,2,equip);s+=bar(X(25),stage===0?25:48,X(105));
-   s+=head(X(65),49)+torso(X(65),62,X(65),101)+seg(X(58),102,X(49),126,12)+seg(X(72),102,X(81),126,12)+target(X(65),76,13,18);
-   if(stage===0){s+=seg(X(55),68,X(35),31,10)+seg(X(75),68,X(95),31,10)}
-   else{s+=seg(X(55),69,X(39),58,10)+seg(X(39),58,X(34),48,9)+seg(X(75),69,X(91),58,10)+seg(X(91),58,X(96),48,9)}
-  } else if(g.pose==="row"){
-   s+=rect(X(19),124,64,8);s+=line(X(111),64,X(135),64,3,equip);s+=line(X(135),64,X(135),134,3,equip);
-   s+=head(X(48),54)+torso(X(48),67,X(48),103)+seg(X(43),104,X(32),128,12)+seg(X(54),104,X(69),128,12)+target(X(47),79,12,16);
-   if(stage===0){s+=seg(X(55),76,X(81),66,10)+seg(X(81),66,X(108),65,9)}
-   else{s+=seg(X(55),76,X(70),72,10)+seg(X(70),72,X(83),65,9)}
-  } else if(g.pose==="rdl"){
-   s+=ground(X(4),X(126));
-   if(stage===0){s+=head(X(65),35)+torso(X(65),48,X(65),83)+seg(X(57),57,X(45),91,10)+seg(X(73),57,X(85),91,10)+bar(X(39),94,X(91))+seg(X(59),84,X(50),126,13)+seg(X(71),84,X(80),126,13)+target(X(57),96,9,17)+target(X(73),96,9,17)}
-   else{s+=head(X(84),50)+torso(X(77),61,X(61),88)+seg(X(73),68,X(62),101,10)+seg(X(86),70,X(89),101,10)+bar(X(56),104,X(99))+seg(X(58),90,X(48),127,13)+seg(X(67),90,X(78),127,13)+target(X(55),99,9,15)+target(X(67),99,9,15)}
-  } else if(g.pose==="legcurl"){
-   s+=rect(X(16),88,90,9); s+=head(X(26),78)+torso(X(38),81,X(75),90,22)+seg(X(49),86,X(32),105,9)+target(X(77),94,12,8);
-   if(stage===0){s+=seg(X(75),91,X(103),96,13)+seg(X(103),96,X(119),124,12)}
-   else{s+=seg(X(75),91,X(98),101,13)+seg(X(98),101,X(89),66,12)}
-  } else if(g.pose==="facepull"){
-   s+=ground(X(5),X(125));s+=line(X(8),65,X(25),65,4,equip);s+=line(X(8),65,X(8),140,3,equip);s+=head(X(67),45)+torso(X(67),58,X(67),93)+seg(X(62),94,X(53),132,13)+seg(X(72),94,X(82),132,13)+target(X(67),64,17,8);
-   if(stage===0){s+=seg(X(58),67,X(38),64,10)+seg(X(38),64,X(25),65,9)}
-   else{s+=seg(X(58),68,X(45),56,10)+seg(X(45),56,X(34),50,9)+seg(X(76),68,X(88),56,10)+seg(X(88),56,X(98),51,9)}
-  } else if(g.pose==="pallof"){
-   s+=ground(X(5),X(125));s+=line(X(7),72,X(27),72,4,equip);s+=line(X(7),72,X(7),139,3,equip);s+=head(X(63),40)+torso(X(63),53,X(63),92)+seg(X(58),94,X(49),132,13)+seg(X(68),94,X(77),132,13)+target(X(63),72,11,16);
-   if(stage===0){s+=seg(X(56),67,X(43),72,10)+seg(X(70),67,X(43),72,10)}
-   else{s+=seg(X(56),67,X(83),72,10)+seg(X(70),67,X(83),72,10)}
-  } else if(g.pose==="deadbug"){
-   s+=ground(X(5),X(125),120);s+=head(X(22),103)+torso(X(37),100,X(72),99,20)+target(X(53),98,15,8);
-   if(stage===0){s+=seg(X(48),95,X(45),58,10)+seg(X(63),95,X(82),67,10)+seg(X(69),101,X(82),73,12)+seg(X(69),101,X(99),101,12)}
-   else{s+=seg(X(48),95,X(27),68,10)+seg(X(63),95,X(91),119,10)+seg(X(69),101,X(81),68,12)+seg(X(69),101,X(104),101,12)}
-  } else if(g.pose==="plank"){
-   s+=ground(X(5),X(125),132);s+=head(X(22),83)+torso(X(38),86,X(82),94,22)+seg(X(42),91,X(27),118,11)+seg(X(27),118,X(50),118,9)+seg(X(82),95,X(108),112,13)+seg(X(108),112,X(120),126,11)+target(X(59),91,16,8)
-  } else if(g.pose==="chestpress"){
-   s+=rect(X(29),61,11,65);s+=rect(X(24),119,58,9);s+=head(X(52),49)+torso(X(52),62,X(52),98)+seg(X(47),100,X(41),123,12)+seg(X(57),100,X(72),123,12)+target(X(52),70,14,8);
-   if(stage===0){s+=seg(X(45),72,X(64),75,10)+seg(X(64),75,X(83),73,9)+seg(X(59),72,X(75),78,10)}
-   else{s+=seg(X(45),72,X(83),72,10)+seg(X(59),72,X(97),72,10)}
-  } else if(g.pose==="bench"||g.pose==="fly"){
-   s+=rect(X(15),105,94,9);s+=head(X(27),93)+torso(X(39),95,X(77),104,21)+seg(X(75),104,X(91),128,12)+seg(X(91),128,X(111),137,10)+target(X(57),98,14,7);
-   if(g.pose==="fly"){
-    if(stage===0){s+=seg(X(50),94,X(30),66,10)+seg(X(64),98,X(93),67,10)+bar(X(23),66,X(37))+bar(X(86),67,X(100))}
-    else{s+=seg(X(50),94,X(57),61,10)+seg(X(64),98,X(68),61,10)+bar(X(50),61,X(64))+bar(X(61),61,X(75))}
-   }else{
-    if(stage===0){s+=seg(X(50),94,X(43),77,10)+seg(X(43),77,X(53),66,9)+seg(X(65),98,X(76),80,10)+seg(X(76),80,X(67),67,9)+bar(X(46),63,X(74))}
-    else{s+=seg(X(50),94,X(53),59,10)+seg(X(65),98,X(68),59,10)+bar(X(45),53,X(76))}
-   }
-  } else if(g.pose==="incline"){
-   s+=line(X(18),116,X(85),75,9,equip);s+=line(X(25),120,X(34),138,5,equip);s+=head(X(39),84)+torso(X(49),88,X(76),74,21)+seg(X(75),75,X(91),111,12)+seg(X(91),111,X(106),131,10)+target(X(58),84,12,7);
-   if(stage===0){s+=seg(X(55),85,X(48),66,10)+seg(X(48),66,X(58),57,9)+seg(X(67),80,X(77),63,10)+bar(X(51),57,X(64))+bar(X(71),58,X(83))}
-   else{s+=seg(X(55),85,X(56),50,10)+seg(X(67),80,X(69),47,10)+bar(X(50),50,X(62))+bar(X(63),47,X(75))}
-  }
-  return s;
- };
- if(compact)return '<svg viewBox="0 9 145 140" role="img" aria-label="'+name+'独立动作缩略图">'+frame(5,1)+'</svg>';
- return '<svg viewBox="0 0 350 160" role="img" aria-label="'+name+'标准人形起始与结束动作示意"><text x="70" y="17" text-anchor="middle" font-size="12" font-weight="700" fill="#6f808b">起始姿势</text><text x="280" y="17" text-anchor="middle" font-size="12" font-weight="700" fill="#6f808b">结束姿势</text>'+frame(5,0)+arrow+frame(215,1)+'</svg>';
+ const g=exerciseGuides[name],cell=g&&GUIDE_ATLAS[g.pose];
+ if(!cell)return "";
+ const row=cell[0],side=cell[1];
+ if(compact){
+  const x=(row*100/6).toFixed(4)+"%",y=side?"100%":"0%";
+  return '<span class="anatomyThumb" role="img" aria-label="'+name+'解剖示范缩略图" style="background-position:'+x+' '+y+'"></span>';
+ }
+ const x=side?"100%":"0%",y=(row*100/6).toFixed(4)+"%";
+ return '<div class="anatomyScene" role="img" aria-label="'+name+'起始与结束姿势、主要发力肌群解剖示意图" style="background-position:'+x+' '+y+'"></div>';
 }
 function toggleExerciseGuide(name){openExerciseGuide=openExerciseGuide===name?"":name;renderTraining()}
 function exerciseGuideHtml(name){
