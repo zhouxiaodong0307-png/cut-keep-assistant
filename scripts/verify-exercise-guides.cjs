@@ -27,7 +27,7 @@ const code=[
  'const localStorage={getItem:()=>null,setItem:()=>{}},exerciseDone={};let trainDone=false;',
  'const localDate=()=>"2026-10-08",shiftDate=()=>localDate(),adaptiveRule=()=>({});',
  'const weightTrendRule=()=>({extraMinutes:extra,suppressExtra:false}),recovery={state:poor?"poor":"ok"},recoveryRule=()=>({suppressExtra:false});',
- func('resolveExercise','function weightTrendRule'),
+ sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length),
  func('currentPlansBase','function adaptiveRule'),
  func('currentPlans','function planAffectedByPain'),
  func('guideSvg','function toggleExerciseGuide'),
@@ -147,7 +147,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const n=[...html.matchAll(/^ \w+:\{base:[^\n]+/gm)].map(m=>m[0].split(':')[0].trim());
  if(n.length!==13||new Set(n).size!==13)throw Error('Expected 13 independent load slots');
  if(!html.includes('通用参考起点 · 尚未校准'))throw Error('Unknown loads must not look personalized');
- if(!html.includes('function loadReferenceEditorHtml(')||!html.includes('function saveReferenceLoad('))throw Error('Optional override missing');
+ if(!html.includes('function trainingReferenceEditorHtml(')||!html.includes('function saveTrainingReference(')||!html.includes('function saveReferenceLoad('))throw Error('Optional volume and load overrides missing');
  if(!html.includes('function compoundWarmupHint('))throw Error('Compound warmup mapping missing');
  if(!html.includes('<option value="ankle">踝部疼痛</option>')||!html.includes('ankle:["深蹲","保加利亚"]'))throw Error('Ankle pain must affect relevant exercises');
  if(!html.includes('Number(loadOverrides[fb.key])!==Number(fb.next)'))throw Error('Recovery replay must respect manual reference');
@@ -166,7 +166,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const override={bench:45},today={};
  const editor=new Function('localStorage','coachLoads','loadOverrides','sessionLoads','phaseWeek','coachWeight','roundTo','benchWarmupHint',
   'exerciseDone','exerciseFeedback','sessionLoadKey','renderTraining','document','alert','workingWeight','validCoachWeight',
-  helperCode+'return {compoundWarmupHint,loadSourceLabel,saveReferenceLoad,toggleLoadEditor,loadReferenceEditorHtml};');
+  helperCode+'return {compoundWarmupHint,loadSourceLabel,saveReferenceLoad,toggleLoadEditor,trainingReferenceEditorHtml};');
  const plan={bench:{base:45,round:2.5,unit:'kg'},squatA:{base:40,round:2.5,unit:'kg'},split:{base:8,round:1,unit:'每手 kg'}};
  const ui=editor(localStorage,plan,override,today,()=>1,k=>k==='bench'?45:k==='squatA'?60:8,
   (v,n)=>Math.round(v/n)*n,()=>'',{}, {},'ckSessionLoads-2026-10-10',()=>{},
@@ -194,19 +194,19 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  }
  const rowSrc=sect('function exerciseHtml(a,i,interactive=false){','function completeAllExercises(){').slice(0,-'function completeAllExercises(){'.length);
  const row=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
-  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule',
+  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml',
   rowSrc+'return exerciseHtml;')(
   {'杠铃卧推':true},{'杠铃卧推':{level:'good',next:45,key:'bench'}},'',()=> 'bench',()=>false,
-  {'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}));
+  {'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'' );
  const done=row('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
  if(!done.includes('exerciseRow isDone')||!done.includes('已完成 ✓')||
    !done.includes('45 kg')||!done.includes('完成反馈')||!done.includes('合适')||
    !done.includes('effortBtn active')||done.includes('finishedCompact'))
   throw Error('Completed work set must retain original full V45 card and feedback');
  const active=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
-  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule',
+  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml',
   rowSrc+'return exerciseHtml;')(
-  {},{},'',()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}))
+  {},{},'',()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'' )
   ('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
  if(active.includes('exerciseRow isDone')||!active.includes('>完成</button>')||
    active.includes('完成反馈'))throw Error('Unfinished training card changed');
@@ -297,10 +297,10 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    if(actions.length<6||actions.some(x=>/\b1组/.test(x)))throw Error('Normal week has a single-set or skeletal strength day '+i);
  }
  if(program[4][1]!=='全身力量 C（胸部主导）')throw Error('C must retain a chest-focus while training the full body');
- const initial=sect('function resolveExercise(a,isToday=true){','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
- const make=fn=>new Function('recovery','phaseWeek','stepGoalRange','coachLoads','coachWeight',
+ const initial=sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
+ const make=fn=>new Function('recovery','phaseWeek','stepGoalRange','coachLoads','coachWeight','localDate','localStorage','exerciseDone','trainingIndex',
    initial+'return resolveExercise;')({state:fn.state},()=>fn.week,()=> '6500–7500',
-   {bench:{unit:'kg'}},()=>45);
+   {bench:{unit:'kg'}},()=>45,()=> '2026-10-10',{getItem:()=>null,setItem:()=>{}},{},()=>4);
  for(const week of [1,2,3,4,8,12])for(const state of ['ok','poor']){
    const resolve=make({state,week}),base=3,sets=+resolve('杠铃卧推｜3组 × 6–8次｜推荐重量：@bench',true).match(/(\d+)组/)[1],anticipated=week%4===0||state==='poor'?2:3;
    if(sets!==anticipated)throw Error('Deload/recovery volume mismatch week '+week+' '+state+' -> '+sets);
