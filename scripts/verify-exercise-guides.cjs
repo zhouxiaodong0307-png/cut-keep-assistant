@@ -192,20 +192,20 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   if(html.includes(removed))throw Error('Unrequested training UI survived: '+removed);
  }
  const rowSrc=sect('function exerciseHtml(a,i,interactive=false){','function completeAllExercises(){').slice(0,-'function completeAllExercises(){'.length);
- const row=new Function('exerciseDone','exerciseFeedback','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
+ const row=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
   'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule',
   rowSrc+'return exerciseHtml;')(
-  {'杠铃卧推':true},{'杠铃卧推':{level:'good',next:45,key:'bench'}},()=> 'bench',()=>false,
+  {'杠铃卧推':true},{'杠铃卧推':{level:'good',next:45,key:'bench'}},'',()=> 'bench',()=>false,
   {'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}));
  const done=row('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
  if(!done.includes('exerciseRow isDone')||!done.includes('已完成 ✓')||
    !done.includes('45 kg')||!done.includes('完成反馈')||!done.includes('合适')||
    !done.includes('effortBtn active')||done.includes('finishedCompact'))
   throw Error('Completed work set must retain original full V45 card and feedback');
- const active=new Function('exerciseDone','exerciseFeedback','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
+ const active=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
   'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule',
   rowSrc+'return exerciseHtml;')(
-  {},{},()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}))
+  {},{},'',()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}))
   ('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
  if(active.includes('exerciseRow isDone')||!active.includes('>完成</button>')||
    active.includes('完成反馈'))throw Error('Unfinished training card changed');
