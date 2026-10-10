@@ -577,13 +577,14 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 /* V51: integrated real, not merely recorded, training-load decisions. */
 {
  const signalJs=sect('/* V51 recent-two-calendar-days training-load signal.','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
+ const cardioJs=sect('function cardioRecoveryKey(','function currentPlans(').slice(0,-'function currentPlans('.length);
  const newCase=(entries={},main={},rideRecords={},state='ok')=>{
    const kv=new Map([['ckTrain-2026-10-08','1'],['ckSteps-2026-10-09','7100'],['ckMeals-2026-10-09','[{"kcal":620}]']]);
    for(const [date,idx] of Object.entries(main)){kv.set('ckTrain-'+date,'1');kv.set('ckTrainPlanIndex-'+date,String(idx))}
    const localStorage={getItem:k=>kv.has(k)?kv.get(k):null,setItem:(k,v)=>kv.set(k,String(v)),removeItem:k=>kv.delete(k)};
    const shift=(date,d)=>{const t=new Date(date+'T12:00:00');t.setDate(t.getDate()+d);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
    const api=new Function('localStorage','localDate','shiftDate','trainingIndexForDate','storedRide','completedExtraActivity','readExtraActivities','sleepLoadGuard','recovery',
-      signalJs+'return {integratedTrainingLoad,integratedTrainingDecision,nextTrainingLoadAdvice,rideAffectsLowerBody};')(
+      signalJs+cardioJs+'return {integratedTrainingLoad,integratedTrainingDecision,nextTrainingLoadAdvice,rideAffectsLowerBody};')(
       localStorage,()=> '2026-10-10',shift,date=>main[date]??0,
       date=>rideRecords[date]||null,date=>(entries[date]||[]).filter(v=>v.status==='completed'),
       date=>entries[date]||[],()=>({suppress:false}),{state});
