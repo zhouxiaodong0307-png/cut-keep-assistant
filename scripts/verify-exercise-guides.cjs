@@ -538,7 +538,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 
 /* V51: integrated real, not merely recorded, training-load decisions. */
 {
- const signalJs=sect('/* V51 unified recent-two-calendar-days training-load signal.','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
+ const signalJs=sect('/* V51 recent-two-calendar-days training-load signal.','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
  const newCase=(entries={},main={},rideRecords={},state='ok')=>{
    const kv=new Map([['ckTrain-2026-10-08','1'],['ckSteps-2026-10-09','7100'],['ckMeals-2026-10-09','[{"kcal":620}]']]);
    for(const [date,idx] of Object.entries(main)){kv.set('ckTrain-'+date,'1');kv.set('ckTrainPlanIndex-'+date,String(idx))}
@@ -560,14 +560,14 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  x=newCase({'2026-10-09':[mild]});
  result=x.api.integratedTrainingLoad();
  if(!result.moderate||result.highLoad||result.totalRideMinutes!==45||
-    !x.api.nextTrainingLoadAdvice(1).includes('20–30分钟')||
+    !x.api.nextTrainingLoadAdvice(1,'2026-10-10').includes('20–30分钟')||
     x.api.integratedTrainingDecision().holdStrength)
     throw Error('Completed social ride should shorten Zone2, not penalize strength');
  x=newCase({'2026-10-09':[{...mild,minutes:90,rpe:6}]});
  result=x.api.integratedTrainingLoad();
  if(!result.highLoad||!x.api.integratedTrainingDecision().holdStrength||
-    !x.api.nextTrainingLoadAdvice(1).includes('15–25分钟')||
-    !x.api.nextTrainingLoadAdvice(2).includes('下肢相关动作建议少一组'))
+    !x.api.nextTrainingLoadAdvice(1,'2026-10-10').includes('15–25分钟')||
+    !x.api.nextTrainingLoadAdvice(2,'2026-10-10').includes('下肢相关动作建议少一组'))
     throw Error('Long hard ride did not change next cardio/strength plan');
  x=newCase({'2026-10-09':[{...mild,minutes:45,rpe:4}]},{'2026-10-09':0});
  if(!x.api.integratedTrainingLoad().highLoad||x.api.integratedTrainingLoad().strengthCount!==1)
