@@ -153,13 +153,13 @@ input,select{font-size:16px!important}
 #extraActivityPanel{padding:11px 12px 12px}
 .extraActivityHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .extraActivityHead>b{font-size:13px}.extraActivityHead>small{color:#738493;font-size:11px;text-align:right}
-.extraActivityFields{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.extraActivityFields label{display:flex;flex-direction:column;gap:5px;min-width:0;color:#687c8c;font-size:11px;font-weight:700}
+.extraActivityFields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.extraActivityFields label{display:flex;flex-direction:column;gap:5px;min-width:0;color:#687c8c;font-size:11px;font-weight:700;line-height:1.4}
 .extraActivityFields input,.extraActivityFields select{width:100%;min-width:0;box-sizing:border-box;height:37px;border-radius:9px;border:1px solid #d6e1e8;background:#fff;padding:0 8px;color:#253c4a;font-size:15px}
 .extraActivityAdvice{font-size:11px;color:#48687e;line-height:1.65;background:#eef5f9;border-radius:9px;padding:9px;margin:10px 0}
-.extraActivityActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.extraActivityActions button{min-width:0;min-height:36px;border-radius:9px;border:1px solid #315f88;background:#fff;color:#315f88;font-size:12px;font-weight:750}
-.extraActivityActions button:last-child{background:#315f88;color:#fff}
+.extraActivityActions{display:flex;gap:9px}
+.extraActivityActions button{flex:1;min-width:0;min-height:36px;border-radius:9px;border:1px solid #315f88;background:#fff;color:#315f88;font-size:12px;font-weight:750}
+.extraActivityActions button{background:#315f88;color:#fff}
 .extraActivityCancel{border:0;color:#637d90;background:transparent;padding:6px 0;margin-top:3px;font-size:11px}
 .extraActivityLog{display:flex;flex-direction:column;gap:7px;margin-top:12px}
 .extraLogRow{padding:8px 9px;border-radius:10px;border:1px solid #e1e9ef;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#fff}
@@ -186,7 +186,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261010-rpe-scale-fix-52",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261010-actual-activity-only-53",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -519,7 +519,7 @@ function currentPlansBase(){
 function adaptiveRule(sourceDate,targetIndex){const t=totalsForDate(sourceDate),over=t.kcal-target;if(!t.count)return {over:null,extraMinutes:0,extraSteps:0,text:"上一日饮食记录不完整，今天仍按原计划训练。"};if(t.social>0){if(over>200)return {over,extraMinutes:0,extraSteps:0,text:"上一日含聚餐估算，全天约 "+Math.round(t.kcal)+" kcal，超出目标约 "+Math.round(over)+" kcal。今天仍按原计划，不做补偿性加练；是否调整只看连续两周趋势。"};return {over,extraMinutes:0,extraSteps:0,text:"上一日含聚餐估算，全天约 "+Math.round(t.kcal)+" kcal，仍在目标正常波动内。今天按原计划训练，不做补偿性调整。"}}if(over<=200)return {over,extraMinutes:0,extraSteps:0,text:"上一日热量在正常波动内，今天保持原计划。"};return {over,extraMinutes:0,extraSteps:0,text:"上一日约超出 "+Math.round(over)+" kcal。今天不做补偿性加练，也不临时增加有氧或步数；继续按原计划，是否调整只看连续两周趋势。"}}
 function currentPlans(){const plans=currentPlansBase(),idx=trainingIndex(),rule=adaptiveRule(shiftDate(localDate(),-1),idx),trend=weightTrendRule(),rr=recoveryRule();const extra=(trend.suppressExtra||rr.suppressExtra)?0:Math.min(15,(trend.extraMinutes||0));if(extra&&idx===1){plans[idx][2]=(45+extra)+"–"+(50+extra)+"分钟 · RPE 3–4/10";plans[idx][3][1]="主体｜"+(35+extra)+"–"+(40+extra)+"分钟 Zone 2｜RPE 3–4/10"}if(extra&&idx===5){plans[idx][2]=(50+extra)+"–"+(60+extra)+"分钟";plans[idx][3][1]="主体｜"+(40+extra)+"–"+(50+extra)+"分钟 Zone 2｜RPE 3–4/10"}if(recovery.state==="poor"&&idx===1){plans[idx][2]="35–40分钟 · RPE 2–3/10";plans[idx][3][1]="主体｜25–30分钟 Zone 2｜RPE 2–3/10"}if(recovery.state==="poor"&&idx===5){plans[idx][2]="40–50分钟 · RPE 2–3/10";plans[idx][3][1]="主体｜30–40分钟 Zone 2｜RPE 2–3/10"}if([1,5].includes(idx)&&!trainDone&&!storedRide()){const decision=integratedTrainingDecision();if(decision.load.highLoad){plans[idx][2]="15–25分钟恢复骑行（可休息） · RPE 1–2/10";plans[idx][3][1]="主体｜15–25分钟轻松恢复，疲惫可休息｜RPE 1–2/10"}else if(decision.load.moderate){plans[idx][2]="20–30分钟轻松 Zone 2 · RPE 2–3/10";plans[idx][3][1]="主体｜20–30分钟轻松骑（近期已完成额外有氧）｜RPE 2–3/10"}}return plans}
 function planAffectedByPain(idx,area){if(!area||![0,2,4].includes(idx))return false;return (planTemplates[idx]?.[3]||[]).some(row=>exerciseAffectedByPain(row.split("｜")[0],area))}
-function tomorrowPreview(){const t=totalsForDate(localDate()),cur=trainingIndex(),advance=trainDone||cur===3||cur===6,idx=advance?(cur+1)%7:cur,p=currentPlansBase()[idx],over=t.kcal-target,trend=weightTrendRule(),parts=[];parts.push(advance?"明天按顺序进入："+p[1]+"。":"今天训练尚未完成，明天继续顺延："+p[1]+"。");if(t.social>0)parts.push(over>0?"今天含聚餐估算，目前约超出目标 "+Math.round(over)+" kcal；明天不补偿性少吃或加练。":"今天含聚餐估算，但当前总量仍未超过目标；明天不做补偿性调整。");else if(over>200)parts.push("即使今天约超出 "+Math.round(over)+" kcal，明天仍按原计划，不用补偿性加练。");else if(!t.count)parts.push("今天饮食记录还不完整，明天不据此调整训练。");if(recovery.state==="poor")parts.push("如果明早恢复状态仍差，继续按恢复下调版本执行。");if(recovery.painArea&&planAffectedByPain(idx,recovery.painArea))parts.push("如果"+(painLabels[recovery.painArea]||"当前")+"疼痛仍在，相关动作不自动加重，诱发疼痛就停止或换无痛动作。");const extraDone=completedExtraActivity(),extraPlanned=readExtraActivities().filter(x=>x.status==="planned");if(extraDone.length){const extraMinutes=extraDone.reduce((n,x)=>n+x.minutes,0);parts.push("今天另外完成了"+extraDone.length+"项临时活动（共"+extraMinutes+"分钟）；明天优先看恢复，计划内有氧可适当缩短，不算补偿性训练。")}else if(extraPlanned.length)parts.push("今天有临时活动计划，尚未计入完成；结束后按实际时长和强度补记。");const nextLoadAdvice=nextTrainingLoadAdvice(idx);if(nextLoadAdvice)parts.push(nextLoadAdvice);if(trend.suppressExtra)parts.push("近期体重下降偏快，明天不额外增加有氧或训练量。");else if((trend.extraMinutes||0)>0&&[1,5].includes(idx))parts.push("按当前两周趋势，若恢复正常，明天 Zone 2 会增加约 "+Math.min(15,trend.extraMinutes)+" 分钟。");return parts.join("")}
+function tomorrowPreview(){const t=totalsForDate(localDate()),cur=trainingIndex(),advance=trainDone||cur===3||cur===6,idx=advance?(cur+1)%7:cur,p=currentPlansBase()[idx],over=t.kcal-target,trend=weightTrendRule(),parts=[];parts.push(advance?"明天按顺序进入："+p[1]+"。":"今天训练尚未完成，明天继续顺延："+p[1]+"。");if(t.social>0)parts.push(over>0?"今天含聚餐估算，目前约超出目标 "+Math.round(over)+" kcal；明天不补偿性少吃或加练。":"今天含聚餐估算，但当前总量仍未超过目标；明天不做补偿性调整。");else if(over>200)parts.push("即使今天约超出 "+Math.round(over)+" kcal，明天仍按原计划，不用补偿性加练。");else if(!t.count)parts.push("今天饮食记录还不完整，明天不据此调整训练。");if(recovery.state==="poor")parts.push("如果明早恢复状态仍差，继续按恢复下调版本执行。");if(recovery.painArea&&planAffectedByPain(idx,recovery.painArea))parts.push("如果"+(painLabels[recovery.painArea]||"当前")+"疼痛仍在，相关动作不自动加重，诱发疼痛就停止或换无痛动作。");const extraDone=completedExtraActivity();if(extraDone.length){const extraMinutes=extraDone.reduce((n,x)=>n+x.minutes,0);parts.push("今天另外完成了"+extraDone.length+"项临时活动（共"+extraMinutes+"分钟）；明天优先看恢复，计划内有氧可适当缩短，不算补偿性训练。")}const nextLoadAdvice=nextTrainingLoadAdvice(idx);if(nextLoadAdvice)parts.push(nextLoadAdvice);if(trend.suppressExtra)parts.push("近期体重下降偏快，明天不额外增加有氧或训练量。");else if((trend.extraMinutes||0)>0&&[1,5].includes(idx))parts.push("按当前两周趋势，若恢复正常，明天 Zone 2 会增加约 "+Math.min(15,trend.extraMinutes)+" 分钟。");return parts.join("")}
 dateLabel.textContent=(new Date().getMonth()+1)+"月"+new Date().getDate()+"日";
 function showView(name,btn){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById("view-"+name).classList.add("active");document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");window.scrollTo(0,0);render();}function openTodayTraining(){const btn=document.querySelector('.nav button[data-view="training"]');showView("training",btn);requestAnimationFrame(()=>{todayPlanDetails.open=true;setTimeout(()=>todayPlanDetails.scrollIntoView({behavior:"smooth",block:"start"}),60)})}
 function foodRefLine(name,amount,kcal,protein=0,note=""){return "容量参照："+name+(amount?" "+amount:"")+"约 "+Math.round(kcal)+" kcal"+(protein>0?" · 蛋白质约"+Math.round(protein)+"g":"")+(note?"；"+note:"")+"。不是必须吃完"}
@@ -782,23 +782,22 @@ function rpeOptionList(selected){
 }
 function extraActivityPanelHtml(){
  const items=readExtraActivities(),edit=items.find(x=>x.id===extraEditingId);
- const type=edit?.type||"ride",minutes=edit?.minutes??35,rpe=edit?.rpe??3,start=edit?.startTime||"";
+ const type=edit?.type||"ride",minutes=edit?.minutes??"",rpe=edit?.rpe??null;
  const kinds=Object.entries(EXTRA_ACTIVITY_KINDS).map(([k,v])=>'<option value="'+k+'"'+(k===type?' selected':'')+'>'+v+'</option>').join("");
- const rpes=rpeOptionList(rpe);
+ const rpes='<option value=""'+(!edit?' selected':'')+' disabled>选择实际强度</option>'+rpeOptionList(rpe);
  const rows=items.map(x=>{
-  const label=EXTRA_ACTIVITY_KINDS[x.type],state=x.status==="completed"?"已完成":"计划中",when=x.startTime?" · "+x.startTime:"";
-  const update=x.status==="planned"?'<button type="button" onclick="markExtraActivityComplete(\''+x.id+'\')">完成记录</button>':"";
-  return '<div class="extraLogRow"><div><b>'+label+' · '+x.minutes+'分钟 · RPE '+x.rpe+'（'+rpeEffortLabel(x.rpe)+'）</b><small>'+state+when+' · 不计入主训练完成次数</small></div><div class="extraLogActions">'+update+'<button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
+  const label=EXTRA_ACTIVITY_KINDS[x.type],legacy=x.status!=="completed";
+  const state=legacy?"旧版未完成记录 · 不计入训练负荷":"已完成 · 不计入主训练完成次数";
+  return '<div class="extraLogRow"><div><b>'+label+' · '+x.minutes+'分钟 · RPE '+x.rpe+'（'+rpeEffortLabel(x.rpe)+'）</b><small>'+state+'</small></div><div class="extraLogActions"><button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
  }).join("");
- const completed=items.filter(x=>x.status==="completed"),total=completed.reduce((n,x)=>n+(+x.minutes||0),0);
- const todayKind=planKind(trainingIndex());
- return '<div class="extraActivityHead"><b>临时活动</b><small>'+(total?'今天额外完成 '+total+' 分钟':"聚会骑车、临时步行等，不修改原训练")+'</small></div>'
-  +'<div class="extraActivityFields"><label>类型<select id="extraType" onchange="refreshExtraActivityAdvice()">'+kinds+'</select></label><label>时长（分钟）<input id="extraMinutes" type="number" min="5" max="300" inputmode="numeric" value="'+minutes+'" oninput="refreshExtraActivityAdvice()"></label><label>主观强度<select id="extraRpe" onchange="refreshExtraActivityAdvice()">'+rpes+'</select></label><label>出发时间（可选）<input id="extraStartTime" type="time" value="'+start+'"></label></div>'
+ const done=items.filter(x=>x.status==="completed"),total=done.reduce((n,x)=>n+(+x.minutes||0),0);
+ return '<div class="extraActivityHead"><b>临时活动</b><small>'+(total?'今天额外完成 '+total+' 分钟':"完成活动后填写实际数据")+'</small></div>'
+  +'<div class="extraActivityFields"><label>类型<select id="extraType" onchange="refreshExtraActivityAdvice()">'+kinds+'</select></label><label>实际时长（分钟）<input id="extraMinutes" type="number" min="5" max="300" inputmode="numeric" placeholder="例如 35" value="'+minutes+'" oninput="refreshExtraActivityAdvice()"></label><label>实际强度（RPE）<select id="extraRpe" onchange="refreshExtraActivityAdvice()">'+rpes+'</select></label></div>'
   +'<div class="extraActivityAdvice" id="extraActivityAdvice">'+extraActivityAdvice(type,minutes,rpe)+'</div>'
-  +'<div class="extraActivityActions"><button type="button" onclick="saveExtraActivity(\'planned\')">'+(edit?'更新计划':'加入临时计划')+'</button><button type="button" onclick="saveExtraActivity(\'completed\')">'+(edit?'保存已完成':'骑完后记录完成')+'</button></div>'
+  +'<div class="extraActivityActions"><button type="button" onclick="saveExtraActivity()">'+(edit?'保存修改':'保存活动记录')+'</button></div>'
   +(edit?'<button class="extraActivityCancel" type="button" onclick="cancelExtraEdit()">取消编辑</button>':"")
   +'<div class="extraActivityLog">'+(rows||'<small class="extraEmpty">还没有额外活动记录</small>')+'</div>'
-  +'<small class="extraActivityFoot">计划不等于已完成；同一天力量训练和正式 Zone 2 状态不变。额外骑行不自动折算 kcal、步数或肌肉训练组数。</small>';
+  +'<small class="extraActivityFoot">仅记录已完成的实际运动；不修改原力量训练和正式 Zone 2 的完成状态，也不自动折算 kcal 或步数。</small>';
 }
 function refreshExtraActivityAdvice(){
  const kind=document.getElementById("extraType")?.value,minutes=Number(document.getElementById("extraMinutes")?.value),rpe=Number(document.getElementById("extraRpe")?.value);
@@ -808,32 +807,22 @@ function refreshExtraActivityAdvice(){
 function renderExtraActivity(){
  const panel=document.getElementById("extraActivityPanel");if(panel)panel.innerHTML=extraActivityPanelHtml();
  const label=document.getElementById("extraActivitySummaryText"),list=readExtraActivities();
- if(label){const scheduled=list.filter(x=>x.status==="planned").length,completed=list.length-scheduled;
-  label.textContent=list.length?"临时活动 · "+(completed?completed+"项已完成":"")+(completed&&scheduled?" / ":"")+(scheduled?scheduled+"项计划中":""):"临时活动 · 额外骑车 / 步行";
+ if(label){const completed=list.filter(x=>x.status==="completed").length,legacy=list.length-completed;
+  label.textContent=list.length?"临时活动 · "+(completed?completed+"项已完成":"")+(completed&&legacy?" / ":"")+(legacy?legacy+"条旧记录待处理":""):"临时活动 · 完成后记录";
  }
 }
-function saveExtraActivity(status){
+function saveExtraActivity(){
  const type=document.getElementById("extraType")?.value,minutes=Number(document.getElementById("extraMinutes")?.value),
-  rpe=Number(document.getElementById("extraRpe")?.value),startTime=document.getElementById("extraStartTime")?.value||"";
+  rpe=Number(document.getElementById("extraRpe")?.value);
  if(!Object.prototype.hasOwnProperty.call(EXTRA_ACTIVITY_KINDS,type))return alert("请选择活动类型");
- if(!Number.isInteger(minutes)||minutes<5||minutes>300)return alert("活动时长需要在5–300分钟之间");
- if(!Number.isInteger(rpe)||rpe<1||rpe>10)return alert("请选择RPE 1–10");
- if(startTime&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime))return alert("请检查出发时间");
+ if(!Number.isInteger(minutes)||minutes<5||minutes>300)return alert("请输入实际活动时长（5–300分钟）");
+ if(!Number.isInteger(rpe)||rpe<1||rpe>10)return alert("请选择实际RPE强度（1–10）");
  const entries=readExtraActivities(),old=entries.find(x=>x.id===extraEditingId);
- const entry={id:old?.id||Date.now().toString(36)+Math.random().toString(36).slice(2,7),type,minutes,rpe,startTime,
-   status,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const entry={id:old?.id||Date.now().toString(36)+Math.random().toString(36).slice(2,7),type,minutes,rpe,
+   status:"completed",createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  const changed=old?entries.map(x=>x.id===old.id?entry:x):[...entries,entry];
  try{localStorage.setItem(extraActivityKey(),JSON.stringify(changed))}catch(e){return alert("保存失败，原有记录未被清除")}
- extraEditingId="";extraDeletingId="";refreshLinkedTrainingGuidance(); 
-}
-function markExtraActivityComplete(id){
- const a=readExtraActivities(),entry=a.find(x=>x.id===id);
- if(!entry)return;
- extraEditingId=id;extraDeletingId="";
- const details=document.getElementById("extraActivityDetails");if(details)details.open=true;
- renderExtraActivity();
- const msg=document.getElementById("extraActivityAdvice");
- if(msg)msg.textContent="请把时长和RPE改成实际骑行数据，再点击「保存已完成」。没有实际完成前，不计入训练负荷。";
+ extraEditingId="";extraDeletingId="";refreshLinkedTrainingGuidance();
 }
 function editExtraActivity(id){
  if(!readExtraActivities().some(x=>x.id===id))return;
@@ -884,8 +873,7 @@ function integratedTrainingLoad(ds=localDate()){
   const rides=completed.filter(x=>x.type==="ride");
   const rideMinutes=rides.reduce((sum,x)=>sum+Number(x.minutes),prescribedRide?Number(prescribedRide.minutes):0);
   const maxRpe=Math.max(prescribedRide?Number(prescribedRide.rpe):0,...rides.map(x=>Number(x.rpe)));
-  return {date,offset,strength,rideMinutes,maxRpe,extra:completed.length,
-   planned:readExtraActivities(date).filter(x=>x.status==="planned").length};
+  return {date,offset,strength,rideMinutes,maxRpe,extra:completed.length};
  });
  const totalRideMinutes=days.reduce((s,x)=>s+x.rideMinutes,0);
  const rideDays=days.filter(x=>x.rideMinutes>=20).length;
@@ -893,8 +881,7 @@ function integratedTrainingLoad(ds=localDate()){
  const mixed=days.some(x=>x.strength&&x.rideMinutes>=40&&x.maxRpe>=4);
  const highLoad=demanding||mixed||(rideDays>=2&&totalRideMinutes>=100);
  const moderate=!highLoad&&days.some(x=>x.rideMinutes>=30&&x.maxRpe>=3);
- const plannedToday=days[0].planned;
- return {days,totalRideMinutes,highLoad,moderate,plannedToday,
+ return {days,totalRideMinutes,highLoad,moderate,
   strengthCount:days.filter(x=>x.strength).length,
   rideDays,completedExtras:days.reduce((v,x)=>v+x.extra,0)};
 }
@@ -906,7 +893,6 @@ function integratedTrainingDecision(ds=localDate()){
  let reason=load.highLoad?"近两天骑行负荷偏高：暂停自动加重与额外有氧；若即将训练下肢，建议少一组并优先恢复。":
    load.moderate?"近两天已完成一定骑行量：本次不额外增加有氧，下一次 Zone 2 适当缩短。":
    "近期活动负荷没有触发额外减量。";
- if(load.plannedToday)reason+=" 临时活动仍为计划中，不计入已完成负荷。";
  return {load,holdStrength,holdExtra,reduceLower:load.highLoad,reason};
 }
 function rideAffectsLowerBody(name){
