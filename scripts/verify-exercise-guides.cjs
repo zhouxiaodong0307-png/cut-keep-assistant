@@ -590,7 +590,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const vol=(done,poor,week)=>new Function('parseExerciseVolume','exerciseVolumeId','volumeSnapshots','exerciseDone','readTrainingVolumeJson','VOLUME_REFERENCE_KEY','lastVolumeResponses','phaseWeek','recovery','integratedTrainingDecision','rideAffectsLowerBody','validExerciseVolume',
    volumeCode+'return adaptiveVolumeReference;')(
    parse,(day,name)=>day+'|'+name,done?{'2|杠铃罗马尼亚硬拉':{sets:3,min:8,max:10,unit:'次'}}:{},
-   done?{'杠铃罗马尼亚硬拉':true}:{},()=>{},'ckTrainingVolumeReferences',()=>[],()=>week,{state:poor?'poor':'ok'},
+   done?{'杠铃罗马尼亚硬拉':true}:{},()=>({}),'ckTrainingVolumeReferences',()=>[],()=>week,{state:poor?'poor':'ok'},
    ()=>({reduceLower:true}),n=>/硬拉|深蹲|腿弯举|分腿蹲/.test(n),v=>v&&v.sets>=1&&v.min>=1&&v.max>=v.min);
  const lower='杠铃罗马尼亚硬拉｜3组 × 8–10次',upper='杠铃卧推｜3组 × 6–8次';
  if(vol(false,false,1)(lower,2).sets!==2||vol(false,false,1)(upper,2).sets!==3||
