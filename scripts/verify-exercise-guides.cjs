@@ -110,3 +110,33 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Unsafe localStorage.clear');
  console.log('PASS: dedicated fly art, 45kg ramp warmup, deload warmup and localStorage guard');
 }
+
+// Per-user incline strength calibration: 20 kg / hand ×12 actual reps.
+// Only the confirmed exercise may be rebaselined; old sessions are immutable.
+{
+ if(!html.includes('incline:{base:20,inc:2,unit:"每手 kg",round:1}'))throw Error('Incline base must use confirmed 20kg');
+ if(!html.includes('上斜哑铃卧推｜2组 × 8–12次'))throw Error('Incline work set reps should allow observed 12 reps');
+ const body=sect('function calibrateInclineWorkingLoad(){','calibrateInclineWorkingLoad();');
+ const make=(overrides={},session={},done=false,feedback=false)=>{
+  const store=new Map([
+   ['ckLoadOverrides',JSON.stringify(overrides)],
+   ['ckSessionLoads-2026-10-10',JSON.stringify(session)],
+   ['ckTrain-2026-10-09','1'],['ckSessionLoads-2026-10-09',JSON.stringify({incline:12,bench:45})]
+  ]);
+  const storage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k),key:i=>[...store.keys()][i],get length(){return store.size}};
+  const bodyFn=new Function('localStorage','loadOverrides','sessionLoads','exerciseDone','exerciseFeedback','sessionLoadKey',
+    body+'return calibrateInclineWorkingLoad;');
+  const a={...overrides},b={...session},run=bodyFn(storage,a,b,done?{'上斜哑铃卧推':true}:{},feedback?{'上斜哑铃卧推':{level:'good',next:12,key:'incline'}}:{},'ckSessionLoads-2026-10-10');
+  return {store,a,b,run};
+ };
+ let p=make({incline:12,bench:45},{incline:12,bench:45});
+ if(p.a.incline!==20||p.b.incline!==20||p.a.bench!==45||p.b.bench!==45)throw Error('Legacy 12kg should become 20kg without changing bench');
+ if(p.store.get('ckSessionLoads-2026-10-09')!==JSON.stringify({incline:12,bench:45})||p.store.get('ckTrain-2026-10-09')!=='1')throw Error('Historic loads/train completion altered');
+ p.a.incline=18;p.run();if(p.a.incline!==18)throw Error('One-time calibration overwrote subsequent user choice');
+ p=make({incline:24,bench:45},{incline:24});if(p.a.incline!==24||p.b.incline!==24)throw Error('Higher existing manual/feedback load lowered');
+ p=make({incline:12},{incline:12},true,false);if(p.a.incline!==20||p.b.incline!==12)throw Error('Completed today load should not be rewritten');
+ p=make({incline:12},{incline:12},false,true);if(p.b.incline!==12||p.a.incline!==20)throw Error('Today feedback snapshot should be preserved');
+ p=make({bench:45},{bench:45});if(p.a.incline!==20||p.b.incline!==undefined)throw Error('Do not invent a missing session snapshot');
+ if(html.includes('localStorage.clear('))throw Error('Unsafe storage clear');
+ console.log('PASS: incline 20kg×12 calibration; preserve old sessions, current completion, feedback and user loads');
+}
