@@ -186,7 +186,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261010-unified-training-load-51",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261010-rpe-scale-fix-52",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -770,15 +770,25 @@ function extraActivityAdvice(type="ride",minutes=35,rpe=3){
  if(trend.suppressExtra)text+=" 近期体重下降较快，暂不通过额外活动继续加大热量赤字。";
  return text;
 }
+/* One RPE scale for all activity inputs and saved-log displays.
+   Display labels only: persistent RPE remains the original integer 1–10. */
+const RPE_LABELS=["极轻松","很轻松","轻松·能交谈","轻松微喘·能交谈","中等","中等偏高","吃力","很吃力","非常吃力","极限"];
+function rpeEffortLabel(value){
+ const n=Number(value);
+ return Number.isInteger(n)&&n>=1&&n<=10?RPE_LABELS[n-1]:"强度未知";
+}
+function rpeOptionList(selected){
+ return Array.from({length:10},(_,i)=>i+1).map(n=>'<option value="'+n+'"'+(n===Number(selected)?' selected':'')+'>'+n+' · '+rpeEffortLabel(n)+'</option>').join("");
+}
 function extraActivityPanelHtml(){
  const items=readExtraActivities(),edit=items.find(x=>x.id===extraEditingId);
  const type=edit?.type||"ride",minutes=edit?.minutes??35,rpe=edit?.rpe??3,start=edit?.startTime||"";
  const kinds=Object.entries(EXTRA_ACTIVITY_KINDS).map(([k,v])=>'<option value="'+k+'"'+(k===type?' selected':'')+'>'+v+'</option>').join("");
- const rpes=Array.from({length:10},(_,i)=>i+1).map(n=>'<option value="'+n+'"'+(n===rpe?' selected':'')+'>'+n+(n<=4?' · 轻松':n>=7?' · 偏高':'')+'</option>').join("");
+ const rpes=rpeOptionList(rpe);
  const rows=items.map(x=>{
   const label=EXTRA_ACTIVITY_KINDS[x.type],state=x.status==="completed"?"已完成":"计划中",when=x.startTime?" · "+x.startTime:"";
   const update=x.status==="planned"?'<button type="button" onclick="markExtraActivityComplete(\''+x.id+'\')">完成记录</button>':"";
-  return '<div class="extraLogRow"><div><b>'+label+' · '+x.minutes+'分钟 · RPE '+x.rpe+'</b><small>'+state+when+' · 不计入主训练完成次数</small></div><div class="extraLogActions">'+update+'<button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
+  return '<div class="extraLogRow"><div><b>'+label+' · '+x.minutes+'分钟 · RPE '+x.rpe+'（'+rpeEffortLabel(x.rpe)+'）</b><small>'+state+when+' · 不计入主训练完成次数</small></div><div class="extraLogActions">'+update+'<button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
  }).join("");
  const completed=items.filter(x=>x.status==="completed"),total=completed.reduce((n,x)=>n+(+x.minutes||0),0);
  const todayKind=planKind(trainingIndex());
@@ -922,8 +932,8 @@ function cardioDayHtml(plan){
  const ride=storedRide(),core=plan.find(x=>x.startsWith("主体｜"))||"";
  const main=core.split("｜")[1]||"按当日骑行计划",warm=(plan.find(x=>x.startsWith("热身｜"))||"").split("｜")[1]||"",cool=(plan.find(x=>x.startsWith("放松｜"))||"").split("｜")[1]||"";
  const rpe=ride?+ride.rpe:(recovery.state==="poor"?2:3),minutes=ride?+ride.minutes:"";
- const opts=Array.from({length:10},(_,i)=>i+1).map(v=>'<option value="'+v+'"'+(v===rpe?" selected":"")+'>'+v+' / 10'+(v===3?" · 微喘":v===4?" · 能交谈":"")+'</option>').join("");
- const status=trainDone?(ride?"已完成 · "+ride.minutes+"分钟 · RPE "+ride.rpe:"已完成 · 旧版记录（未记录实际时长）"):"完成骑行后填写实际数据即可";
+ const opts=rpeOptionList(rpe);
+ const status=trainDone?(ride?"已完成 · "+ride.minutes+"分钟 · RPE "+ride.rpe+"（"+rpeEffortLabel(ride.rpe)+"）":"已完成 · 旧版记录（未记录实际时长）"):"完成骑行后填写实际数据即可";
  return '<div class="rideDayCard"><div class="rideDayHeader"><b>Zone 2 骑车</b><small>一次记录整场骑行</small></div><div class="rideDayPlan"><strong>'+main+'</strong>'+[warm,cool].filter(Boolean).join(" · ")+'</div><div class="rideDayFields"><label>实际骑行时间（分钟）<input id="rideMinutes" type="number" inputmode="numeric" min="5" max="240" step="1" placeholder="例如 45" value="'+minutes+'"></label><label>实际强度（RPE）<select id="rideRpe">'+opts+'</select></label></div><div class="rideDayActions"><button type="button" onclick="saveTodayRide()">'+(trainDone?"更新骑行记录":"完成并记录")+'</button>'+(trainDone?'<button class="rideUndo" type="button" onclick="undoTodayRide()">撤销完成</button>':"")+'</div><div class="rideDayStatus" aria-live="polite">'+status+'</div></div>';
 }
 function saveTodayRide(){
