@@ -174,7 +174,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     !ui.compoundWarmupHint('热身｜保加利亚分腿蹲递增热身').includes('徒手每侧'))throw Error('Squat/split warmup not linked to suggested load');
  if(!ui.loadSourceLabel('squatA').includes('未校准')||!ui.loadSourceLabel('bench').includes('调整'))throw Error('Load source status incorrect');
  ui.saveReferenceLoad('squatA','杠铃深蹲');
- if(override.squatA!==60||today.squatA!==60||memory.get('ckTrain-2026-10-09')!=='1')throw Error('Editing a reference must not damage history');
+ if(JSON.parse(memory.get('ckLoadOverrides')||'{}').squatA!==60||JSON.parse(memory.get('ckSessionLoads-2026-10-10')||'{}').squatA!==60||memory.get('ckTrain-2026-10-09')!=='1')throw Error('Editing a reference must not damage history');
  if(html.includes('localStorage.clear('))throw Error('Unsafe clear');
  console.log('PASS: 13 load slots; uncalibrated labels; overrides; squat/split/bench ramp; ankle-specific guard; history preserved');
 }
