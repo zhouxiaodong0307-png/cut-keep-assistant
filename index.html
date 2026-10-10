@@ -531,7 +531,7 @@ function cardioLoadPrescription(ds=localDate()){
  return null;
 }
 function applyCardioLoadPrescription(plans,idx,ds,done=false){
- if(![1,5].includes(idx)||done)return;
+ if(![1,5].includes(idx)||(done&&!completedCardioRecovery(ds)))return;
  const change=cardioLoadPrescription(ds);if(!change)return;
  plans[idx][1]=change.name;plans[idx][2]=change.duration;
  const main=plans[idx][3].findIndex(x=>x.startsWith("主体｜"));
