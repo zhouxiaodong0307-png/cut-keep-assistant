@@ -535,3 +535,75 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear(')||html.includes('finishedCompact')||html.includes('trainingFlowGuideHtml'))throw Error('Data/UI regression');
  console.log('PASS: optional ride planning, confirmation with actual data, yesterday intensity adjustment, undo/delete and all original activity data unchanged.');
 }
+
+/* V51: integrated real, not merely recorded, training-load decisions. */
+{
+ const signalJs=sect('/* V51 unified recent-two-calendar-days training-load signal.','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
+ const newCase=(entries={},main={},rideRecords={},state='ok')=>{
+   const kv=new Map([['ckTrain-2026-10-08','1'],['ckSteps-2026-10-09','7100'],['ckMeals-2026-10-09','[{"kcal":620}]']]);
+   for(const [date,idx] of Object.entries(main)){kv.set('ckTrain-'+date,'1');kv.set('ckTrainPlanIndex-'+date,String(idx))}
+   const localStorage={getItem:k=>kv.has(k)?kv.get(k):null,setItem:(k,v)=>kv.set(k,String(v)),removeItem:k=>kv.delete(k)};
+   const shift=(date,d)=>{const t=new Date(date+'T12:00:00');t.setDate(t.getDate()+d);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
+   const api=new Function('localStorage','localDate','shiftDate','trainingIndexForDate','storedRide','completedExtraActivity','readExtraActivities','sleepLoadGuard','recovery',
+      signalJs+'return {integratedTrainingLoad,integratedTrainingDecision,nextTrainingLoadAdvice,rideAffectsLowerBody};')(
+      localStorage,()=> '2026-10-10',shift,date=>main[date]??0,
+      date=>rideRecords[date]||null,date=>(entries[date]||[]).filter(v=>v.status==='completed'),
+      date=>entries[date]||[],()=>({suppress:false}),{state});
+   return {api,kv,entries,shift};
+ };
+ const plan={id:'a',type:'ride',minutes:90,rpe:7,status:'planned'};
+ let x=newCase({'2026-10-09':[plan]});
+ let result=x.api.integratedTrainingLoad();
+ if(result.highLoad||result.moderate||result.completedExtras||x.api.integratedTrainingDecision().holdStrength)
+    throw Error('Planned-only ride incorrectly changed the workout');
+ const mild={...plan,status:'completed',minutes:45,rpe:3};
+ x=newCase({'2026-10-09':[mild]});
+ result=x.api.integratedTrainingLoad();
+ if(!result.moderate||result.highLoad||result.totalRideMinutes!==45||
+    !x.api.nextTrainingLoadAdvice(1).includes('20–30分钟')||
+    x.api.integratedTrainingDecision().holdStrength)
+    throw Error('Completed social ride should shorten Zone2, not penalize strength');
+ x=newCase({'2026-10-09':[{...mild,minutes:90,rpe:6}]});
+ result=x.api.integratedTrainingLoad();
+ if(!result.highLoad||!x.api.integratedTrainingDecision().holdStrength||
+    !x.api.nextTrainingLoadAdvice(1).includes('15–25分钟')||
+    !x.api.nextTrainingLoadAdvice(2).includes('下肢相关动作建议少一组'))
+    throw Error('Long hard ride did not change next cardio/strength plan');
+ x=newCase({'2026-10-09':[{...mild,minutes:45,rpe:4}]},{'2026-10-09':0});
+ if(!x.api.integratedTrainingLoad().highLoad||x.api.integratedTrainingLoad().strengthCount!==1)
+    throw Error('Strength + completed social ride same day must count as combined fatigue');
+ x=newCase({}, {'2026-10-09':1},{'2026-10-09':{minutes:55,rpe:3}});
+ if(!x.api.integratedTrainingLoad().moderate||x.api.integratedTrainingLoad().totalRideMinutes!==55)
+    throw Error('Prescribed actual Zone2 ride must also affect upcoming plan');
+ x=newCase({'2026-10-09':[{...mild,minutes:55,rpe:4}], '2026-10-10':[{...mild,id:'b',minutes:50,rpe:3}]});
+ if(!x.api.integratedTrainingLoad().highLoad||x.api.integratedTrainingLoad().rideDays!==2)
+    throw Error('Two consecutive rides need cumulative-load guard');
+ x.entries['2026-10-09']=[];
+ x.entries['2026-10-10']=[];
+ if(x.api.integratedTrainingLoad().highLoad||x.api.integratedTrainingLoad().moderate)
+    throw Error('Deleting finished extras must immediately restore ordinary workload');
+ if(x.kv.get('ckTrain-2026-10-08')!=='1'||x.kv.get('ckSteps-2026-10-09')!=='7100'||
+    x.kv.get('ckMeals-2026-10-09')!=='[{"kcal":620}]')
+    throw Error('Integrated load mutated main training, nutrition or step history');
+ const volumeCode=sect('function adaptiveVolumeReference(row,dayIndex,isToday=true){','function applyExerciseVolumeToRow(').slice(0,-'function applyExerciseVolumeToRow('.length);
+ const parse=row=>{const m=row.match(/(\d+)组 × (\d+)–(\d+)次/);return m?{sets:+m[1],min:+m[2],max:+m[3],unit:'次'}:null};
+ const vol=(done,poor,week)=>new Function('parseExerciseVolume','exerciseVolumeId','volumeSnapshots','exerciseDone','readTrainingVolumeJson','VOLUME_REFERENCE_KEY','lastVolumeResponses','phaseWeek','recovery','integratedTrainingDecision','rideAffectsLowerBody','validExerciseVolume',
+   volumeCode+'return adaptiveVolumeReference;')(
+   parse,(day,name)=>day+'|'+name,done?{'2|杠铃罗马尼亚硬拉':{sets:3,min:8,max:10,unit:'次'}}:{},
+   done?{'杠铃罗马尼亚硬拉':true}:{},()=>{},'ckTrainingVolumeReferences',()=>[],()=>week,{state:poor?'poor':'ok'},
+   ()=>({reduceLower:true}),n=>/硬拉|深蹲|腿弯举|分腿蹲/.test(n),v=>v&&v.sets>=1&&v.min>=1&&v.max>=v.min);
+ const lower='杠铃罗马尼亚硬拉｜3组 × 8–10次',upper='杠铃卧推｜3组 × 6–8次';
+ if(vol(false,false,1)(lower,2).sets!==2||vol(false,false,1)(upper,2).sets!==3||
+    vol(true,false,1)(lower,2).sets!==3||vol(false,true,1)(lower,2).sets!==2||
+    vol(false,false,4)(lower,2).sets!==2||vol(false,false,1)(lower,2,false).sets!==3)
+    throw Error('Selective lower-body workload guard broke completed sets, other muscles, deload or future plans');
+ if(!html.includes('function refreshLinkedTrainingGuidance(){')||
+    !html.includes('refreshNutritionGuidance();\n renderProgress();')||
+    !html.includes('weightInput.value="";render()}'))
+    throw Error('Activity and weight recording must refresh interlinked training, nutrition and progress immediately');
+ if(!html.includes('function saveExtraActivity(status)')||!html.includes('refreshLinkedTrainingGuidance();'))
+    throw Error('Extra activity save/delete does not recompute related plans');
+ if(html.includes('localStorage.clear(')||html.includes('finishedCompact'))
+    throw Error('V47 UI/data compatibility violation');
+ console.log('PASS: real planned-vs-done and prescribed-vs-extra load; near-term Zone2/strength adjustments; history, UI and reactive refresh');
+}
