@@ -519,7 +519,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  f=mock();f.inputs.extraMinutes.value='82';f.inputs.extraRpe.value='7';f.api.saveExtraActivity('completed');
  f.changeDay('2026-10-11');load=f.api.recentExtraLoad();
  if(!load.heavy||load.minutes!==82)throw Error('Heavy ride must flag recovery');
- if(f.api.completedExtraActivity().length!==0||f.api.recentExtraStats().count!==0)throw Error('Next day must not double-count yesterday activity');
+ if(f.api.completedExtraActivity().length!==0||f.api.recentExtraStats().count!==1)throw Error('Today records and 7-day activity summary must be distinguished');
  f.inputs.extraMinutes.value='0';f.api.saveExtraActivity('planned');
  if(f.alerts.length!==1)throw Error('Invalid quick activity duration not rejected');
  const planCode=func('currentPlans','function planAffectedByPain');
