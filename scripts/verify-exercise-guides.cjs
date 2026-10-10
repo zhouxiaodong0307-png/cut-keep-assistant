@@ -607,3 +607,50 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     throw Error('V47 UI/data compatibility violation');
  console.log('PASS: real planned-vs-done and prescribed-vs-extra load; near-term Zone2/strength adjustments; history, UI and reactive refresh');
 }
+
+/* V52: consistent complete RPE choices across planned Zone2 and spontaneous activity.
+   Fixes missing descriptions at RPE 5/6 and oversimplified 1–4/7–10 labels.
+   Numeric values and previously recorded activities remain unchanged. */
+{
+ const defs=sect('const RPE_LABELS=','function extraActivityPanelHtml(').slice(0,-'function extraActivityPanelHtml('.length);
+ const {rpeOptionList,rpeEffortLabel}=new Function(defs+'return {rpeOptionList,rpeEffortLabel};')();
+ const seen=[];
+ for(let i=1;i<=10;i++){
+  const label=rpeEffortLabel(i),choices=rpeOptionList(i);
+  if(!label||label==='强度未知'||!choices.includes('<option value="'+i+'" selected>'+i+' · '+label+'</option>')||
+     (choices.match(/<option value=/g)||[]).length!==10)
+    throw Error('Incomplete RPE scale or missing selection at '+i);
+  seen.push(label);
+ }
+ if(!seen[4].includes('中等')||!seen[5].includes('中等')||!seen[9].includes('极限')||
+    new Set(seen).size<9||rpeEffortLabel(0)!=='强度未知'||rpeEffortLabel(11)!=='强度未知')
+    throw Error('Middle and high RPE intensities are unclassified/ambiguous');
+ const rideUI=func('cardioDayHtml','function saveTodayRide(');
+ const card=new Function('storedRide','recovery','trainDone','rpeOptionList','rpeEffortLabel',
+   rideUI+'return cardioDayHtml;');
+ const ridePlan=['热身｜5分钟','主体｜40分钟 Zone 2','放松｜5分钟'];
+ const initial=card(()=>null,{state:'ok'},false,rpeOptionList,rpeEffortLabel)(ridePlan);
+ const completed=card(()=>({minutes:45,rpe:6}),{state:'ok'},true,rpeOptionList,rpeEffortLabel)(ridePlan);
+ if(!initial.includes('5 · 中等')||!initial.includes('6 · 中等偏高')||
+    !initial.includes('value="3" selected')||!completed.includes('value="6" selected')||
+    !completed.includes('RPE 6（中等偏高）'))
+    throw Error('Scheduled Zone 2 select/status not using common intensity labels');
+ const extraUI=func('extraActivityPanelHtml','function refreshExtraActivityAdvice(');
+ const extra=new Function('readExtraActivities','extraEditingId','extraDeletingId','EXTRA_ACTIVITY_KINDS',
+   'planKind','trainingIndex','extraActivityAdvice','rpeOptionList','rpeEffortLabel',
+   extraUI+'return extraActivityPanelHtml;');
+ const entries=[{id:'a',type:'ride',minutes:55,rpe:5,status:'completed',startTime:'16:00'}];
+ const kinds={ride:'骑车',walk:'步行',other:'其他活动'};
+ const sample=extra(()=>entries,'a','',kinds,()=> 'strength',()=>4,()=> '适合低强度',rpeOptionList,rpeEffortLabel)();
+ if(!sample.includes('value="5" selected')||!sample.includes('5 · 中等')||
+    !sample.includes('6 · 中等偏高')||!sample.includes('RPE 5（中等）')||
+    (sample.match(/<option value="/g)||[]).length<13)
+    throw Error('Spontaneous activity selection/log not using common RPE 1–10 scale');
+ if(!html.includes('function saveExtraActivity(status)')||!html.includes('function saveTodayRide()')||
+    !html.includes('status,createdAt:')||!html.includes('JSON.stringify({minutes,rpe,planIndex:idx'))
+    throw Error('Numeric persistence for actual workouts was unexpectedly changed');
+ if(!html.includes('.exerciseRow.isDone{opacity:.58}')||
+    html.includes('finishedCompact')||html.includes('localStorage.clear('))
+    throw Error('Legacy completed-action UI or local history compatibility broken');
+ console.log('PASS: full 1–10 RPE scale, missing 5/6 fixed, Zone2 and ad-hoc options/status unified, records numeric and V47 UI unchanged');
+}
