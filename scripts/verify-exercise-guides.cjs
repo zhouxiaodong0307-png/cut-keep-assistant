@@ -486,10 +486,10 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   const shiftDate=(ds,d)=>{const z=new Date(ds+'T12:00:00');z.setDate(z.getDate()+d);return z.getFullYear()+'-'+String(z.getMonth()+1).padStart(2,'0')+'-'+String(z.getDate()).padStart(2,'0')};
   const safeJsonParse=(v,def)=>{try{return v?JSON.parse(v):def}catch(e){return def}};
   const alerts=[];
-  const api=new Function('localStorage','localDate','shiftDate','safeJsonParse','recovery','sleepLoadGuard','weightTrendRule','planKind','trainingIndex','trainDone','document','alert','renderProgress',
+  const api=new Function('localStorage','localDate','shiftDate','safeJsonParse','recovery','sleepLoadGuard','weightTrendRule','planKind','trainingIndex','trainDone','document','alert','renderProgress','renderTraining','refreshNutritionGuidance',
      extraCode+'return {saveExtraActivity,editExtraActivity,markExtraActivityComplete,removeExtraActivity,cancelExtraEdit,readExtraActivities,extraActivityAdvice,extraActivityPanelHtml,renderExtraActivity,recentExtraLoad,recentExtraStats,completedExtraActivity,extraActivityKey};')(
     localStorage,()=>date,shiftDate,safeJsonParse,{state:'ok',painArea:''},()=>({suppress:false}),()=>({suppressExtra:false}),
-    i=>[0,2,4].includes(i)?'strength':[1,5].includes(i)?'cardio':'rest',()=>idx,trainDone,document,s=>alerts.push(s),()=>{});
+    i=>[0,2,4].includes(i)?'strength':[1,5].includes(i)?'cardio':'rest',()=>idx,trainDone,document,s=>alerts.push(s),()=>{},()=>{},()=>{});
   return {api,inputs,memory,alerts,changeDay:d=>{date=d},changeIndex:i=>{idx=i}};
  }
  let f=mock();
