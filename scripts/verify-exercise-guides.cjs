@@ -637,7 +637,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     !html.includes('refreshNutritionGuidance();\n renderProgress();')||
     !html.includes('weightInput.value="";render()}'))
     throw Error('Activity and weight recording must refresh interlinked training, nutrition and progress immediately');
- if(!html.includes('function saveExtraActivity(status)')||!html.includes('refreshLinkedTrainingGuidance();'))
+ if(!html.includes('function saveExtraActivity()')||!html.includes('refreshLinkedTrainingGuidance();'))
     throw Error('Extra activity save/delete does not recompute related plans');
  if(html.includes('localStorage.clear(')||html.includes('finishedCompact'))
     throw Error('V47 UI/data compatibility violation');
