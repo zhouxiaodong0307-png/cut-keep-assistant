@@ -140,3 +140,41 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Unsafe storage clear');
  console.log('PASS: incline 20kg×12 calibration; preserve old sessions, current completion, feedback and user loads');
 }
+
+/* Category-wide regression for user-calibrated vs uncalibrated exercise loads. */
+{
+ const n=[...html.matchAll(/^ \w+:\{base:[^\n]+/gm)].map(m=>m[0].split(':')[0].trim());
+ if(n.length!==13||new Set(n).size!==13)throw Error('Expected 13 independent load slots');
+ if(!html.includes('通用参考起点 · 尚未校准'))throw Error('Unknown loads must not look personalized');
+ if(!html.includes('function loadReferenceEditorHtml(')||!html.includes('function saveReferenceLoad('))throw Error('Optional override missing');
+ if(!html.includes('function compoundWarmupHint('))throw Error('Compound warmup mapping missing');
+ if(!html.includes('<option value="ankle">踝部疼痛</option>')||!html.includes('ankle:["深蹲","保加利亚"]'))throw Error('Ankle pain must affect relevant exercises');
+ if(!html.includes('Number(loadOverrides[fb.key])!==Number(fb.next)'))throw Error('Recovery replay must respect manual reference');
+ const loadCode=sect('function validCoachWeight(v){','function loadKeyForExercise(').slice(0,-'function loadKeyForExercise('.length);
+ const load=new Function('coachLoads','sessionLoads','loadOverrides','recovery','phaseWeek','roundTo',
+  loadCode+'return {validCoachWeight,workingWeight,coachWeight};');
+ const c={bench:{base:45,round:2.5},incline:{base:20,round:1}};
+ const r=load(c,{bench:0,incline:0},{bench:0,incline:24},{state:'ok'},()=>1,(v,x)=>Math.round(v/x)*x);
+ if(r.validCoachWeight(null)||r.validCoachWeight(0)||r.validCoachWeight('')||
+   r.workingWeight('bench')!==45||r.workingWeight('incline')!==24||
+   r.coachWeight('bench')!==45||r.coachWeight('incline')!==24)
+   throw Error('Invalid data or user load precedence');
+ const helperCode=sect('let openLoadEditorKey="";','function exerciseHtml(').slice(0,-'function exerciseHtml('.length);
+ const memory=new Map([['ckTrain-2026-10-09','1']]);
+ const localStorage={getItem:k=>memory.has(k)?memory.get(k):null,setItem:(k,v)=>memory.set(k,String(v))};
+ const override={bench:45},today={};
+ const editor=new Function('localStorage','coachLoads','loadOverrides','sessionLoads','phaseWeek','coachWeight','roundTo','benchWarmupHint',
+  'exerciseDone','exerciseFeedback','sessionLoadKey','renderTraining','document','alert','workingWeight',
+  helperCode+'return {compoundWarmupHint,loadSourceLabel,saveReferenceLoad,toggleLoadEditor,loadReferenceEditorHtml};');
+ const plan={bench:{base:45,round:2.5,unit:'kg'},squatA:{base:40,round:2.5,unit:'kg'},split:{base:8,round:1,unit:'每手 kg'}};
+ const ui=editor(localStorage,plan,override,today,()=>1,k=>k==='bench'?45:k==='squatA'?60:8,
+  (v,n)=>Math.round(v/n)*n,()=>'',{}, {},'ckSessionLoads-2026-10-10',()=>{},
+  {getElementById:()=>({value:'60'})},()=>{},k=>override[k]||plan[k].base);
+ if(!ui.compoundWarmupHint('热身｜杠铃深蹲递增热身').includes('60 kg × 3组')||
+    !ui.compoundWarmupHint('热身｜保加利亚分腿蹲递增热身').includes('徒手每侧'))throw Error('Squat/split warmup not linked to suggested load');
+ if(!ui.loadSourceLabel('squatA').includes('未校准')||!ui.loadSourceLabel('bench').includes('调整'))throw Error('Load source status incorrect');
+ ui.saveReferenceLoad('squatA','杠铃深蹲');
+ if(override.squatA!==60||today.squatA!==60||memory.get('ckTrain-2026-10-09')!=='1')throw Error('Editing a reference must not damage history');
+ if(html.includes('localStorage.clear('))throw Error('Unsafe clear');
+ console.log('PASS: 13 load slots; uncalibrated labels; overrides; squat/split/bench ramp; ankle-specific guard; history preserved');
+}
