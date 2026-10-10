@@ -28,6 +28,7 @@ const code=[
  'const localDate=()=>"2026-10-08",shiftDate=()=>localDate(),adaptiveRule=()=>({});',
  'const weightTrendRule=()=>({extraMinutes:extra,suppressExtra:false}),recovery={state:poor?"poor":"ok"},recoveryRule=()=>({suppressExtra:false});',
  'const storedRide=()=>null,recentExtraLoad=()=>({minutes:0,maxRpe:0,heavy:false,substantial:false});',
+ 'const integratedTrainingDecision=()=>({reduceLower:false,load:{highLoad:false,moderate:false}}),rideAffectsLowerBody=()=>false;',
  sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length),
  func('currentPlansBase','function adaptiveRule'),
  func('currentPlans','function planAffectedByPain'),
@@ -299,9 +300,9 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  }
  if(program[4][1]!=='全身力量 C（胸部主导）')throw Error('C must retain a chest-focus while training the full body');
  const initial=sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
- const make=fn=>new Function('recovery','phaseWeek','stepGoalRange','coachLoads','coachWeight','localDate','localStorage','exerciseDone','trainingIndex',
+ const make=fn=>new Function('recovery','phaseWeek','stepGoalRange','coachLoads','coachWeight','localDate','localStorage','exerciseDone','trainingIndex','integratedTrainingDecision','rideAffectsLowerBody',
    initial+'return resolveExercise;')({state:fn.state},()=>fn.week,()=> '6500–7500',
-   {bench:{unit:'kg'}},()=>45,()=> '2026-10-10',{getItem:()=>null,setItem:()=>{}},{},()=>4);
+   {bench:{unit:'kg'}},()=>45,()=> '2026-10-10',{getItem:()=>null,setItem:()=>{}},{},()=>4,()=>({reduceLower:false}),()=>false);
  for(const week of [1,2,3,4,8,12])for(const state of ['ok','poor']){
    const resolve=make({state,week}),base=3,sets=+resolve('杠铃卧推｜3组 × 6–8次｜推荐重量：@bench',true).match(/(\d+)组/)[1],anticipated=week%4===0||state==='poor'?2:3;
    if(sets!==anticipated)throw Error('Deload/recovery volume mismatch week '+week+' '+state+' -> '+sets);
@@ -341,10 +342,10 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   const done=completed?{'杠铃卧推':true}:{};
   const spec='杠铃卧推｜3组 × 6–8次｜推荐重量：@bench｜休2–3分钟';
   const fakePlan=()=>[[],[],[],[],['C','Full','60 min',[spec]]];
-  const harness=new Function('localStorage','localDate','exerciseDone','trainingIndex','phaseWeek','recovery','stepGoalRange','coachLoads','coachWeight','currentPlans','sessionLoads','validCoachWeight','workingWeight',
+  const harness=new Function('localStorage','localDate','exerciseDone','trainingIndex','phaseWeek','recovery','stepGoalRange','coachLoads','coachWeight','currentPlans','sessionLoads','validCoachWeight','workingWeight','integratedTrainingDecision','rideAffectsLowerBody',
     helper+'return {parseExerciseVolume,adaptiveVolumeReference,applyExerciseVolumeToRow,snapshotCompletedExerciseVolume,recordTrainingVolumeOutcome,undoTrainingVolumeOutcome,volumeTrainingHistory,resolveExercise,validExerciseVolume};');
   const api=harness(storage,()=> '2026-10-10',done,()=>4,()=>week,{state:recoveryState,painArea:''},
-     ()=> '6500–7500',{bench:{unit:'kg'}},()=>45,fakePlan,{bench:45},v=>v!==null&&v!==undefined&&+v>0,()=>45);
+     ()=> '6500–7500',{bench:{unit:'kg'}},()=>45,fakePlan,{bench:45},v=>v!==null&&v!==undefined&&+v>0,()=>45,()=>({reduceLower:false}),()=>false);
   return {api,memory,done,spec};
  };
  let h=make();
@@ -523,9 +524,9 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  f.inputs.extraMinutes.value='0';f.api.saveExtraActivity('planned');
  if(f.alerts.length!==1)throw Error('Invalid quick activity duration not rejected');
  const planCode=func('currentPlans','function planAffectedByPain');
- const makePlan=new Function('currentPlansBase','trainingIndex','adaptiveRule','shiftDate','localDate','weightTrendRule','recoveryRule','recovery','trainDone','storedRide','recentExtraLoad',planCode+'return currentPlans;');
+ const makePlan=new Function('currentPlansBase','trainingIndex','adaptiveRule','shiftDate','localDate','weightTrendRule','recoveryRule','recovery','trainDone','storedRide','recentExtraLoad','integratedTrainingDecision',planCode+'return currentPlans;');
  const plans=()=>[['A','S','50',[]],['B','Zone 2 骑车','45',[ '热身｜5分钟','主体｜35–40分钟 Zone 2']],[],[],[],['F','Zone 2 骑车','55',['热身｜5分钟','主体｜45分钟 Zone 2']],[]];
- const d=(load,idx=1,done=false)=>makePlan(plans,()=>idx,()=>({}),()=> '2026-10-09',()=> '2026-10-10',()=>({extraMinutes:0,suppressExtra:false}),()=>({suppressExtra:false}),{state:'ok'},done,()=>null,()=>load)()[idx][3][1];
+ const d=(load,idx=1,done=false)=>makePlan(plans,()=>idx,()=>({}),()=> '2026-10-09',()=> '2026-10-10',()=>({extraMinutes:0,suppressExtra:false}),()=>({suppressExtra:false}),{state:'ok'},done,()=>null,()=>load,()=>({load:{highLoad:load.heavy,moderate:load.substantial}}))()[idx][3][1];
  if(!d({heavy:true,substantial:true}).includes('15–25分钟')||
     !d({heavy:false,substantial:true}).includes('20–30分钟')||
     !d({heavy:false,substantial:false}).includes('35–40分钟')||
