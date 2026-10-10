@@ -324,3 +324,87 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(!html.includes('.exerciseRow.isDone{opacity:.58}')||html.includes('finishedCompact')||html.includes('trainingFlowGuideHtml'))throw Error('Authorized V47 layout must remain unchanged');
  console.log('PASS: 3 trained strength days 16/16/15 sets, full-body C, week4/8/12 deload, day-scoped recovery and in-progress old-session protection');
 }
+
+/* V49: optional sets/reps and outcome-aware prescription must persist, never
+   misrepresent recommended reps as observed reps or alter prior sessions. */
+{
+ const helper=sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
+ const make=(rows=[],manual={},completed=false,recoveryState='ok',week=1)=>{
+  const memory=new Map([
+    ['ckTrainingVolumeHistory',JSON.stringify(rows)],
+    ['ckTrainingVolumeReferences',JSON.stringify(manual)],
+    ['ckTrain-2026-10-09','1'],
+    ['ckMeals-2026-10-09','[{"kcal":640}]']
+  ]);
+  const storage={getItem:k=>memory.has(k)?memory.get(k):null,setItem:(k,v)=>memory.set(k,String(v)),key:i=>[...memory.keys()][i],get length(){return memory.size}};
+  const done=completed?{'杠铃卧推':true}:{};
+  const spec='杠铃卧推｜3组 × 6–8次｜推荐重量：@bench｜休2–3分钟';
+  const fakePlan=()=>[[],[],[],[],['C','Full','60 min',[spec]]];
+  const harness=new Function('localStorage','localDate','exerciseDone','trainingIndex','phaseWeek','recovery','stepGoalRange','coachLoads','coachWeight','currentPlans','sessionLoads','validCoachWeight','workingWeight',
+    helper+'return {parseExerciseVolume,adaptiveVolumeReference,applyExerciseVolumeToRow,snapshotCompletedExerciseVolume,recordTrainingVolumeOutcome,undoTrainingVolumeOutcome,volumeTrainingHistory,resolveExercise,validExerciseVolume};');
+  const api=harness(storage,()=> '2026-10-10',done,()=>4,()=>week,{state:recoveryState,painArea:''},
+     ()=> '6500–7500',{bench:{unit:'kg'}},()=>45,fakePlan,{bench:45},v=>v!==null&&v!==undefined&&+v>0,()=>45);
+  return {api,memory,done,spec};
+ };
+ let h=make();
+ const v=h.api.parseExerciseVolume(h.spec);
+ if(JSON.stringify(v)!==JSON.stringify({sets:3,min:6,max:8,unit:'次'}))throw Error('Cannot parse base working sets/reps');
+ const side=h.api.parseExerciseVolume('Pallof Press 抗旋转｜2组 × 每侧10–12次｜推荐重量：@pallof');
+ const seconds=h.api.parseExerciseVolume('平板支撑｜2组 × 30–45秒｜自重');
+ if(side?.unit!=='次'||side.min!==10||seconds?.unit!=='秒'||seconds.max!==45)throw Error('Core/bilateral duration parse failed');
+ if(h.api.parseExerciseVolume('热身｜5分钟')!==null)throw Error('Warmups must not be editable strength sets');
+ if(!h.api.resolveExercise(h.spec,true,4).includes('3组 × 6–8次'))throw Error('Base volume changed without evidence');
+ const last=[
+  {id:'4|杠铃卧推',date:'2026-10-08',feedback:'hard',time:2},
+  {id:'4|杠铃卧推',date:'2026-10-06',feedback:'hard',time:1}
+ ];
+ h=make(last);
+ let r=h.api.resolveExercise(h.spec,true,4);
+ if(!r.includes('3组 × 6–7次'))throw Error('Two hard completions should lower the next upper-rep boundary; '+r);
+ h=make([{id:'4|杠铃卧推',date:'2026-10-09',feedback:'fail'}]);
+ r=h.api.resolveExercise(h.spec,true,4);
+ if(!r.includes('2组 × 6–7次'))throw Error('Failed effort must reduce next sets and rep ceiling: '+r);
+ h=make([{id:'4|杠铃卧推',date:'2026-10-09',feedback:'light'}]);
+ if(!h.api.resolveExercise(h.spec,true,4).includes('3组 × 6–8次'))throw Error('Light effort already increases weight, should not double-increase volume');
+ h=make(last,{'4|杠铃卧推':{sets:4,min:8,max:10,unit:'次'}});
+ if(!h.api.resolveExercise(h.spec,true,4).includes('4组 × 8–10次'))throw Error('Manual reference must win over hard feedback');
+ h=make(last,{'4|杠铃卧推':{sets:4,min:8,max:10,unit:'次'}},false,'poor');
+ if(!h.api.resolveExercise(h.spec,true,4).includes('3组 × 8–10次'))throw Error('Poor recovery should temporarily reduce one working set while retaining manual baseline');
+ h=make([],{},false,'ok',4);
+ if(!h.api.resolveExercise(h.spec,true,4).includes('2组 × 6–8次'))throw Error('Week 4/8/12 must deload the active plan');
+ h=make([],{},false,'poor',4);
+ if(!h.api.resolveExercise(h.spec,true,4).includes('2组 × 6–8次'))throw Error('Deload+poor recovery must not double-punish workout');
+ h=make();
+ h.api.snapshotCompletedExerciseVolume('杠铃卧推','杠铃卧推｜3组 × 6–8次',4);
+ h.done['杠铃卧推']=true;
+ h.memory.set('ckTrainingVolumeReferences',JSON.stringify({'4|杠铃卧推':{sets:5,min:10,max:12,unit:'次'}}));
+ if(!h.api.resolveExercise(h.spec,true,4).includes('3组 × 6–8次'))throw Error('Completed action prescription retroactively modified');
+ h.api.recordTrainingVolumeOutcome('杠铃卧推','good','bench',45);
+ let outcomes=h.api.volumeTrainingHistory();
+ if(outcomes.length!==1||outcomes[0].sets!==3||outcomes[0].min!==6||outcomes[0].max!==8||
+    outcomes[0].weight!==45||outcomes[0].feedback!=='good'||outcomes[0].date!=='2026-10-10')
+    throw Error('Cannot store actual plan/feedback history: '+JSON.stringify(outcomes));
+ if('actualReps' in outcomes[0]||'actualSets' in outcomes[0])throw Error('Never invent performed reps or sets');
+ h.api.recordTrainingVolumeOutcome('杠铃卧推','hard','bench',45);
+ if(h.api.volumeTrainingHistory().length!==1||h.api.volumeTrainingHistory()[0].feedback!=='hard')throw Error('Repeated feedback should update, not duplicate same workout');
+ h.api.undoTrainingVolumeOutcome('杠铃卧推',4);
+ if(h.api.volumeTrainingHistory().length||h.memory.get('ckTrain-2026-10-09')!=='1'||
+    h.memory.get('ckMeals-2026-10-09')!=='[{"kcal":640}]')throw Error('Undo removed old records');
+ if(html.includes('localStorage.clear('))throw Error('Historical storage wipe is forbidden');
+ console.log('PASS: live sets/reps adaptation, manual precedence, recovery and deload, immutable completed sessions, response log/undo');
+}
+
+/* No unrequested design change: ensure only expanded '调整参考' fields are added. */
+{
+ if(!html.includes('function trainingReferenceEditorHtml(')||!html.includes('function saveTrainingReference('))
+  throw Error('Missing inline reference editor');
+ if(!html.includes('volumeEdit-sets-')||!html.includes('volumeEdit-min-')||
+    !html.includes('volumeEdit-max-')||!html.includes('volumeEdit-weight-'))
+  throw Error('Reference editor must include sets/min-max-reps and optional weight');
+ if(!html.includes('&&parseExerciseVolume(a)?trainingReferenceEditorHtml(key,name,a,i)'))
+  throw Error('Existing training card entry not reused');
+ if(!html.includes('.exerciseRow.isDone{opacity:.58}')||
+    html.includes('finishedCompact')||html.includes('trainingFlowGuideHtml'))
+  throw Error('V47 completed style must not be redesigned');
+ console.log('PASS: inline optional group/rep/load editor, V47 completed-card appearance preserved.');
+}
