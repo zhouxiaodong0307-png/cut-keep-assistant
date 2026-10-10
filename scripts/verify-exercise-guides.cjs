@@ -178,3 +178,60 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Unsafe clear');
  console.log('PASS: 13 load slots; uncalibrated labels; overrides; squat/split/bench ramp; ankle-specific guard; history preserved');
 }
+
+/* End-to-end training execution: one user-visible bug must test every adjacent step.
+   Runs 7-day training route, 12-week anatomy mappings (above), plus actual completion,
+   feedback, next-action focus, all-done, hydration/food/progress anchors and undo. */
+{
+ const requiredPages=['today','diet','training','progress'];
+ for(const page of requiredPages){
+   if(!html.includes('id="view-'+page+'"'))throw Error('Missing main screen '+page);
+ }
+ for(const fn of ['renderTraining','renderProgress','renderRecoveryBasics','renderWaterTracker','saveRecoveryBasics','completeWaterServing','undoWaterServing','exportDataBackup','restoreDataBackup','setExerciseFeedback','toggleExerciseDone','toggleExerciseGuide','saveTodayRide'])
+  if(!html.includes('function '+fn+'('))throw Error('App regression: '+fn);
+ const flowCode=sect('function exerciseName(a){','function benchWarmupHint(){').slice(0,-'function benchWarmupHint(){'.length);
+ const feedbackCode=sect('function setExerciseFeedback(name,level){','function recalcFeedbackForRecovery(){').slice(0,-'function recalcFeedbackForRecovery(){'.length);
+ const completeCode=sect('function completeAllExercises(){','function renderExerciseList(').slice(0,-'function renderExerciseList('.length);
+ function instance(){
+   const stores=new Map([['ckTrain-2026-10-09','1'],['ckSteps-2026-10-09','6500'],['ckMeals-2026-10-09','[]']]);
+   const scrolled=[],rendered=[];
+   const source=
+    'const localStorage={getItem:k=>stores.has(k)?stores.get(k):null,setItem:(k,v)=>stores.set(k,String(v)),removeItem:k=>stores.delete(k)};'+
+    'const names=["热身","杠铃卧推","平板哑铃飞鸟"];'+
+    'const plan=()=>[["训练日1","胸部",null,names.map(n=>n+"｜工作组")],["训练日2","Zone 2",null,[]],["训练日3","腿背",null,[]],["训练日4","恢复",null,[]],["训练日5","胸部",null,[]],["训练日6","Zone 2",null,[]],["训练日7","休息",null,[]]];'+
+    'const currentPlans=()=>plan(),trainingIndex=()=>0,planKind=()=> "strength";'+
+    'const loadKeyForExercise=n=>n==="杠铃卧推"?"bench":n==="平板哑铃飞鸟"?"fly":null;'+
+    'const window={todayPlanDetails:{}},todayPlanDetails=window.todayPlanDetails;'+
+    'const requestAnimationFrame=fn=>fn();'+
+    'const document={getElementById:id=>({scrollIntoView:()=>scrolled.push(id)})};'+
+    'let exerciseDone={},exerciseFeedback={},trainDone=false,openExerciseGuide="杠铃卧推",openLoadEditorKey="bench",loadOverrides={},sessionLoads={};'+
+    'const exerciseDoneKey="ckExerciseDone-2026-10-10",exerciseFeedbackKey="ckExerciseFeedback-2026-10-10",trainKey="ckTrain-2026-10-10";'+
+    'const sessionLoadKey="ckSessionLoads-2026-10-10",coachLoads={bench:{unit:"kg"},fly:{unit:"每手 kg"}};'+
+    'const renderTraining=()=>rendered.push("training"),refreshNutritionGuidance=()=>{};'+
+    'const rollbackExerciseFeedback=()=>{},feedbackNextWeight=()=>45;'+
+    'const validCoachWeight=v=>v!==null&&v!==undefined&&Number(v)>0,workingWeight=()=>45;'+
+    flowCode+feedbackCode+completeCode+
+    'return {toggleExerciseDone,setExerciseFeedback,completeAllExercises,trainingFlowGuideHtml,scroll:scrolled,stores,getDone:()=>({...exerciseDone}),getFb:()=>({...exerciseFeedback}),getTrainDone:()=>trainDone,rendered};';
+   return new Function('stores','scrolled','rendered',source)(stores,scrolled,rendered);
+ }
+ let f=instance();
+ f.toggleExerciseDone('热身');
+ if(f.scroll.at(-1)!=='exercise-step-1')throw Error('Warmup completion must lead to next action');
+ f.toggleExerciseDone('杠铃卧推');
+ if(f.scroll.at(-1)!=='feedback-step-1')throw Error('Weighted completion must focus feedback, not bury it under illustrations');
+ f.setExerciseFeedback('杠铃卧推','good');
+ if(f.scroll.at(-1)!=='exercise-step-2'||!f.getFb()['杠铃卧推'])throw Error('Feedback must lead to next action');
+ f.toggleExerciseDone('平板哑铃飞鸟');
+ if(f.scroll.at(-1)!=='feedback-step-2')throw Error('Last working action must focus feedback');
+ f.setExerciseFeedback('平板哑铃飞鸟','hard');
+ if(!f.getTrainDone()||f.scroll.at(-1)!=='exercise-flow-guide'||f.stores.get('ckTrain-2026-10-10')!=='1')throw Error('Completed session must be saved and show next-day note');
+ if(f.stores.get('ckTrain-2026-10-09')!=='1'||f.stores.get('ckMeals-2026-10-09')!=='[]')throw Error('Past history was modified');
+ f.toggleExerciseDone('平板哑铃飞鸟');
+ if(f.getTrainDone()||f.getFb()['平板哑铃飞鸟'])throw Error('Undo must correctly remove completion and related feedback');
+ f=instance();f.completeAllExercises();
+ if(!f.getTrainDone()||f.scroll.at(-1)!=='feedback-step-1')throw Error('Bulk completion must surface missing weight feedback');
+ if(!html.includes('finishedCompact')||!html.includes('toggleFeedbackEditor(')||!html.includes('nextExerciseStep('))throw Error('Compact done cards or next-action UI missing');
+ if(!html.includes('onclick="toggleFeedbackEditor(&quot;'))throw Error('Feedback editor HTML-attribute quoting unsafe');
+ if(html.includes('localStorage.clear('))throw Error('Data clearing forbidden');
+ console.log('PASS: all four screens, action -> feedback -> next action, completed session, bulk completion, undo and legacy-data preservation.');
+}
