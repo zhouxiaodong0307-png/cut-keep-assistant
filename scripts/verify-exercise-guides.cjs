@@ -27,7 +27,7 @@ const code=[
  'const localStorage={getItem:()=>null,setItem:()=>{}},exerciseDone={};let trainDone=false;',
  'const localDate=()=>"2026-10-08",shiftDate=()=>localDate(),adaptiveRule=()=>({});',
  'const weightTrendRule=()=>({extraMinutes:extra,suppressExtra:false}),recovery={state:poor?"poor":"ok"},recoveryRule=()=>({suppressExtra:false});',
- 'let trainDone=false;const storedRide=()=>null,recentExtraLoad=()=>({minutes:0,maxRpe:0,heavy:false,substantial:false});',
+ 'const storedRide=()=>null,recentExtraLoad=()=>({minutes:0,maxRpe:0,heavy:false,substantial:false});',
  sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length),
  func('currentPlansBase','function adaptiveRule'),
  func('currentPlans','function planAffectedByPain'),
