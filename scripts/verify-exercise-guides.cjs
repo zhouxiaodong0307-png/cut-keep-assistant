@@ -164,12 +164,12 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const localStorage={getItem:k=>memory.has(k)?memory.get(k):null,setItem:(k,v)=>memory.set(k,String(v))};
  const override={bench:45},today={};
  const editor=new Function('localStorage','coachLoads','loadOverrides','sessionLoads','phaseWeek','coachWeight','roundTo','benchWarmupHint',
-  'exerciseDone','exerciseFeedback','sessionLoadKey','renderTraining','document','alert','workingWeight',
+  'exerciseDone','exerciseFeedback','sessionLoadKey','renderTraining','document','alert','workingWeight','validCoachWeight',
   helperCode+'return {compoundWarmupHint,loadSourceLabel,saveReferenceLoad,toggleLoadEditor,loadReferenceEditorHtml};');
  const plan={bench:{base:45,round:2.5,unit:'kg'},squatA:{base:40,round:2.5,unit:'kg'},split:{base:8,round:1,unit:'每手 kg'}};
  const ui=editor(localStorage,plan,override,today,()=>1,k=>k==='bench'?45:k==='squatA'?60:8,
   (v,n)=>Math.round(v/n)*n,()=>'',{}, {},'ckSessionLoads-2026-10-10',()=>{},
-  {getElementById:()=>({value:'60'})},()=>{},k=>override[k]||plan[k].base);
+  {getElementById:()=>({value:'60'})},()=>{},k=>override[k]||plan[k].base,r.validCoachWeight);
  if(!ui.compoundWarmupHint('热身｜杠铃深蹲递增热身').includes('60 kg × 3组')||
     !ui.compoundWarmupHint('热身｜保加利亚分腿蹲递增热身').includes('徒手每侧'))throw Error('Squat/split warmup not linked to suggested load');
  if(!ui.loadSourceLabel('squatA').includes('未校准')||!ui.loadSourceLabel('bench').includes('调整'))throw Error('Load source status incorrect');
