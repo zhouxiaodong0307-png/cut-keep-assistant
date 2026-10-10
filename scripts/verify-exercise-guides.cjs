@@ -235,3 +235,24 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Data clearing forbidden');
  console.log('PASS: all four screens, action -> feedback -> next action, completed session, bulk completion, undo and legacy-data preservation.');
 }
+
+/* Cross-module invariant: manual load edits win over undo/recovery replay; pain status cannot claim full progression. */
+{
+ if(!html.includes('painLimitsToday?"部分暂停":"允许"'))throw Error('Pain-aware top-level progression label missing');
+ if(!html.includes('疼痛相关动作暂不自动加重，其他无痛动作按计划执行'))throw Error('Pain status must explain per-exercise restriction');
+ const extracted=sect('function rollbackExerciseFeedback(name){','function setExerciseFeedback(name,level){').slice(0,-'function setExerciseFeedback(name,level){'.length);
+ const make=(next,prev,current)=>{
+  const state={incline:current},logs=[],fb={'上斜哑铃卧推':{key:'incline',next,prev}},session={incline:20};
+  const fn=new Function('exerciseFeedback','loadOverrides','sessionLoads','coachLoads','localStorage','validCoachWeight',
+    extracted+'return rollbackExerciseFeedback;');
+  fn(fb,state,session,{incline:{base:20}},{setItem:(k,v)=>logs.push([k,v])},
+    x=>x!==null&&x!==undefined&&x!==''&&Number.isFinite(+x)&&+x>0)('上斜哑铃卧推');
+  return {current:state.incline,logs};
+ };
+ let r=make(22,20,26);
+ if(r.current!==26||r.logs.length)throw Error('Undo overwrote more recent manual weight');
+ r=make(22,20,22);
+ if(r.current!==20||r.logs.length!==1)throw Error('Undo did not restore the true previous weight');
+ if(html.includes('localStorage.clear('))throw Error('Historical data should never be cleared');
+ console.log('PASS: manual load priority through undo; pain status matches per-exercise restrictions');
+}
