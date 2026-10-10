@@ -29,6 +29,7 @@ const code=[
  'const weightTrendRule=()=>({extraMinutes:extra,suppressExtra:false}),recovery={state:poor?"poor":"ok"},recoveryRule=()=>({suppressExtra:false});',
  'const storedRide=()=>null,recentExtraLoad=()=>({minutes:0,maxRpe:0,heavy:false,substantial:false});',
  'const integratedTrainingDecision=()=>({reduceLower:false,load:{highLoad:false,moderate:false}}),rideAffectsLowerBody=()=>false;',
+ 'const applyCardioLoadPrescription=()=>{},completedCardioRecovery=()=>false;',
  sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length),
  func('currentPlansBase','function adaptiveRule'),
  func('currentPlans','function planAffectedByPain'),
@@ -76,9 +77,10 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    'const localDate=()=>"2026-10-08",trainKey="ckTrain-2026-10-08";'+
    'const safeJsonParse=(v,f)=>{try{return v?JSON.parse(v):f}catch(e){return f}};'+
    'let trainDone=false,recovery={state:"ok"};'+
+   'const cardioRecoveryKey=()=>"ckCardioRecovery-2026-10-08",cardioLoadPrescription=()=>null,completedCardioRecovery=()=>false;'+
    'const planKind=idx=>[0,2,4].includes(idx)?"strength":[1,5].includes(idx)?"cardio":"rest",trainingIndex=()=>DAY;'+
    'const document={getElementById:k=>({value:k==="rideMinutes"?"47":"4"})};'+
-   'const alert=s=>notices.push(s),renderTraining=()=>{},refreshNutritionGuidance=()=>{};';
+   'const alert=s=>notices.push(s),renderTraining=()=>{},refreshNutritionGuidance=()=>{},rpeOptionList=()=>"",rpeEffortLabel=()=>"";';
   return new Function('memo','notices','DAY',harness+rideJs+'return {saveTodayRide,undoTodayRide,storedRide,restDayHtml,cardioDayHtml,getDone:()=>trainDone};')(memo,notices,day);
  }
  for(let day=0;day<7;day++){
@@ -559,9 +561,9 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(f.api.completedExtraActivity().length!==1||f.api.readExtraActivities()[0].startTime!==undefined)
    throw Error('Legacy planned entry could not be converted to actual record');
  const planCode=func('currentPlans','function planAffectedByPain');
- const makePlan=new Function('currentPlansBase','trainingIndex','adaptiveRule','shiftDate','localDate','weightTrendRule','recoveryRule','recovery','trainDone','storedRide','recentExtraLoad','integratedTrainingDecision',planCode+'return currentPlans;');
+ const makePlan=new Function('currentPlansBase','trainingIndex','adaptiveRule','shiftDate','localDate','weightTrendRule','recoveryRule','recovery','trainDone','storedRide','recentExtraLoad','integratedTrainingDecision','applyCardioLoadPrescription',planCode+'return currentPlans;');
  const plans=()=>[['A','S','50',[]],['B','Zone 2 骑车','45',['热身｜5分钟','主体｜35–40分钟 Zone 2']],[],[],[],['F','Zone 2 骑车','55',['热身｜5分钟','主体｜45分钟 Zone 2']],[]];
- const d=(load,idx=1,done=false)=>makePlan(plans,()=>idx,()=>({}),()=> '2026-10-09',()=> '2026-10-10',()=>({extraMinutes:0,suppressExtra:false}),()=>({suppressExtra:false}),{state:'ok'},done,()=>null,()=>load,()=>({load:{highLoad:load.heavy,moderate:load.substantial}}))()[idx][3][1];
+ const d=(load,idx=1,done=false)=>makePlan(plans,()=>idx,()=>({}),()=> '2026-10-09',()=> '2026-10-10',()=>({extraMinutes:0,suppressExtra:false}),()=>({suppressExtra:false}),{state:'ok'},done,()=>null,()=>load,()=>({load:{highLoad:load.heavy,moderate:load.substantial}}),(...args)=>{if(![1,5].includes(args[1])||args[3])return;const item=args[0][args[1]];if(load.heavy){item[3][1]='主体｜15–25分钟轻松恢复';}else if(load.substantial){item[3][1]='主体｜20–30分钟轻松骑';}})()[idx][3][1];
  if(!d({heavy:true,substantial:true}).includes('15–25分钟')||
     !d({heavy:false,substantial:true}).includes('20–30分钟')||
     !d({heavy:false,substantial:false}).includes('35–40分钟')||
@@ -662,11 +664,11 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     new Set(seen).size<9||rpeEffortLabel(0)!=='强度未知'||rpeEffortLabel(11)!=='强度未知')
     throw Error('Middle and high RPE intensities are unclassified/ambiguous');
  const rideUI=func('cardioDayHtml','function saveTodayRide(');
- const card=new Function('storedRide','recovery','trainDone','rpeOptionList','rpeEffortLabel',
+ const card=new Function('storedRide','recovery','trainDone','rpeOptionList','rpeEffortLabel','completedCardioRecovery','cardioLoadPrescription',
    rideUI+'return cardioDayHtml;');
  const ridePlan=['热身｜5分钟','主体｜40分钟 Zone 2','放松｜5分钟'];
- const initial=card(()=>null,{state:'ok'},false,rpeOptionList,rpeEffortLabel)(ridePlan);
- const completed=card(()=>({minutes:45,rpe:6}),{state:'ok'},true,rpeOptionList,rpeEffortLabel)(ridePlan);
+ const initial=card(()=>null,{state:'ok'},false,rpeOptionList,rpeEffortLabel,()=>false,()=>null)(ridePlan);
+ const completed=card(()=>({minutes:45,rpe:6}),{state:'ok'},true,rpeOptionList,rpeEffortLabel,()=>false,()=>null)(ridePlan);
  if(!initial.includes('5 · 中等')||!initial.includes('6 · 中等偏高')||
     !initial.includes('value="3" selected')||!completed.includes('value="6" selected')||
     !completed.includes('RPE 6（中等偏高）'))
