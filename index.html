@@ -438,6 +438,7 @@ function adaptiveVolumeReference(row,dayIndex,isToday=true){
  if(validExerciseVolume(frozen))return {sets:+frozen.sets,min:+frozen.min,max:+frozen.max,unit:frozen.unit,locked:true};
  const refs=readTrainingVolumeJson(VOLUME_REFERENCE_KEY,{}),manual=refs[id];
  let v=validExerciseVolume(manual)&&manual.unit===spec.unit?{...spec,sets:+manual.sets,min:+manual.min,max:+manual.max}:{...spec};
+ const referenceSets=v.sets;
  if(!validExerciseVolume(manual)){
   const recent=lastVolumeResponses(id);
   if(recent[0]?.feedback==="fail"){
@@ -448,7 +449,7 @@ function adaptiveVolumeReference(row,dayIndex,isToday=true){
   }
  }
  const deload=(phaseWeek()-1)%4===3,poorToday=isToday&&recovery.state==="poor";
- if(deload||poorToday)v.sets=Math.max(1,v.sets-1);
+ if(deload||poorToday)v.sets=Math.min(v.sets,Math.max(1,referenceSets-1));
  return v;
 }
 function applyExerciseVolumeToRow(row,v){
@@ -464,6 +465,7 @@ function snapshotCompletedExerciseVolume(name,rawRow,dayIndex=trainingIndex()){
 function recordTrainingVolumeOutcome(name,level,key,nextWeight){
  const idx=trainingIndex(),id=exerciseVolumeId(idx,name),day=currentPlans()[idx];
  const row=day?.[3]?.find(x=>x.split("｜")[0]===name);
+ if(!validExerciseVolume(volumeSnapshots[id])&&row)snapshotCompletedExerciseVolume(name,row,idx);
  const v=volumeSnapshots[id]||parseExerciseVolume(row);
  if(!validExerciseVolume(v))return;
  const record={id,name,date:localDate(),day:idx,week:phaseWeek(),sets:+v.sets,min:+v.min,max:+v.max,unit:v.unit,
@@ -784,12 +786,13 @@ function trainingReferenceEditorHtml(key,name,row,index){
  const edit=openLoadEditorKey===id,hasLoad=!!key,unit=hasLoad?coachLoads[key].unit:"";
  const status=hasLoad?loadSourceLabel(key):"组次参考可自行调整";
  const manual=readTrainingVolumeJson(VOLUME_REFERENCE_KEY,{})[id];
+ const editValues=exerciseDone[name]&&validExerciseVolume(manual)?manual:v;
  const note=validExerciseVolume(manual)?" · 组次已手动校准":"";
  const head='<div class="loadReference"><small>'+status+note+'</small><button type="button" class="loadEditToggle" onclick="toggleLoadEditor(\''+id+'\')">'+(edit?'收起':'调整参考')+'</button></div>';
  if(!edit)return head;
  const input=(kind,label,value,min,max)=>'<label class="volumeField"><small>'+label+'</small><input id="volumeEdit-'+kind+'-'+index+'" type="number" inputmode="numeric" min="'+min+'" max="'+max+'" value="'+value+'"></label>';
  const weight=hasLoad?'<label class="volumeField volumeWeight"><small>工作重量 · '+unit+'</small><input id="volumeEdit-weight-'+index+'" type="number" inputmode="decimal" min="0.1" max="400" step="'+coachLoads[key].round+'" value="'+workingWeight(key)+'"></label>':"";
- return head+'<div class="volumeEditPanel"><div class="volumeEditFields">'+input("sets","正式组",v.sets,1,8)+input("min",v.unit==="秒"?"最少秒数":"最低次数",v.min,1,v.unit==="秒"?120:40)+input("max",v.unit==="秒"?"最多秒数":"最高次数",v.max,1,v.unit==="秒"?120:40)+weight+'</div><div class="volumeEditFooter"><small>仅调整参考目标，无需逐组记录。已完成动作的本次数据不改写。</small><button type="button" onclick="saveTrainingReference('+index+')">保存</button></div></div>';
+ return head+'<div class="volumeEditPanel"><div class="volumeEditFields">'+input("sets","正式组",editValues.sets,1,8)+input("min",v.unit==="秒"?"最少秒数":"最低次数",editValues.min,1,v.unit==="秒"?120:40)+input("max",v.unit==="秒"?"最多秒数":"最高次数",editValues.max,1,v.unit==="秒"?120:40)+weight+'</div><div class="volumeEditFooter"><small>仅调整参考目标，无需逐组记录。已完成动作的本次数据不改写。</small><button type="button" onclick="saveTrainingReference('+index+')">保存</button></div></div>';
 }
 function saveTrainingReference(index){
  const idx=trainingIndex(),row=currentPlans()[idx]?.[3]?.[index],name=row&&exerciseName(row);
