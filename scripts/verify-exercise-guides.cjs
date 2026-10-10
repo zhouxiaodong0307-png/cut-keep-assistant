@@ -91,3 +91,22 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  }
  console.log('PASS: legacy hydration, overnight sleep and all 7 cycling/recovery/strength day routes.');
 }
+
+/* Dedicated dumbbell-fly image + warmup regression: critical because the fly
+   is intentionally not a panel of the older anatomy sprite. */
+{
+ const flyArt=path.join(root,'assets/flat-fly-320-30.webp');
+ if(!fs.existsSync(flyArt)||fs.statSync(flyArt).size<4000||!html.includes('./assets/flat-fly-320-30.webp'))throw Error('Dedicated flat fly art missing');
+ const guideCode=sect('function guideSvg(name,compact=false){','function toggleExerciseGuide(').slice(0,-'function toggleExerciseGuide('.length);
+ const flyGuide=new Function('exerciseGuides','GUIDE_ATLAS',guideCode+';return guideSvg;')(
+  {'平板哑铃飞鸟':{pose:'fly'}},{fly:[6,1]});
+ const thumb=flyGuide('平板哑铃飞鸟',true),large=flyGuide('平板哑铃飞鸟',false);
+ if(!thumb.includes('flyThumb')||!large.includes('flyGuideScene')||!thumb.includes('background-position:')||!large.includes('background-position:'))throw Error('Flat fly must have separate compact and expanded art');
+ const benchCode=sect('function benchWarmupHint(){','function exerciseHtml(').slice(0,-'function exerciseHtml('.length);
+ const hint=new Function('coachWeight','phaseWeek',benchCode+'return benchWarmupHint();');
+ const standard=hint(()=>45,()=>1),deload=hint(()=>40,()=>4);
+ if(!standard.includes('空杆20 kg')||!standard.includes('30 kg × 3–5次')||!standard.includes('45 kg × 2组正式训练'))throw Error('45 kg bench warmup changed');
+ if(!deload.includes('40 kg × 1组正式训练'))throw Error('Deload bench set count changed');
+ if(html.includes('localStorage.clear('))throw Error('Unsafe localStorage.clear');
+ console.log('PASS: dedicated fly art, 45kg ramp warmup, deload warmup and localStorage guard');
+}

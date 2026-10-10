@@ -141,7 +141,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261010-fly-warmup-42",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261010-fly-warmup-43",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -517,8 +517,8 @@ const GUIDE_MOTIONS={
 function guideSvg(name,compact=false){
  const g=exerciseGuides[name];
  if(g&&g.pose==="fly")return compact
-  ?'<span class="anatomyThumb flyThumb" role="img" aria-label="平板哑铃飞鸟打开姿势示意图"></span>'
-  :'<div class="flyGuideScene" role="img" aria-label="上图胸前合拢，下图双臂向身体两侧打开"></div><div class="flyGuideCaption"><span>上图 · 起始与回位</span><span>下图 · 弧形打开</span></div>';
+  ?'<span class="anatomyThumb flyThumb" role="img" aria-label="平板哑铃飞鸟打开姿势示意图" style="background-position:52% 100%"></span>'
+  :'<div class="flyGuideScene" role="img" aria-label="上图胸前合拢，下图双臂向身体两侧打开" style="background-position:center"></div><div class="flyGuideCaption"><span>上图 · 起始与回位</span><span>下图 · 弧形打开</span></div>';
  const cell=g&&GUIDE_ATLAS[g.pose];
  if(!cell)return "";
  const row=cell[0],side=cell[1];
