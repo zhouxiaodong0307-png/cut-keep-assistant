@@ -408,3 +408,51 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   throw Error('V47 completed style must not be redesigned');
  console.log('PASS: inline optional group/rep/load editor, V47 completed-card appearance preserved.');
 }
+
+/* Editor persistence under old/new session state: user-entered references must not
+   overwrite a completed workout, yet apply to the next same-day-type workout. */
+{
+ const helpers=sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
+ const ui=sect('let openLoadEditorKey="";','function exerciseHtml(').slice(0,-'function exerciseHtml('.length);
+ function env(completed=false,bodyweight=false){
+  const id=bodyweight?'平板支撑':'杠铃卧推',row=bodyweight?'平板支撑｜2组 × 30–45秒｜自重':'杠铃卧推｜3组 × 6–8次｜推荐重量：45 kg';
+  const map=new Map([['ckTrain-2026-10-09','1']]),notifications=[];
+  const localStorage={getItem:k=>map.has(k)?map.get(k):null,setItem:(k,v)=>map.set(k,String(v))};
+  const exerciseDone=completed?{[id]:true}:{},exerciseFeedback={};
+  const inputs={
+   'volumeEdit-sets-0':{value:bodyweight?'3':'4'},
+   'volumeEdit-min-0':{value:bodyweight?'35':'8'},
+   'volumeEdit-max-0':{value:bodyweight?'60':'12'},
+   'volumeEdit-weight-0':{value:'52.5'}
+  };
+  const document={getElementById:k=>inputs[k]};
+  const cp=()=>{const p=Array.from({length:7},()=>[]);p[4]=['C','full','60m',[row]];return p};
+  const js=new Function('localStorage','localDate','exerciseDone','exerciseFeedback','trainingIndex','phaseWeek','recovery','coachLoads','coachWeight','currentPlans','sessionLoads','validCoachWeight','workingWeight','loadOverrides','loadKeyForExercise','roundTo','sessionLoadKey','renderTraining','document','alert','benchWarmupHint','stepGoalRange','exerciseName',
+    helpers+ui+'return {saveTrainingReference,trainingReferenceEditorHtml,toggleLoadEditor,volumeTrainingHistory,getLoad:()=>({...loadOverrides}),getSession:()=>({...sessionLoads}),input:inputs};');
+  const instance=js(localStorage,()=> '2026-10-10',exerciseDone,exerciseFeedback,()=>4,()=>1,{state:'ok',painArea:''},
+    {bench:{base:45,unit:'kg',round:2.5}},()=>45,cp,{bench:45},v=>v!==null&&v!==undefined&&Number(v)>0,()=>45,
+    {},n=>n==='杠铃卧推'?'bench':null,(v,inc)=>Math.round(v/inc)*inc,'ckSessionLoads-2026-10-10',
+    ()=>{},document,x=>notifications.push(x),()=>'warmup',()=> '6500–7500',v=>v.split('｜')[0]);
+  return {instance,map,notifications,exerciseDone,row,id};
+ }
+ let a=env(false,false);
+ a.instance.saveTrainingReference(0);
+ let manual=JSON.parse(a.map.get('ckTrainingVolumeReferences')||'{}')['4|杠铃卧推'];
+ if(!manual||manual.sets!==4||manual.min!==8||manual.max!==12||manual.unit!=='次'||
+    a.instance.getLoad().bench!==52.5||a.instance.getSession().bench!==52.5)
+  throw Error('Unfinished workout failed to save sets/reps and recommended weight together');
+ if(a.map.get('ckTrain-2026-10-09')!=='1')throw Error('Saving reference erased old training');
+ a=env(true,false);
+ a.instance.saveTrainingReference(0);
+ if(a.instance.getLoad().bench!==52.5||a.instance.getSession().bench!==45)
+  throw Error('Completed workout actual session load must not be rewritten');
+ a=env(false,true);
+ a.instance.saveTrainingReference(0);
+ manual=JSON.parse(a.map.get('ckTrainingVolumeReferences')||'{}')['4|平板支撑'];
+ if(manual?.unit!=='秒'||manual?.sets!==3||manual?.min!==35||manual?.max!==60)
+  throw Error('Bodyweight duration needs editable volume even without load');
+ a.instance.input['volumeEdit-sets-0'].value='15';a.instance.saveTrainingReference(0);
+ if(a.notifications.length!==1||JSON.parse(a.map.get('ckTrainingVolumeReferences'))['4|平板支撑'].sets!==3)
+  throw Error('Invalid set reference was accepted');
+ console.log('PASS: optional sets/reps and weight saves, bodyweight seconds, validations, current vs completed preservation.');
+}
