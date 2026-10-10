@@ -27,6 +27,7 @@ const code=[
  'const localStorage={getItem:()=>null,setItem:()=>{}},exerciseDone={};let trainDone=false;',
  'const localDate=()=>"2026-10-08",shiftDate=()=>localDate(),adaptiveRule=()=>({});',
  'const weightTrendRule=()=>({extraMinutes:extra,suppressExtra:false}),recovery={state:poor?"poor":"ok"},recoveryRule=()=>({suppressExtra:false});',
+ 'let trainDone=false;const storedRide=()=>null,recentExtraLoad=()=>({minutes:0,maxRpe:0,heavy:false,substantial:false});',
  sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length),
  func('currentPlansBase','function adaptiveRule'),
  func('currentPlans','function planAffectedByPain'),
@@ -455,4 +456,81 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(a.notifications.length!==1||JSON.parse(a.map.get('ckTrainingVolumeReferences'))['4|平板支撑'].sets!==3)
   throw Error('Invalid set reference was accepted');
  console.log('PASS: optional sets/reps and weight saves, bodyweight seconds, validations, current vs completed preservation.');
+}
+
+/* Same-day social/unscheduled ride: independent plan vs actual records; never
+   rewrite completed strength, planned training, week cursor, calorie or step data. */
+{
+ const extraCode=sect('const EXTRA_ACTIVITY_KINDS=','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
+ function mock(initialDay='2026-10-10',initialEntries=[]){
+  let date=initialDay,trainDone=true,idx=4;
+  const memory=new Map([
+   ['ckTrain-2026-10-10','1'],['ckTrainingCursorIndex','4'],
+   ['ckExerciseDone-2026-10-10','{"杠铃卧推":true}'],
+   ['ckSteps-2026-10-10','7200'],
+   ['ckMeals-2026-10-10','[{"kcal":600}]'],
+   ['ckRide-2026-10-10','{"minutes":60,"rpe":3}']
+  ]);
+  if(initialEntries.length)memory.set('ckExtraActivities-'+initialDay,JSON.stringify(initialEntries));
+  const localStorage={getItem:k=>memory.has(k)?memory.get(k):null,setItem:(k,v)=>memory.set(k,String(v)),
+   removeItem:k=>memory.delete(k),key:i=>[...memory.keys()][i],get length(){return memory.size}};
+  const inputs={
+   extraType:{value:'ride'},extraMinutes:{value:'35'},extraRpe:{value:'3'},
+   extraStartTime:{value:'16:00'},extraActivityPanel:{innerHTML:''},
+   extraActivityAdvice:{textContent:''},extraActivityNextHint:{textContent:''},
+   extraActivityDetails:{open:false},
+   'view-progress':{classList:{contains:()=>false}}
+  };
+  const document={getElementById:id=>inputs[id]||null};
+  const shiftDate=(ds,d)=>{const z=new Date(ds+'T12:00:00');z.setDate(z.getDate()+d);return z.getFullYear()+'-'+String(z.getMonth()+1).padStart(2,'0')+'-'+String(z.getDate()).padStart(2,'0')};
+  const safeJsonParse=(v,def)=>{try{return v?JSON.parse(v):def}catch(e){return def}};
+  const alerts=[];
+  const api=new Function('localStorage','localDate','shiftDate','safeJsonParse','recovery','sleepLoadGuard','weightTrendRule','planKind','trainingIndex','trainDone','document','alert','renderProgress',
+     extraCode+'return {saveExtraActivity,editExtraActivity,markExtraActivityComplete,removeExtraActivity,cancelExtraEdit,readExtraActivities,extraActivityAdvice,extraActivityPanelHtml,renderExtraActivity,recentExtraLoad,recentExtraStats,completedExtraActivity,extraActivityKey};')(
+    localStorage,()=>date,shiftDate,safeJsonParse,{state:'ok',painArea:''},()=>({suppress:false}),()=>({suppressExtra:false}),
+    i=>[0,2,4].includes(i)?'strength':[1,5].includes(i)?'cardio':'rest',()=>idx,trainDone,document,s=>alerts.push(s),()=>{});
+  return {api,inputs,memory,alerts,changeDay:d=>{date=d},changeIndex:i=>{idx=i}};
+ }
+ let f=mock();
+ if(!f.api.extraActivityAdvice('ride',35,3).includes('力量训练已经完成'))throw Error('Advice must recognize morning strength completion');
+ f.api.saveExtraActivity('planned');
+ let rows=f.api.readExtraActivities();
+ if(rows.length!==1||rows[0].status!=='planned'||rows[0].minutes!==35||rows[0].rpe!==3||rows[0].startTime!=='16:00')
+  throw Error('Extra ride planning failed');
+ if(f.api.recentExtraStats().count!==0||f.api.completedExtraActivity().length)throw Error('Planned ride incorrectly counted as performed');
+ if(f.memory.get('ckTrain-2026-10-10')!=='1'||f.memory.get('ckTrainingCursorIndex')!=='4'||
+    f.memory.get('ckExerciseDone-2026-10-10')!=='{"杠铃卧推":true}'||
+    f.memory.get('ckSteps-2026-10-10')!=='7200'||f.memory.get('ckMeals-2026-10-10')!=='[{"kcal":600}]'||
+    !f.memory.has('ckRide-2026-10-10'))throw Error('Planned extra activity changed main training/nutrition/steps');
+ const id=rows[0].id;
+ f.api.markExtraActivityComplete(id);
+ if(f.api.readExtraActivities()[0].status!=='planned'||!f.inputs.extraActivityAdvice.textContent.includes('实际骑行'))throw Error('Mark complete must request actual details, not silently complete');
+ f.inputs.extraMinutes.value='48';f.inputs.extraRpe.value='4';f.api.saveExtraActivity('completed');
+ rows=f.api.readExtraActivities();
+ if(rows.length!==1||rows[0].id!==id||rows[0].status!=='completed'||rows[0].minutes!==48||
+    f.api.recentExtraStats().count!==1||f.api.recentExtraStats().minutes!==48)throw Error('Completion did not replace plan with actual ride');
+ if(f.memory.get('ckTrain-2026-10-10')!=='1'||f.memory.get('ckRide-2026-10-10')!=='{"minutes":60,"rpe":3}')
+  throw Error('Extra completed ride must not overwrite planned Zone2 or strength data');
+ f.changeDay('2026-10-11');let load=f.api.recentExtraLoad();
+ if(!load.substantial||load.heavy||load.minutes!==48)throw Error('Yesterday mild extra riding not recognized');
+ f.changeDay('2026-10-10');f.api.removeExtraActivity(id);if(!f.api.readExtraActivities().length)throw Error('Delete must require second click');
+ f.api.removeExtraActivity(id);if(f.api.readExtraActivities().length)throw Error('Confirmed remove did not work');
+ f.changeDay('2026-10-11');if(f.api.recentExtraLoad().substantial)throw Error('Removed plan still affects next day');
+ f=mock();f.inputs.extraMinutes.value='82';f.inputs.extraRpe.value='7';f.api.saveExtraActivity('completed');
+ f.changeDay('2026-10-11');load=f.api.recentExtraLoad();
+ if(!load.heavy||load.minutes!==82)throw Error('Heavy ride must flag recovery');
+ if(f.api.completedExtraActivity().length!==0||f.api.recentExtraStats().count!==0)throw Error('Next day must not double-count yesterday activity');
+ f.inputs.extraMinutes.value='0';f.api.saveExtraActivity('planned');
+ if(f.alerts.length!==1)throw Error('Invalid quick activity duration not rejected');
+ const planCode=func('currentPlans','function planAffectedByPain');
+ const makePlan=new Function('currentPlansBase','trainingIndex','adaptiveRule','shiftDate','localDate','weightTrendRule','recoveryRule','recovery','trainDone','storedRide','recentExtraLoad',planCode+'return currentPlans;');
+ const plans=()=>[['A','S','50',[]],['B','Zone 2 骑车','45',[ '热身｜5分钟','主体｜35–40分钟 Zone 2']],[],[],[],['F','Zone 2 骑车','55',['热身｜5分钟','主体｜45分钟 Zone 2']],[]];
+ const d=(load,idx=1,done=false)=>makePlan(plans,()=>idx,()=>({}),()=> '2026-10-09',()=> '2026-10-10',()=>({extraMinutes:0,suppressExtra:false}),()=>({suppressExtra:false}),{state:'ok'},done,()=>null,()=>load)()[idx][3][1];
+ if(!d({heavy:true,substantial:true}).includes('15–25分钟')||
+    !d({heavy:false,substantial:true}).includes('20–30分钟')||
+    !d({heavy:false,substantial:false}).includes('35–40分钟')||
+    !d({heavy:true,substantial:true},1,true).includes('35–40分钟'))
+   throw Error('Zone2 load adjustment must affect upcoming uncompleted session only');
+ if(html.includes('localStorage.clear(')||html.includes('finishedCompact')||html.includes('trainingFlowGuideHtml'))throw Error('Data/UI regression');
+ console.log('PASS: optional ride planning, confirmation with actual data, yesterday intensity adjustment, undo/delete and all original activity data unchanged.');
 }
