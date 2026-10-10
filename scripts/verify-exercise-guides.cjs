@@ -13,7 +13,7 @@ const images={
 const expectedDays=[
  ['杠铃深蹲','器械推胸','坐姿划船','杠铃罗马尼亚硬拉','死虫','平板支撑'],
  [],['保加利亚分腿蹲','中立握高位下拉','坐姿划船','俯卧腿弯举','绳索面拉','Pallof Press 抗旋转'],
- [],['杠铃卧推','上斜哑铃卧推','平板哑铃飞鸟'],[],[]
+ [],['杠铃卧推','上斜哑铃卧推','平板哑铃飞鸟','中立握高位下拉','杠铃罗马尼亚硬拉','Pallof Press 抗旋转'],[],[]
 ];
 for(const [asset,min] of [['assets/anatomy-guides.webp',100000],['assets/anatomy-thumbnails.webp',10000]]){
  const f=path.join(root,asset);
@@ -21,9 +21,10 @@ for(const [asset,min] of [['assets/anatomy-guides.webp',100000],['assets/anatomy
 }
 if(!html.includes('background-size:200% 700%')||!html.includes('background-size:700% 200%'))throw Error('Sprite positions changed');
 const code=[
- sect('const planTemplates=','];'),sect('const coachLoads=','};'),
+ sect('const planTemplates=','];'),sect('const LEGACY_V47_PLAN_TEMPLATES=','];'),sect('const coachLoads=','};'),
  sect('const exerciseGuides=','};'),sect('const GUIDE_ATLAS=','};'),
  'const stepGoalRange=()=>"6500–7500",coachWeight=()=>25,phaseWeek=()=>week,trainingIndex=()=>day;',
+ 'const localStorage={getItem:()=>null,setItem:()=>{}},exerciseDone={};let trainDone=false;',
  'const localDate=()=>"2026-10-08",shiftDate=()=>localDate(),adaptiveRule=()=>({});',
  'const weightTrendRule=()=>({extraMinutes:extra,suppressExtra:false}),recovery={state:poor?"poor":"ok"},recoveryRule=()=>({suppressExtra:false});',
  func('resolveExercise','function weightTrendRule'),
@@ -105,8 +106,8 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const benchCode=sect('function benchWarmupHint(){','function exerciseHtml(').slice(0,-'function exerciseHtml('.length);
  const hint=new Function('coachWeight','phaseWeek',benchCode+'return benchWarmupHint();');
  const standard=hint(()=>45,()=>1),deload=hint(()=>40,()=>4);
- if(!standard.includes('空杆20 kg')||!standard.includes('30 kg × 3–5次')||!standard.includes('45 kg × 2组正式训练'))throw Error('45 kg bench warmup changed');
- if(!deload.includes('40 kg × 1组正式训练'))throw Error('Deload bench set count changed');
+ if(!standard.includes('空杆20 kg')||!standard.includes('30 kg × 3–5次')||!standard.includes('45 kg × 3组正式训练'))throw Error('45 kg bench warmup changed');
+ if(!deload.includes('40 kg × 2组正式训练'))throw Error('Deload bench set count changed');
  if(html.includes('localStorage.clear('))throw Error('Unsafe localStorage.clear');
  console.log('PASS: dedicated fly art, 45kg ramp warmup, deload warmup and localStorage guard');
 }
@@ -115,7 +116,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 // Only the confirmed exercise may be rebaselined; old sessions are immutable.
 {
  if(!html.includes('incline:{base:20,inc:2,unit:"每手 kg",round:1}'))throw Error('Incline base must use confirmed 20kg');
- if(!html.includes('上斜哑铃卧推｜2组 × 8–12次'))throw Error('Incline work set reps should allow observed 12 reps');
+ if(!html.includes('上斜哑铃卧推｜3组 × 8–12次'))throw Error('Incline work set reps should allow observed 12 reps');
  const body=sect('function calibrateInclineWorkingLoad(){','calibrateInclineWorkingLoad();');
  const make=(overrides={},session={},done=false,feedback=false)=>{
   const store=new Map([
@@ -279,4 +280,47 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    exportable.ckAppBuild||exportable['ckUpgradeBackup-before'])throw Error('Backup does not preserve live data or leaks snapshots');
  if(html.includes('localStorage.clear('))throw Error('Unsafe historic data deletion');
  console.log('PASS: diet persistence, weight/step progress, backup round-trip content, old records and all four screens');
+}
+
+/* 4-year-experience cut-phase volume: audit 3 days, all 12 training weeks, recovery
+   and preserve in-progress V47 users without migrating historical done flags. */
+{
+ const block=sect('const planTemplates=','];'),legacy=sect('const LEGACY_V47_PLAN_TEMPLATES=','];');
+ const program=new Function(block.replace('const planTemplates=','const p=')+'return p;')();
+ const old=new Function(legacy.replace('const LEGACY_V47_PLAN_TEMPLATES=','const p=')+'return p;')();
+ const count=p=>p[3].filter(r=>!r.startsWith('热身')).reduce((sum,x)=>sum+(+x.match(/(\d+)组/)?.[1]||0),0);
+ const strengthDays=[0,2,4],normal=strengthDays.map(i=>count(program[i])),historical=strengthDays.map(i=>count(old[i]));
+ if(JSON.stringify(normal)!==JSON.stringify([16,16,15]))throw Error('Experienced strength days should be balanced at 16/16/15 nominal sets; got '+normal);
+ if(JSON.stringify(historical)!==JSON.stringify([13,12,5]))throw Error('V47 safety reference corrupted');
+ for(let i of strengthDays){
+   const actions=program[i][3].filter(r=>/推荐重量|自重/.test(r));
+   if(actions.length<6||actions.some(x=>/\b1组/.test(x)))throw Error('Normal week has a single-set or skeletal strength day '+i);
+ }
+ if(program[4][1]!=='全身力量 C（胸部主导）')throw Error('C must retain a chest-focus while training the full body');
+ const initial=sect('function resolveExercise(a,isToday=true){','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
+ const make=fn=>new Function('recovery','phaseWeek','stepGoalRange','coachLoads','coachWeight',
+   initial+'return resolveExercise;')({state:fn.state},()=>fn.week,()=> '6500–7500',
+   {bench:{unit:'kg'}},()=>45);
+ for(const week of [1,2,3,4,8,12])for(const state of ['ok','poor']){
+   const resolve=make({state,week}),base=3,sets=+resolve('杠铃卧推｜3组 × 6–8次｜推荐重量：@bench',true).match(/(\d+)组/)[1],anticipated=week%4===0||state==='poor'?2:3;
+   if(sets!==anticipated)throw Error('Deload/recovery volume mismatch week '+week+' '+state+' -> '+sets);
+   const future=+resolve('杠铃卧推｜3组 × 6–8次｜推荐重量：@bench',false).match(/(\d+)组/)[1];
+   if(future!==(week%4===0?2:3))throw Error('Today-only recovery erroneously lowered future plan');
+ }
+ const activeSrc=sect('function currentPlansBase(){','function adaptiveRule(').slice(0,-'function adaptiveRule('.length);
+ const mk=(done,revision)=>{
+   const kv=new Map([['ckTrain-2026-10-09','1']]);
+   if(revision)kv.set('ckStrengthPlanRevision-2026-10-10',revision);
+   const localStorage={getItem:k=>kv.has(k)?kv.get(k):null,setItem:(k,v)=>kv.set(k,String(v))};
+   const fn=new Function('localStorage','localDate','trainDone','exerciseDone','trainingIndex','planTemplates','LEGACY_V47_PLAN_TEMPLATES','stepGoalRange','resolveExercise',
+     activeSrc+'return currentPlansBase;')(
+      localStorage,()=> '2026-10-10',done,done?{'热身':true}:{},()=>4,program,old,()=> '6500–7500',x=>x);
+   return {p:fn(),kv};
+ };
+ const existing=mk(true),fresh=mk(false),forced=mk(false,'v47');
+ if(count(existing.p[4])!==5||count(fresh.p[4])!==15||count(forced.p[4])!==5)throw Error('Existing training progress not frozen while new sessions upgrade');
+ if(existing.kv.get('ckStrengthPlanRevision-2026-10-10')!=='v47'||fresh.kv.get('ckStrengthPlanRevision-2026-10-10')!=='v48')throw Error('Plan revision marker incorrect');
+ if(existing.kv.get('ckTrain-2026-10-09')!=='1')throw Error('Historical training changed during volume upgrade');
+ if(!html.includes('.exerciseRow.isDone{opacity:.58}')||html.includes('finishedCompact')||html.includes('trainingFlowGuideHtml'))throw Error('Authorized V47 layout must remain unchanged');
+ console.log('PASS: 3 trained strength days 16/16/15 sets, full-body C, week4/8/12 deload, day-scoped recovery and in-progress old-session protection');
 }
