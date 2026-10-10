@@ -256,3 +256,38 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Historical data should never be cleared');
  console.log('PASS: manual load priority through undo; pain status matches per-exercise restrictions');
 }
+
+/* Wider full-app smoke coverage after execution-flow changes: actual mutation guards on
+   diet, weight, steps and portable backup (without touching a user's live device data). */
+{
+ const saveFns=sect('function saveWeight(){','function renderProgress(){').slice(0,-'function renderProgress(){'.length);
+ const makeSave=new Function('localStorage','weightInput','stepInput','localDate','renderProgress','render','maybeAdvanceStepGoal','alert',
+  'let weights=[{date:"2026-10-09",weight:79}],steps=[{date:"2026-10-09",steps:6500}];'+
+  saveFns+'return {saveWeight,saveSteps,read:()=>({weights,steps})};');
+ const store=new Map([['ckWeights','[{"date":"2026-10-09","weight":79}]'],
+  ['ckSteps','[{"date":"2026-10-09","steps":6500}]'],['ckTrain-2026-10-09','1']]);
+ const storage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),
+  key:i=>[...store.keys()][i],get length(){return store.size}};
+ const values=makeSave(storage,{value:'78.5'},{value:'7500'},()=> '2026-10-10',()=>{},()=>{},()=>{},()=>{});
+ values.saveWeight();values.saveSteps();
+ if(values.read().weights.length!==2||values.read().steps.length!==2||
+    values.read().weights[1].weight!==78.5||values.read().steps[1].steps!==7500||
+    store.get('ckTrain-2026-10-09')!=='1')throw Error('Progress update lost prior record/strength completion');
+ const manual=sect('function saveManualMeal(){','const exerciseGuides=').slice(0,-'const exerciseGuides='.length);
+ const mealInput={value:'一份午餐'},kcalInput={value:'620'},proInput={value:'40'},carbInput={value:'60'},fatInput={value:'20'},foodText={value:''},ui={style:{}};
+ const makeManual=new Function('localStorage','mmName','mmKcal','mmProtein','mmCarbs','mmFat','foodText','manualMeal','result',
+ 'window','alert','render','normalizeFoodName','key',
+ 'let meals=[],customFoods=[],pending=null;'+manual+'return {saveManualMeal,read:()=>({meals,customFoods})};');
+ const meal=makeManual(storage,mealInput,kcalInput,proInput,carbInput,fatInput,foodText,ui,ui,{},()=>{},()=>{},v=>v,'ckMeals-2026-10-10');
+ meal.saveManualMeal();
+ if(meal.read().meals[0]?.kcal!==620||meal.read().meals[0]?.protein!==40||
+   JSON.parse(store.get('ckMeals-2026-10-10')||'[]')[0]?.carbs!==60||
+   store.get('ckTrain-2026-10-09')!=='1')throw Error('Manual meal saving broke nutrition or past training');
+ const portable=sect('function portableData(){','function trimSafetySnapshots(){').slice(0,-'function trimSafetySnapshots(){'.length);
+ store.set('ckAppBuild','old-build');store.set('ckUpgradeBackup-before','safe-snapshot');
+ const exportable=new Function('localStorage','UPGRADE_BACKUP_PREFIX',portable+'return portableData();')(storage,'ckUpgradeBackup-');
+ if(!exportable['ckMeals-2026-10-10']||!exportable['ckWeights']||!exportable['ckSteps']||
+   exportable.ckAppBuild||exportable['ckUpgradeBackup-before'])throw Error('Backup does not preserve live data or leaks snapshots');
+ if(html.includes('localStorage.clear('))throw Error('Unsafe historic data deletion');
+ console.log('PASS: diet persistence, weight/step progress, backup round-trip content, old records and all four screens');
+}
