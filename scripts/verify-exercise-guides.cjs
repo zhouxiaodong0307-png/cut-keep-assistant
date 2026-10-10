@@ -425,10 +425,10 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    'volumeEdit-max-0':{value:bodyweight?'60':'12'},
    'volumeEdit-weight-0':{value:'52.5'}
   };
-  const document={getElementById:k=>inputs[k]};
+  const document={getElementById:k=>inputs[k],__inputs:inputs};
   const cp=()=>{const p=Array.from({length:7},()=>[]);p[4]=['C','full','60m',[row]];return p};
   const js=new Function('localStorage','localDate','exerciseDone','exerciseFeedback','trainingIndex','phaseWeek','recovery','coachLoads','coachWeight','currentPlans','sessionLoads','validCoachWeight','workingWeight','loadOverrides','loadKeyForExercise','roundTo','sessionLoadKey','renderTraining','document','alert','benchWarmupHint','stepGoalRange','exerciseName',
-    helpers+ui+'return {saveTrainingReference,trainingReferenceEditorHtml,toggleLoadEditor,volumeTrainingHistory,getLoad:()=>({...loadOverrides}),getSession:()=>({...sessionLoads}),input:inputs};');
+    helpers+ui+'return {saveTrainingReference,trainingReferenceEditorHtml,toggleLoadEditor,volumeTrainingHistory,getLoad:()=>({...loadOverrides}),getSession:()=>({...sessionLoads}),input:document.__inputs};');
   const instance=js(localStorage,()=> '2026-10-10',exerciseDone,exerciseFeedback,()=>4,()=>1,{state:'ok',painArea:''},
     {bench:{base:45,unit:'kg',round:2.5}},()=>45,cp,{bench:45},v=>v!==null&&v!==undefined&&Number(v)>0,()=>45,
     {},n=>n==='杠铃卧推'?'bench':null,(v,inc)=>Math.round(v/inc)*inc,'ckSessionLoads-2026-10-10',
