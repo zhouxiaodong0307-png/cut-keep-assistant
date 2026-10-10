@@ -693,3 +693,106 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     throw Error('Legacy completed-action UI or local history compatibility broken');
  console.log('PASS: full 1–10 RPE scale, missing 5/6 fixed, Zone2 and ad-hoc options/status unified, records numeric and V47 UI unchanged');
 }
+
+/* V54 regression for reported issue: Day 5 completed strength plus a logged
+   70-minute easy ride must change Day 6 schedule BEFORE Day 6 begins.
+   Optional rest must advance the cursor without falsifying Zone2 completion. */
+{
+ const loadSrc=sect('/* V51 recent-two-calendar-days training-load signal.','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
+ const cardioSrc=sect('function cardioRecoveryKey(','function currentPlans(').slice(0,-'function currentPlans('.length);
+ const planSrc=func('currentPlans','function planAffectedByPain');
+ const shift=(ds,d)=>{const t=new Date(ds+'T12:00:00');t.setDate(t.getDate()+d);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
+ const activity={id:'user-ride-70',type:'ride',minutes:70,rpe:3,status:'completed'};
+ function make(day='2026-10-10',idx=4,done=true,record=true){
+  const data=new Map([['ckTrain-2026-10-10','1'],['ckTrainPlanIndex-2026-10-10','4'],['ckTrain-2026-10-09','1']]);
+  if(record)data.set('ckExtraActivities-2026-10-10',JSON.stringify([activity]));
+  const localStorage={getItem:k=>data.has(k)?data.get(k):null,setItem:(k,v)=>data.set(k,String(v)),removeItem:k=>data.delete(k)};
+  const base=()=>[
+    ['训练日1','全身力量 A','50–65分钟',[]],
+    ['训练日2','Zone 2 骑车','45–50分钟 · RPE 3–4/10',['热身｜5分钟','主体｜35–40分钟 Zone 2｜RPE 3–4/10']],
+    ['训练日3','腿部 + 背部 B','50–65分钟',[]],
+    ['训练日4','休息 / 快走','6500–7500步',[]],
+    ['训练日5','全身力量 C','50–65分钟',[]],
+    ['训练日6','Zone 2 骑车','50–60分钟',['热身｜5分钟','主体｜40–50分钟 Zone 2｜RPE 3–4/10','放松｜5分钟']],
+    ['训练日7','完全休息','恢复日',[]]
+  ];
+  const read=ds=>{try{return JSON.parse(data.get('ckExtraActivities-'+ds)||'[]')}catch(e){return []}};
+  const readDone=ds=>read(ds).filter(x=>x.status==='completed');
+  const api=new Function('localStorage','localDate','shiftDate','trainingIndexForDate','storedRide','completedExtraActivity','readExtraActivities','sleepLoadGuard','recovery','currentPlansBase','trainingIndex','trainDone','adaptiveRule','weightTrendRule','recoveryRule',
+    loadSrc+cardioSrc+planSrc+
+    'return {currentPlans,integratedTrainingLoad,integratedTrainingDecision,cardioLoadPrescription,completedCardioRecovery,applyCardioLoadPrescription,nextTrainingLoadAdvice};')(
+      localStorage,()=>day,shift,ds=>ds==='2026-10-10'?4:ds==='2026-10-11'?5:0,
+      ()=>null,readDone,read,()=>({suppress:false}),{state:'ok',painArea:''},
+      base,()=>idx,done,()=>({}),()=>({suppressExtra:false,extraMinutes:0}),()=>({suppressExtra:false}));
+  return {api,data,read};
+ }
+ let env=make(),p=env.api.currentPlans();
+ if(!env.api.integratedTrainingLoad('2026-10-11').moderate||
+    env.api.integratedTrainingLoad('2026-10-11').totalRideMinutes!==70||
+    !env.api.cardioLoadPrescription('2026-10-11')?.allowRest)
+    throw Error('Easy 70min ride after strength was ignored as next-day aerobic volume');
+ if(!p[5][1].includes('恢复')||!p[5][2].includes('休息或15–25分钟')||
+    !p[5][3][1].includes('今日可休息')||
+    p[5][2].includes('50–60'))
+    throw Error('Next-day weekly card did not change after 70min social ride');
+ if(!env.api.nextTrainingLoadAdvice(5,'2026-10-11').includes('休息或15–25分钟'))
+    throw Error('Next-day recommendation contradicts actual Day 6 card');
+ if(p[4][1]!=='全身力量 C'||p[0][1]!=='全身力量 A')
+    throw Error('Extra cardio changed unrelated strength plans');
+ env=make('2026-10-10',4,true,false);p=env.api.currentPlans();
+ if(p[5][1]!=='Zone 2 骑车'||!p[5][2].includes('50–60分钟'))
+    throw Error('Deleting extra ride did not restore upcoming aerobic plan');
+ env=make('2026-10-11',5,false,true);p=env.api.currentPlans();
+ if(!p[5][2].includes('休息或15–25分钟')||!p[5][1].includes('恢复'))
+    throw Error('Tomorrow workout card reverted to 50–60min despite yesterday 70min ride');
+ env.data.set('ckTrain-2026-10-11','1');env.data.set('ckCardioRecovery-2026-10-11','{"reason":"recent-training-load"}');
+ env=make('2026-10-11',5,true,true);
+ env.data.set('ckCardioRecovery-2026-10-11','{"reason":"recent-training-load"}');
+ p=env.api.currentPlans();
+ if(!p[5][2].includes('休息或15–25分钟'))
+    throw Error('Selecting recovery changed completed card back to unadjusted cycling label');
+ const rideBlock=func('cardioDayHtml','function restDayHtml(');
+ function cardioState(){
+  const data=new Map([['ckTrain-2026-10-10','1'],['ckLoadOverrides','{"bench":45}']]),messages=[],updates=[];
+  const localStorage={getItem:k=>data.has(k)?data.get(k):null,setItem:(k,v)=>data.set(k,String(v)),removeItem:k=>data.delete(k)};
+  const plan=['热身｜5分钟','主体｜今日可休息；若状态好可轻松骑15–25分钟｜RPE 1–2/10','放松｜5分钟'];
+  const api=new Function('localStorage','trainingIndex','planKind','cardioRecoveryKey','cardioLoadPrescription','completedCardioRecovery','storedRide','recovery','rpeOptionList','rpeEffortLabel','renderTraining','refreshNutritionGuidance','document','alert','rideStorageKey','trainKey',
+    'let trainDone=false;'+rideBlock+'return {finishOptionalCardioRecovery,undoTodayRide,saveTodayRide,cardioDayHtml,getDone:()=>trainDone};')(
+    localStorage,()=>5,i=>i===5?'cardio':'strength',()=> 'ckCardioRecovery-2026-10-11',()=>({allowRest:true}),
+    ()=>data.has('ckCardioRecovery-2026-10-11'),()=>{try{return JSON.parse(data.get('ckRide-2026-10-11')||'null')}catch(e){return null}},
+    {state:'ok'},n=>'<option value="'+n+'">测试</option>',n=>'轻松',
+    ()=>updates.push('training'),()=>updates.push('nutrition'),
+    {getElementById:k=>({value:k==='rideMinutes'?'25':'3'})},msg=>messages.push(msg),
+    ()=> 'ckRide-2026-10-11','ckTrain-2026-10-11');
+  return {api,data,plan,updates,messages};
+ }
+ let ride=cardioState();
+ const before=ride.api.cardioDayHtml(ride.plan);
+ if(!before.includes('今天休息恢复')||!before.includes('恢复 / 可选骑行'))
+    throw Error('Actual next-day cardio UI cannot opt into recovery');
+ ride.api.finishOptionalCardioRecovery();
+ if(!ride.api.getDone()||ride.data.get('ckTrain-2026-10-11')!=='1'||
+    !ride.data.has('ckCardioRecovery-2026-10-11')||ride.data.has('ckRide-2026-10-11'))
+    throw Error('Rest recovery did not advance day or invented an actual ride');
+ const after=ride.api.cardioDayHtml(ride.plan);
+ if(!after.includes('不计入 Zone 2 已完成次数')||!after.includes('撤销恢复'))
+    throw Error('Recovery was mislabeled as a completed Zone 2');
+ ride.api.undoTodayRide();
+ if(ride.api.getDone()||ride.data.has('ckCardioRecovery-2026-10-11')||
+    ride.data.get('ckTrain-2026-10-11')!=='0')
+    throw Error('Undo did not fully restore a pending cardio session');
+ ride.api.finishOptionalCardioRecovery();
+ ride.api.saveTodayRide();
+ if(!ride.api.getDone()||ride.data.has('ckCardioRecovery-2026-10-11')||
+    JSON.parse(ride.data.get('ckRide-2026-10-11')).minutes!==25)
+    throw Error('A later genuine ride must override recovery flag without fake double-count');
+ if(ride.data.get('ckTrain-2026-10-10')!=='1'||ride.data.get('ckLoadOverrides')!=='{"bench":45}')
+    throw Error('Cardio recovery corrupted earlier strength or load history');
+ if(!html.includes('&&[1,5].includes(x.actualIdx)&&!completedCardioRecovery(x.ds)'))
+    throw Error('Weekly Zone2 count includes recovery-only choices');
+ if(!html.includes('p=currentPlans()[idx]'))
+    throw Error('Tomorrow preview still reads raw cardio plan instead of adjusted next-day prescription');
+ if(!html.includes('.exerciseRow.isDone{opacity:.58}')||html.includes('finishedCompact')||html.includes('localStorage.clear('))
+    throw Error('Legacy strength UI or user history changed');
+ console.log('PASS V54: 70min easy ride after strength adjusts Day6 weekly/tomorrow/today cards; recovery option, no false Zone2 credit, undo, real ride override, old data untouched');
+}
