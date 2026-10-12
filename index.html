@@ -540,7 +540,7 @@ if(autoPass&&!readDayAdjustment(ds)){try{localStorage.setItem(dayAdjustmentKey(d
 if(idx===3||idx===6||localStorage.getItem("ckTrain-"+ds)==="1"||autoPass)idx=(idx+1)%7;ds=shiftDate(ds,1)}localStorage.setItem("ckTrainingCursorIndex",idx);localStorage.setItem("ckTrainingCursorDate",today);return idx}
 function trainingIndex(){const idx=syncTrainingCursor();localStorage.setItem("ckTrainPlanIndex-"+localDate(),idx);return idx}
 function trainingIndexForDate(ds){const saved=localStorage.getItem("ckTrainPlanIndex-"+ds);return saved!==null&&Number.isInteger(+saved)?+saved:dayDiff(trainingStartDate,ds)%7}
-function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k||!k.startsWith("ckTrain-")||localStorage.getItem(k)!=="1")continue;const ds=k.slice(8),idx=trainingIndexForDate(ds);if([0,2,4].includes(idx))dates.push(ds)}return [...new Set(dates)].sort()}
+function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;if(/^ckActualWorkout-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckActualWorkout-".length);if(readActualWorkout(ds))dates.push(ds);continue}if(!k.startsWith("ckTrain-")||localStorage.getItem(k)!=="1")continue;const ds=k.slice(8),idx=trainingIndexForDate(ds);if([0,2,4].includes(idx))dates.push(ds)}return [...new Set(dates)].sort()}
 function completedStrengthSessions(){return strengthSessionDates().length}
 function completedStrengthSessionsBeforeToday(){return strengthSessionDates().filter(ds=>ds<localDate()).length}
 function phaseWeek(){return Math.min(12,Math.floor(completedStrengthSessionsBeforeToday()/3)+1)}
@@ -1077,6 +1077,124 @@ function storedRide(date=localDate()){
  return r&&Number.isInteger(+r.minutes)&&+r.minutes>=5&&+r.minutes<=240&&Number.isInteger(+r.rpe)&&+r.rpe>=1&&+r.rpe<=10?r:null;
 }
 
+
+let actualEditorOpen=false,actualDraft=null,actualDeleteArmed=false;
+function actualEsc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function actualWeightUnit(name){
+ const n=String(name||"");
+ if(/哑铃|分腿蹲/.test(n))return "每手kg";
+ if(/器械|下拉|划船|腿举|腿屈伸|腿弯举|面拉|哈克/.test(n))return "器械kg";
+ return "总kg";
+}
+function actualRowDefault(focus="legs"){return {name:"",muscle:focus==="full"?"legs":focus,sets:3,reps:10,weight:0,unit:"总kg"}}
+function cacheActualDraft(){
+ if(!actualDraft)return;
+ const get=id=>document.getElementById(id)?.value;
+ actualDraft.focus=get("actualFocus")||actualDraft.focus;
+ actualDraft.rpe=Number(get("actualRpe"))||actualDraft.rpe;
+ actualDraft.note=get("actualNote")??actualDraft.note;
+ actualDraft.exercises=actualDraft.exercises.map((row,i)=>({
+  name:get("actualName-"+i)??row.name,muscle:get("actualMuscle-"+i)??row.muscle,
+  sets:Number(get("actualSets-"+i)),reps:Number(get("actualReps-"+i)),
+  weight:Number(get("actualWeight-"+i)),unit:get("actualUnit-"+i)??row.unit
+ }));
+}
+function openActualWorkoutEditor(){
+ const previous=readActualWorkout();
+ if(trainDone&&!previous)return alert("当前训练日已有已完成记录。请先撤销原记录后再替换，避免重复统计。");
+ if(!previous&&Object.values(exerciseDone).some(Boolean))return alert("已有部分原计划动作记录，请先处理这些完成项，避免覆盖历史训练。");
+ const focus=previous?.focus||"legs";
+ actualDraft=previous?JSON.parse(JSON.stringify(previous)):{focus,rpe:7,note:"",exercises:[actualRowDefault(focus)]};
+ actualEditorOpen=true;dayAdjustmentOpen=true;
+ renderDayAdjustmentPanel();
+ document.getElementById("dayAdjustPanel")?.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+function closeActualWorkoutEditor(){actualEditorOpen=false;actualDraft=null;renderDayAdjustmentPanel()}
+function addActualExercise(){
+ cacheActualDraft();
+ if(actualDraft.exercises.length>=12)return alert("单次最多记录12个动作");
+ actualDraft.exercises.push(actualRowDefault(actualDraft.focus));
+ renderDayAdjustmentPanel();
+}
+function removeActualExercise(i){
+ cacheActualDraft();if(actualDraft.exercises.length<=1)return alert("至少保留一个实际完成的动作");
+ actualDraft.exercises.splice(i,1);renderDayAdjustmentPanel();
+}
+function actualNameChanged(i){
+ const el=document.getElementById("actualName-"+i),name=el?.value||"";
+ const muscle=document.getElementById("actualMuscle-"+i),unit=document.getElementById("actualUnit-"+i);
+ if(muscle&&name)muscle.value=actualMuscleForName(name,document.getElementById("actualFocus")?.value||"legs");
+ if(unit&&name)unit.value=actualWeightUnit(name);
+ cacheActualDraft();
+}
+function actualOptions(map,value){return Object.entries(map).map(([key,name])=>'<option value="'+actualEsc(key)+'"'+(key===value?" selected":"")+'>'+actualEsc(name)+'</option>').join("")}
+function actualWorkoutFormHtml(){
+ if(!actualDraft)return "";
+ const d=actualDraft,groups={legs:"腿部",chest:"胸部",back:"背部",shoulders:"肩部",core:"核心"},units={"总kg":"总重 kg","每手kg":"每手 kg","器械kg":"器械 kg","自重":"自重"};
+ const preset='<datalist id="actualExercisePresets">'+ACTUAL_EXERCISE_PRESETS.map(x=>'<option value="'+actualEsc(x)+'"></option>').join("")+'</datalist>';
+ const rows=d.exercises.map((r,i)=>'<div class="actualExerciseRow"><div class="actualExerciseHead"><label>动作 '+(i+1)+'（可输入自定义名称）<input id="actualName-'+i+'" list="actualExercisePresets" maxlength="44" placeholder="例如：杠铃深蹲" value="'+actualEsc(r.name)+'" oninput="cacheActualDraft()" onchange="actualNameChanged('+i+')"></label><button type="button" onclick="removeActualExercise('+i+')">删除</button></div><div class="actualFieldGrid"><label>训练部位<select id="actualMuscle-'+i+'" onchange="cacheActualDraft()">'+actualOptions(groups,r.muscle)+'</select></label><label>组数<input id="actualSets-'+i+'" type="number" inputmode="numeric" min="1" max="8" value="'+actualEsc(r.sets)+'" oninput="cacheActualDraft()"></label><label>每组次数<input id="actualReps-'+i+'" type="number" inputmode="numeric" min="1" max="40" value="'+actualEsc(r.reps)+'" oninput="cacheActualDraft()"></label><label>重量<input id="actualWeight-'+i+'" type="number" inputmode="decimal" min="0" max="400" step="0.5" value="'+actualEsc(r.weight)+'" oninput="cacheActualDraft()"></label><label>重量口径<select id="actualUnit-'+i+'" onchange="cacheActualDraft()">'+actualOptions(units,r.unit)+'</select></label></div></div>').join("");
+ return '<div class="actualForm">'+preset+'<div class="actualFormHead"><b>记录实际完成的力量训练</b><button type="button" onclick="closeActualWorkoutEditor()">收起</button></div><div class="actualFormLead">原计划仅作参考。填写你真正练过的动作和工作组；热身组不计入。重量可以手动修改，0代表自重。保存后将联动后续同部位训练。</div><div class="actualTopFields"><label>本次训练重点<select id="actualFocus" onchange="cacheActualDraft()">'+actualOptions(ACTUAL_FOCUS,d.focus)+'</select></label><label>整体RPE<select id="actualRpe" onchange="cacheActualDraft()">'+rpeOptionList(d.rpe)+'</select></label></div>'+rows+'<label>备注（可选）<textarea id="actualNote" maxlength="240" placeholder="例如：腿部训练后略疲劳，动作保持标准" oninput="cacheActualDraft()">'+actualEsc(d.note||"")+'</textarea></label><div class="actualFormActions"><button type="button" onclick="addActualExercise()">+ 添加动作</button><button type="button" class="primary" onclick="saveActualWorkout()">保存实际力量训练</button></div><div class="actualHint">保存的动作/组数/次数/重量/RPE独立存入本机训练历史；不把未完成的原骑车任务算成骑车。</div></div>';
+}
+function actualSessionTitle(x){return ACTUAL_FOCUS[x.focus]||"自主"}
+function actualWorkoutSummaryHtml(x){
+ const lines=x.exercises.map(row=>actualEsc(row.name)+" · "+row.sets+"组 × "+row.reps+"次 · "+row.weight+" "+actualEsc(row.unit)).join("；");
+ return '<div class="actualSessionInfo"><div><b>已记录：'+actualEsc(actualSessionTitle(x))+'力量 · '+x.exercises.length+'项</b><small>'+lines+'<br>整场RPE '+x.rpe+' · 原计划未作为已完成记录</small></div><button type="button" onclick="openActualWorkoutEditor()">修改</button></div><div class="actualFormActions" style="margin-top:8px"><button type="button" onclick="removeActualWorkout()">删除这次自主训练</button><button type="button" class="primary" onclick="openActualWorkoutEditor()">编辑动作与重量</button></div><div class="actualHint" style="margin-top:8px">'+actualEsc(actualStressAdvice(shiftDate(localDate(),1)))+'</div>';
+}
+function actualWorkoutHistoryHtml(){
+ const history=[];
+ for(let i=0;i<localStorage.length;i++){
+  const k=localStorage.key(i);
+  if(!k||!/^ckActualWorkout-\d{4}-\d{2}-\d{2}$/.test(k))continue;
+  const ds=k.slice("ckActualWorkout-".length),x=readActualWorkout(ds);
+  if(x)history.push({ds,x});
+ }
+ return history.sort((a,b)=>b.ds.localeCompare(a.ds)).slice(0,12).map(({ds,x})=>
+  '<div class="actualHistoryRow"><b>'+actualEsc(ds)+' · '+actualEsc(actualSessionTitle(x))+'力量 · RPE '+x.rpe+'</b><span>'+x.exercises.map(v=>actualEsc(v.name)+' '+v.sets+'组×'+v.reps+'次 / '+v.weight+actualEsc(v.unit)).join('；')+'</span></div>').join("")||'<div class="actualHint">暂无自主力量训练记录</div>';
+}
+function renderActualWorkoutHistory(){const e=document.getElementById("actualHistoryList");if(e)e.innerHTML=actualWorkoutHistoryHtml()}
+function saveActualWorkout(){
+ cacheActualDraft();
+ const d=actualDraft,old=readActualWorkout(),idx=trainingIndex();
+ if(!d||!d.exercises.length)return;
+ if(trainDone&&!old)return alert("请先撤销已有的训练完成记录，再录入自主训练");
+ if(!old&&Object.values(exerciseDone).some(Boolean))return alert("今日已有原计划动作完成记录，请先处理，以免覆盖");
+ const allowed=["legs","chest","back","shoulders","core"],units=["总kg","每手kg","器械kg","自重"];
+ if(!ACTUAL_FOCUS[d.focus]||!Number.isInteger(d.rpe)||d.rpe<1||d.rpe>10)return alert("请选择正确的训练重点和RPE");
+ const rows=[];
+ for(const [i,row] of d.exercises.entries()){
+  const name=String(row.name||"").trim();
+  if(!name||name.length>44)return alert("请填写第"+(i+1)+"个动作的名称");
+  if(!allowed.includes(row.muscle)||!Number.isInteger(row.sets)||row.sets<1||row.sets>8||!Number.isInteger(row.reps)||row.reps<1||row.reps>40||!Number.isFinite(row.weight)||row.weight<0||row.weight>400||!units.includes(row.unit))return alert("请检查第"+(i+1)+"个动作的部位、组数、次数、重量");
+  rows.push({name,muscle:row.muscle,sets:row.sets,reps:row.reps,weight:row.unit==="自重"?0:row.weight,unit:row.unit});
+ }
+ const result={version:1,status:"completed",focus:d.focus,rpe:d.rpe,note:String(d.note||"").trim().slice(0,240),exercises:rows,originalIndex:old?.originalIndex??idx,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),priorTrainValue:old?.priorTrainValue??localStorage.getItem(trainKey),priorRecoveryValue:old?.priorRecoveryValue??localStorage.getItem(cardioRecoveryKey())};
+ const keys=[actualWorkoutKey(),trainKey,cardioRecoveryKey()],saved=keys.map(k=>localStorage.getItem(k));
+ try{
+  localStorage.setItem(actualWorkoutKey(),JSON.stringify(result));
+  if(planKind(idx)!=="rest")localStorage.setItem(trainKey,"1");
+  if(planKind(idx)==="cardio")localStorage.setItem(cardioRecoveryKey(),JSON.stringify({completedAt:new Date().toISOString(),reason:"actual-strength-substitution",notZone2:true}));
+ }catch(e){keys.forEach((k,i)=>{try{if(saved[i]===null)localStorage.removeItem(k);else localStorage.setItem(k,saved[i])}catch(_){}});return alert("保存失败，原有训练数据已尝试恢复，请确认可用存储空间")}
+ if(planKind(idx)!=="rest")trainDone=true;
+ actualDraft=null;actualEditorOpen=false;dayAdjustmentOpen=false;
+ refreshAfterDayChange();
+}
+function removeActualWorkout(){
+ const old=readActualWorkout();if(!old)return;
+ if(!actualDeleteArmed){actualDeleteArmed=true;renderDayAdjustmentPanel();return}
+ const keys=[actualWorkoutKey(),trainKey,cardioRecoveryKey()],oldValues=keys.map(k=>localStorage.getItem(k));
+ try{
+  localStorage.removeItem(actualWorkoutKey());
+  if(old.priorTrainValue===null||old.priorTrainValue===undefined)localStorage.removeItem(trainKey);
+  else localStorage.setItem(trainKey,old.priorTrainValue);
+  if(planKind(trainingIndex())==="cardio"){
+   if(old.priorRecoveryValue===null||old.priorRecoveryValue===undefined)localStorage.removeItem(cardioRecoveryKey());
+   else localStorage.setItem(cardioRecoveryKey(),old.priorRecoveryValue);
+  }
+ }catch(e){keys.forEach((k,i)=>{try{if(oldValues[i]===null)localStorage.removeItem(k);else localStorage.setItem(k,oldValues[i])}catch(_){}});return alert("删除失败，已尝试恢复原记录")}
+ trainDone=localStorage.getItem(trainKey)==="1";actualDeleteArmed=false;actualEditorOpen=false;actualDraft=null;
+ refreshAfterDayChange();
+}
+
 let dayAdjustmentOpen=false,daySwipeStart=null,ignoreTodayCardClickUntil=0;
 function startDaySwipe(event){const t=event.touches?.[0];daySwipeStart=t?{x:t.clientX,y:t.clientY}:null}
 function endDaySwipe(event,fromHome=false){
@@ -1169,7 +1287,9 @@ function renderDayAdjustmentPanel(){
  const state=a?.choice==="rest"?"已选择休息恢复，不算 Zone 2":a?.choice==="walk"?"已改为轻松步行":a?.choice==="defer"?"本次有氧顺延":a?.choice==="hold"?"今日恢复，力量任务仍保留":a?.choice==="next-strength"?"已提前选择下一次力量训练":"";
  if(summary)summary.textContent=state||"参考已完成活动调整 · 左滑快捷打开";
  let html=state?'<div class="dayAdjustBanner">'+state+'</div>':"";
- if(dayAdjustmentOpen){
+ const actual=readActualWorkout();
+ if(!actual&&!actualEditorOpen)html+='<button type="button" class="actualRecordBtn" onclick="openActualWorkoutEditor()">+ 记录我实际练的力量训练（可替换原计划）</button>';
+ if(dayAdjustmentOpen&&!actual&&!actualEditorOpen){
   const button=(v,label)=>'<button type="button" onclick="adjustToday(\''+v+'\')">'+label+'</button>';
   let choices="";
   if(kind==="cardio"){choices=button("rest","休息恢复 · 跳过本次有氧")+button("walk","换成轻松步行")+button("defer","有氧顺延到下一天")+button("next-strength","提前下一次力量训练")}
@@ -1178,6 +1298,9 @@ function renderDayAdjustmentPanel(){
   if(a&&!trainDone)choices+=button("original","恢复原安排");
   html+='<div class="dayAdjustNote">只调整后续排程，不把休息算成有氧、也不把未做的力量算完成。完成后的实际活动单独记录。</div><div class="dayAdjustChoices">'+choices+'</div>';
  }
+ if(actual&&!actualEditorOpen)html+=actualWorkoutSummaryHtml(actual);
+ if(actualEditorOpen)html+=actualWorkoutFormHtml();
+ if(actualDeleteArmed&&actual)html+='<div class="dayAdjustNote">再次点击“删除这次自主训练”确认删除；原定训练不会自动补成已完成。</div>';
  panel.innerHTML=html;
 }
 
@@ -1233,7 +1356,7 @@ function restDayHtml(plan){
 }
 
 function exerciseName(a){return a.split("｜")[0]}
-function syncExerciseCompletion(list){if(planKind(trainingIndex())!=="strength")return !!trainDone;const names=list.map(exerciseName),hasDetail=names.some(n=>Object.prototype.hasOwnProperty.call(exerciseDone,n));if(trainDone&&!hasDetail){names.forEach(n=>exerciseDone[n]=true);localStorage.setItem(exerciseDoneKey,JSON.stringify(exerciseDone))}const all=names.length>0&&names.every(n=>!!exerciseDone[n]);if(trainDone!==all){trainDone=all;localStorage.setItem(trainKey,all?"1":"0")}return all}
+function syncExerciseCompletion(list){if(readActualWorkout())return true;if(planKind(trainingIndex())!=="strength")return !!trainDone;const names=list.map(exerciseName),hasDetail=names.some(n=>Object.prototype.hasOwnProperty.call(exerciseDone,n));if(trainDone&&!hasDetail){names.forEach(n=>exerciseDone[n]=true);localStorage.setItem(exerciseDoneKey,JSON.stringify(exerciseDone))}const all=names.length>0&&names.every(n=>!!exerciseDone[n]);if(trainDone!==all){trainDone=all;localStorage.setItem(trainKey,all?"1":"0")}return all}
 function toggleExerciseDone(name){if(planKind(trainingIndex())!=="strength")return;const idx=trainingIndex(),list=currentPlans()[idx][3];if(!exerciseDone[name]){const row=list.find(x=>exerciseName(x)===name);if(row)snapshotCompletedExerciseVolume(name,row,idx)}exerciseDone[name]=!exerciseDone[name];if(!exerciseDone[name]){if(exerciseFeedback[name]){rollbackExerciseFeedback(name);delete exerciseFeedback[name];localStorage.setItem(exerciseFeedbackKey,JSON.stringify(exerciseFeedback))}undoTrainingVolumeOutcome(name,idx)}localStorage.setItem(exerciseDoneKey,JSON.stringify(exerciseDone));const all=list.every(x=>exerciseDone[exerciseName(x)]);trainDone=all;localStorage.setItem(trainKey,all?"1":"0");renderTraining();refreshNutritionGuidance()}
 function benchWarmupHint(){
  const kg=coachWeight("bench"),active=typeof currentPlansBase==="function"&&typeof trainingIndex==="function"?currentPlansBase()[trainingIndex()][3].find(x=>x.startsWith("杠铃卧推｜")):null,sets=+(active?.match(/(\d+)组/)?.[1]||0)||(phaseWeek()%4===0?2:3);
@@ -1314,7 +1437,7 @@ function compoundWarmupHint(a){
 function exerciseHtml(a,i,interactive=false,scope="today"){const s=a.split("｜"),name=s[0],parts=s.slice(1);let weight=parts.find(v=>v.includes("推荐重量")||v==="自重")||"";let rest=parts.find(v=>v.startsWith("休"))||"";let volume=parts.filter(v=>v!==weight&&v!==rest).join(" · ");if(name==="杠铃卧推")volume="正式组 · "+volume;let rx=weight?weight.replace("推荐重量：",""):"";const done=!!exerciseDone[name],fb=exerciseFeedback[name],hasLoad=!!loadKeyForExercise(name),key=loadKeyForExercise(name),painAffected=exerciseAffectedByPain(name),hasGuide=!!exerciseGuides[name];const button=interactive?'<button class="doneBtn '+(done?"isDone":"")+'" onclick="event.preventDefault();event.stopPropagation();toggleExerciseDone(\''+name.replace(/'/g,"\\'")+'\')">'+(done?"已完成 ✓":"完成")+'</button>':"";const guideButton=hasGuide?'<button class="guideBtn '+(openExerciseGuide===scope+"|"+name?"active":"")+'" onclick="event.preventDefault();event.stopPropagation();toggleExerciseGuide(\''+name.replace(/'/g,"\\'")+'\',\''+scope+'\')" aria-label="'+(openExerciseGuide===scope+"|"+name?'收起':'展开')+name+'标准动作" aria-expanded="'+(openExerciseGuide===scope+"|"+name?'true':'false')+'">'+guideSvg(name,true)+'<span>示范</span></button>':"";const labels={light:"轻松",good:"合适",hard:"吃力",fail:"未完成"};let effort="";if(interactive&&hasLoad&&done){effort='<div class="effortBox">'+(painAffected?'<div class="painHint">'+recoveryRule(name).text+'</div>':"")+'<div class="effortLabel">完成反馈 · 我会据此自动安排下次重量</div><div class="effortChoices">'+["light","good","hard","fail"].map(k=>'<button class="effortBtn '+(fb&&fb.level===k?"active":"")+'" onclick="event.preventDefault();event.stopPropagation();setExerciseFeedback(\''+name.replace(/'/g,"\\'")+'\',\''+k+'\')">'+labels[k]+'</button>').join("")+'</div>'+(fb?'<div class="nextLoad">下次建议 '+fb.next+' '+coachLoads[fb.key].unit+'</div>':"")+'</div>'}return `<div class="exerciseRow ${interactive&&done?"isDone":""}"><div class="exerciseTop"><div class="exerciseNameWrap"><b>${String(i+1).padStart(2,"0")} · ${name}${weight==="自重"?'<span class="weightTag">自重</span>':""}</b>${guideButton}</div>${button}</div><small>${[volume,rest].filter(Boolean).join(" · ")}</small>${rx&&weight!=="自重"?'<div class="coachRx"><span class="rxWeight">'+rx+'</span></div>':""}${name==="热身"?compoundWarmupHint(a):""}${interactive&&parseExerciseVolume(a)?trainingReferenceEditorHtml(key,name,a,i):""}${exerciseGuideHtml(name,scope)}${effort}</div>`}
 function completeAllExercises(){if(planKind(trainingIndex())!=="strength")return;const list=currentPlans()[trainingIndex()][3];if(syncExerciseCompletion(list))return;list.forEach(x=>{const name=exerciseName(x);if(!exerciseDone[name])snapshotCompletedExerciseVolume(name,x);exerciseDone[name]=true});trainDone=true;localStorage.setItem(exerciseDoneKey,JSON.stringify(exerciseDone));localStorage.setItem(trainKey,"1");renderTraining();refreshNutritionGuidance()}
 function renderExerciseList(list,interactive=false,scope="today"){const doneCount=list.filter(x=>exerciseDone[exerciseName(x)]).length,allDone=doneCount===list.length;return `<div class="exerciseGrid">${interactive?'<div class="completionHead"><div class="completionLine">完成进度 '+doneCount+' / '+list.length+'</div><button class="completeAllBtn '+(allDone?"doneAll":"")+'" '+(allDone?"disabled":"")+' onclick="event.preventDefault();event.stopPropagation();completeAllExercises()">'+(allDone?"全部已完成 ✓":"一键完成")+'</button></div>':""}${list.map((a,i)=>exerciseHtml(a,i,interactive,scope)).join("")}</div>`}
-function planKind(i){return i===0||i===2||i===4?"strength":i===1||i===5?"cardio":"rest"}function renderTraining(){const d=trainingIndex(),plans=currentPlans(),p=plans[d],w=phaseWeek(),deload=(w%4===0),rule=adaptiveRule(shiftDate(localDate(),-1),d),trend=weightTrendRule(),rr=recoveryRule();syncExerciseCompletion(p[3]);const todayList=p[3],workActions=todayList.filter(x=>!x.startsWith("热身")&&!x.startsWith("强度标准")&&!x.startsWith("放松")&&!x.startsWith("不安排")&&!x.startsWith("当天步数")&&!x.startsWith("完全休息")&&!x.startsWith("想活动时")&&!x.startsWith("不加HIIT")).length;trainingOverviewActions.textContent=strengthHeldToday()?"恢复日":planKind(d)==="cardio"?"1项":planKind(d)==="rest"?"恢复日":workActions+"项";trainingOverviewTime.textContent=p[2].split(" · ")[0];trainingOverviewWeek.textContent="第"+w+"周";trainingOverviewState.textContent=phaseComplete()?"待评估":deload?"减量周":"正常周";todayTrainingName.textContent=p[1];todayTrainingDesc.textContent=p[2]+(deload?" · 减量周":"")+(recovery.state==="poor"?" · 恢复下调":"");calibNote.textContent=phaseComplete()?"12周阶段已经完成。当前不再自动加量，先重新评估体重、围度和主要力量表现，再决定下一阶段。":"这是12周减脂保肌阶段。今天执行「"+p[1]+"」；当前为第"+w+"周"+(deload?"减量恢复周":"正常训练周")+"。未完成的训练会顺延到下一天；训练重量由系统结合完成反馈、余力和恢复状态自动调整。";const kind=planKind(d),doneCount=kind==="strength"?todayList.filter(x=>exerciseDone[exerciseName(x)]).length:(kind==="cardio"&&trainDone?1:0);todayTrainingBtn.classList.remove("progressing","complete");if(kind==="rest"){todayTrainingBtn.textContent="恢复日 · 无需打卡"}else if(strengthHeldToday()){todayTrainingBtn.textContent="恢复 · 力量顺延"}else if(kind==="cardio"){todayTrainingBtn.textContent=trainDone?(completedCardioRecovery()?"已记录 · 恢复":"已完成 · 骑行"):(readDayAdjustment()?.choice==="walk"?"待记录 · 步行":readDayAdjustment()?.choice==="defer"?"已调整 · 有氧顺延":"待完成 · 骑行");if(trainDone)todayTrainingBtn.classList.add("complete")}else if(doneCount===todayList.length&&todayList.length){todayTrainingBtn.textContent="已完成 · "+doneCount+"/"+todayList.length;todayTrainingBtn.classList.add("complete")}else if(doneCount>0){todayTrainingBtn.textContent="进行中 · "+doneCount+"/"+todayList.length;todayTrainingBtn.classList.add("progressing")}else{todayTrainingBtn.textContent="待完成 · 0/"+todayList.length}cycleNote.innerHTML=phaseComplete()?"12周阶段已完成。停止继续自动加量，保持第12周减量安排，重新评估后再进入下一阶段。":"第 <span class='phaseBadge'>"+w+"/12 周</span> · "+(deload?"减量恢复周":"正常训练周")+" · 当前顺序 "+p[0]+"。";const recLabel=recovery.state==="good"?"好":recovery.state==="poor"?"差":"一般",painLabel=recovery.painArea?(painLabels[recovery.painArea]||"其他"):"无",sleepGuardNow=sleepLoadGuard(),progressAllowed=!(rr.suppressProgress||sleepGuardNow.suppress),volumeLabel=phaseComplete()?"暂停加量":deload?"减量":recovery.state==="poor"?"减少一组":integratedTrainingDecision().reduceLower&&kind==="strength"?"下肢减量":sleepGuardNow.suppress?"维持":"正常";recoverySummary.textContent=recLabel+(recovery.painArea?" · "+painLabel+"疼痛":"");decisionRecovery.textContent=recLabel;decisionPain.textContent=painLabel;const painLimitsToday=kind==="strength"&&!!recovery.painArea&&todayList.some(x=>exerciseAffectedByPain(exerciseName(x)));decisionProgress.textContent=progressAllowed?(painLimitsToday?"部分暂停":"允许"):"暂停";decisionVolume.textContent=volumeLabel;document.querySelectorAll(".recoveryBtn[data-recovery]").forEach(b=>b.classList.toggle("active",b.dataset.recovery===recovery.state));painAreaSelect.value=recovery.painArea||"";recoveryNote.textContent=rr.text;trainingAdjustment.textContent=(progressAllowed?"今天可按计划训练并根据完成反馈决定下次重量。":"今天暂停自动加重，先按当前恢复状态完成训练。")+(painLimitsToday?" 疼痛相关动作暂不自动加重，其他无痛动作按计划执行。":"")+" "+integratedTrainingDecision().reason+" "+rule.text+" "+trend.text;todayPlanDetails.className="planDetails todayPlan "+planKind(d);todayExerciseList.innerHTML=strengthHeldToday()?'<div class="restDayCard"><h3>今天恢复 · 原力量训练顺延</h3><p>今天不计作力量训练完成，明天仍保留当前训练日。恢复原安排后可以继续完成原动作。</p></div>':kind==="cardio"?cardioDayHtml(p[3]):kind==="rest"?restDayHtml(p[3]):renderExerciseList(p[3],true);renderExtraActivity();renderTrainingSummaryForExtra();weekPlan.innerHTML=plans.map((x,i)=>`<details class="planDetails ${planKind(i)}"><summary><span class="planSummaryMain"><b>${x[0]} · ${x[1]}${i===d?'<span class="todayBadge">当前</span>':''}</b><small>${x[2]}${deload&&planKind(i)==="strength"?" · 减量周":""}</small></span><span class="chev">⌄</span></summary><div class="planBody">${renderExerciseList(x[3],false,"week-"+i)}</div></details>`).join("");renderDayAdjustmentPanel();}
+function planKind(i){return i===0||i===2||i===4?"strength":i===1||i===5?"cardio":"rest"}function renderTraining(){const d=trainingIndex(),actual=readActualWorkout(),plans=currentPlans(),p=plans[d],w=phaseWeek(),deload=(w%4===0),rule=adaptiveRule(shiftDate(localDate(),-1),d),trend=weightTrendRule(),rr=recoveryRule();syncExerciseCompletion(p[3]);const todayList=p[3],workActions=todayList.filter(x=>!x.startsWith("热身")&&!x.startsWith("强度标准")&&!x.startsWith("放松")&&!x.startsWith("不安排")&&!x.startsWith("当天步数")&&!x.startsWith("完全休息")&&!x.startsWith("想活动时")&&!x.startsWith("不加HIIT")).length;trainingOverviewActions.textContent=actual?(actual.exercises.length+"项已完成"):strengthHeldToday()?"恢复日":planKind(d)==="cardio"?"1项":planKind(d)==="rest"?"恢复日":workActions+"项";trainingOverviewTime.textContent=p[2].split(" · ")[0];trainingOverviewWeek.textContent="第"+w+"周";trainingOverviewState.textContent=phaseComplete()?"待评估":deload?"减量周":"正常周";todayTrainingName.textContent=actual?actualSessionTitle(actual)+"力量（实际完成）":p[1];todayTrainingDesc.textContent=(actual?"自主训练 · "+actual.exercises.length+"项 · RPE "+actual.rpe:p[2])+(deload?" · 减量周":"")+(recovery.state==="poor"?" · 恢复下调":"");calibNote.textContent=phaseComplete()?"12周阶段已经完成。当前不再自动加量，先重新评估体重、围度和主要力量表现，再决定下一阶段。":"这是12周减脂保肌阶段。今天执行「"+p[1]+"」；当前为第"+w+"周"+(deload?"减量恢复周":"正常训练周")+"。未完成的训练会顺延到下一天；训练重量由系统结合完成反馈、余力和恢复状态自动调整。";const kind=planKind(d),doneCount=kind==="strength"?todayList.filter(x=>exerciseDone[exerciseName(x)]).length:(kind==="cardio"&&trainDone?1:0);todayTrainingBtn.classList.remove("progressing","complete");if(actual){todayTrainingBtn.textContent="已记录 · "+actual.exercises.length+"项力量";todayTrainingBtn.classList.add("complete")}else if(kind==="rest"){todayTrainingBtn.textContent="恢复日 · 无需打卡"}else if(strengthHeldToday()){todayTrainingBtn.textContent="恢复 · 力量顺延"}else if(kind==="cardio"){todayTrainingBtn.textContent=trainDone?(completedCardioRecovery()?"已记录 · 恢复":"已完成 · 骑行"):(readDayAdjustment()?.choice==="walk"?"待记录 · 步行":readDayAdjustment()?.choice==="defer"?"已调整 · 有氧顺延":"待完成 · 骑行");if(trainDone)todayTrainingBtn.classList.add("complete")}else if(doneCount===todayList.length&&todayList.length){todayTrainingBtn.textContent="已完成 · "+doneCount+"/"+todayList.length;todayTrainingBtn.classList.add("complete")}else if(doneCount>0){todayTrainingBtn.textContent="进行中 · "+doneCount+"/"+todayList.length;todayTrainingBtn.classList.add("progressing")}else{todayTrainingBtn.textContent="待完成 · 0/"+todayList.length}cycleNote.innerHTML=phaseComplete()?"12周阶段已完成。停止继续自动加量，保持第12周减量安排，重新评估后再进入下一阶段。":"第 <span class='phaseBadge'>"+w+"/12 周</span> · "+(deload?"减量恢复周":"正常训练周")+" · 当前顺序 "+p[0]+"。";const recLabel=recovery.state==="good"?"好":recovery.state==="poor"?"差":"一般",painLabel=recovery.painArea?(painLabels[recovery.painArea]||"其他"):"无",sleepGuardNow=sleepLoadGuard(),progressAllowed=!(rr.suppressProgress||sleepGuardNow.suppress),volumeLabel=phaseComplete()?"暂停加量":deload?"减量":recovery.state==="poor"?"减少一组":integratedTrainingDecision().reduceLower&&kind==="strength"?"下肢减量":sleepGuardNow.suppress?"维持":"正常";recoverySummary.textContent=recLabel+(recovery.painArea?" · "+painLabel+"疼痛":"");decisionRecovery.textContent=recLabel;decisionPain.textContent=painLabel;const painLimitsToday=kind==="strength"&&!!recovery.painArea&&todayList.some(x=>exerciseAffectedByPain(exerciseName(x)));decisionProgress.textContent=progressAllowed?(painLimitsToday?"部分暂停":"允许"):"暂停";decisionVolume.textContent=volumeLabel;document.querySelectorAll(".recoveryBtn[data-recovery]").forEach(b=>b.classList.toggle("active",b.dataset.recovery===recovery.state));painAreaSelect.value=recovery.painArea||"";recoveryNote.textContent=rr.text;trainingAdjustment.textContent=(progressAllowed?"今天可按计划训练并根据完成反馈决定下次重量。":"今天暂停自动加重，先按当前恢复状态完成训练。")+(painLimitsToday?" 疼痛相关动作暂不自动加重，其他无痛动作按计划执行。":"")+" "+integratedTrainingDecision().reason+" "+rule.text+" "+trend.text;todayPlanDetails.className="planDetails todayPlan "+planKind(d);todayExerciseList.innerHTML=actual?actualWorkoutSummaryHtml(actual):strengthHeldToday()?'<div class="restDayCard"><h3>今天恢复 · 原力量训练顺延</h3><p>今天不计作力量训练完成，明天仍保留当前训练日。恢复原安排后可以继续完成原动作。</p></div>':kind==="cardio"?cardioDayHtml(p[3]):kind==="rest"?restDayHtml(p[3]):renderExerciseList(p[3],true);renderExtraActivity();renderTrainingSummaryForExtra();weekPlan.innerHTML=plans.map((x,i)=>`<details class="planDetails ${planKind(i)}"><summary><span class="planSummaryMain"><b>${x[0]} · ${x[1]}${i===d?'<span class="todayBadge">当前</span>':''}</b><small>${x[2]}${deload&&planKind(i)==="strength"?" · 减量周":""}</small></span><span class="chev">⌄</span></summary><div class="planBody">${renderExerciseList(x[3],false,"week-"+i)}</div></details>`).join("");renderDayAdjustmentPanel();renderActualWorkoutHistory();}
 function toggleTodayTraining(){if(planKind(trainingIndex())!=="strength")return;trainDone=!trainDone;localStorage.setItem(trainKey,trainDone?"1":"0");const list=currentPlans()[trainingIndex()][3];list.forEach(x=>exerciseDone[exerciseName(x)]=trainDone);localStorage.setItem(exerciseDoneKey,JSON.stringify(exerciseDone));renderTraining();refreshNutritionGuidance()}
 function saveWeight(){const v=parseFloat(weightInput.value);if(!v||v<30||v>250)return alert("请输入正确体重");weights=weights.filter(x=>x.date!==localDate());weights.push({date:localDate(),weight:v});weights.sort((a,b)=>a.date.localeCompare(b.date));localStorage.setItem("ckWeights",JSON.stringify(weights));weightInput.value="";render()}
 function saveSteps(){const v=Math.round(+stepInput.value);if(!v||v<500||v>50000)return alert("请输入正确步数");steps=steps.filter(x=>x.date!==localDate());steps.push({date:localDate(),steps:v});steps.sort((a,b)=>a.date.localeCompare(b.date));localStorage.setItem("ckSteps",JSON.stringify(steps));stepInput.value="";maybeAdvanceStepGoal();render();}
