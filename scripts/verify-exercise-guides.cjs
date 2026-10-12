@@ -80,7 +80,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    'const cardioRecoveryKey=()=>"ckCardioRecovery-2026-10-08",cardioLoadPrescription=()=>null,completedCardioRecovery=()=>false;'+
    'const planKind=idx=>[0,2,4].includes(idx)?"strength":[1,5].includes(idx)?"cardio":"rest",trainingIndex=()=>DAY;'+
    'const document={getElementById:k=>({value:k==="rideMinutes"?"47":"4"})};'+
-   'const alert=s=>notices.push(s),renderTraining=()=>{},refreshNutritionGuidance=()=>{},readDayAdjustment=()=>null,dayAdjustmentKey=()=>"ckDayAdjustment-2026-10-08",readExtraActivities=()=>[],extraActivityKey=()=>"ckExtraActivities-2026-10-08",rpeOptionList=()=>"",rpeEffortLabel=()=>"";';;
+   'const alert=s=>notices.push(s),render=()=>{},renderTraining=()=>{},refreshNutritionGuidance=()=>{},readDayAdjustment=()=>null,dayAdjustmentKey=()=>"ckDayAdjustment-2026-10-08",readExtraActivities=()=>[],extraActivityKey=()=>"ckExtraActivities-2026-10-08",rpeOptionList=()=>"",rpeEffortLabel=()=>"";';;
   return new Function('memo','notices','DAY',harness+rideJs+'return {saveTodayRide,undoTodayRide,storedRide,restDayHtml,cardioDayHtml,getDone:()=>trainDone};')(memo,notices,day);
  }
  for(let day=0;day<7;day++){
