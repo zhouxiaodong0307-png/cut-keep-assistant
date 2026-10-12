@@ -24,7 +24,7 @@ const code=[
  sect('const planTemplates=','];'),sect('const LEGACY_V47_PLAN_TEMPLATES=','];'),sect('const coachLoads=','};'),
  sect('const exerciseGuides=','};'),sect('const GUIDE_ATLAS=','};'),
  'const stepGoalRange=()=>"6500–7500",coachWeight=()=>25,phaseWeek=()=>week,trainingIndex=()=>day;',
- 'const localStorage={getItem:()=>null,setItem:()=>{}},exerciseDone={};let trainDone=false;',
+ 'const localStorage={getItem:()=>null,setItem:()=>{}},exerciseDone={};let trainDone=false;const readDayAdjustment=()=>null;',
  'const localDate=()=>"2026-10-08",shiftDate=()=>localDate(),adaptiveRule=()=>({});',
  'const weightTrendRule=()=>({extraMinutes:extra,suppressExtra:false}),recovery={state:poor?"poor":"ok"},recoveryRule=()=>({suppressExtra:false});',
  'const storedRide=()=>null,recentExtraLoad=()=>({minutes:0,maxRpe:0,heavy:false,substantial:false});',
@@ -80,7 +80,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    'const cardioRecoveryKey=()=>"ckCardioRecovery-2026-10-08",cardioLoadPrescription=()=>null,completedCardioRecovery=()=>false;'+
    'const planKind=idx=>[0,2,4].includes(idx)?"strength":[1,5].includes(idx)?"cardio":"rest",trainingIndex=()=>DAY;'+
    'const document={getElementById:k=>({value:k==="rideMinutes"?"47":"4"})};'+
-   'const alert=s=>notices.push(s),renderTraining=()=>{},refreshNutritionGuidance=()=>{},rpeOptionList=()=>"",rpeEffortLabel=()=>"";';
+   'const alert=s=>notices.push(s),renderTraining=()=>{},refreshNutritionGuidance=()=>{},refreshAfterDayChange=()=>{},readDayAdjustment=()=>null,dayAdjustmentKey=()=>"ckDayAdjustment-2026-10-08",readExtraActivities=()=>[],extraActivityKey=()=>"ckExtraActivities-2026-10-08",rpeOptionList=()=>"",rpeEffortLabel=()=>"";';;
   return new Function('memo','notices','DAY',harness+rideJs+'return {saveTodayRide,undoTodayRide,storedRide,restDayHtml,cardioDayHtml,getDone:()=>trainDone};')(memo,notices,day);
  }
  for(let day=0;day<7;day++){
@@ -670,7 +670,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     throw Error('Middle and high RPE intensities are unclassified/ambiguous');
  const rideUI=func('cardioDayHtml','function saveTodayRide(');
  const card=new Function('storedRide','recovery','trainDone','rpeOptionList','rpeEffortLabel','completedCardioRecovery','cardioLoadPrescription',
-   rideUI+'return cardioDayHtml;');
+   'const readDayAdjustment=()=>null,walkDayHtml=()=>"";'+rideUI+'return cardioDayHtml;');
  const ridePlan=['热身｜5分钟','主体｜40分钟 Zone 2','放松｜5分钟'];
  const initial=card(()=>null,{state:'ok'},false,rpeOptionList,rpeEffortLabel,()=>false,()=>null)(ridePlan);
  const completed=card(()=>({minutes:45,rpe:6}),{state:'ok'},true,rpeOptionList,rpeEffortLabel,()=>false,()=>null)(ridePlan);
@@ -723,7 +723,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   const read=ds=>{try{return JSON.parse(data.get('ckExtraActivities-'+ds)||'[]')}catch(e){return []}};
   const readDone=ds=>read(ds).filter(x=>x.status==='completed');
   const api=new Function('localStorage','localDate','shiftDate','trainingIndexForDate','storedRide','completedExtraActivity','readExtraActivities','sleepLoadGuard','recovery','currentPlansBase','trainingIndex','trainDone','adaptiveRule','weightTrendRule','recoveryRule',
-    loadSrc+cardioSrc+planSrc+
+    'const readDayAdjustment=()=>null;'+loadSrc+cardioSrc+planSrc+
     'return {currentPlans,integratedTrainingLoad,integratedTrainingDecision,cardioLoadPrescription,completedCardioRecovery,applyCardioLoadPrescription,nextTrainingLoadAdvice};')(
       localStorage,()=>day,shift,ds=>ds==='2026-10-10'?4:ds==='2026-10-11'?5:0,
       ()=>null,readDone,read,()=>({suppress:false}),{state:'ok',painArea:''},
@@ -761,7 +761,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   const localStorage={getItem:k=>data.has(k)?data.get(k):null,setItem:(k,v)=>data.set(k,String(v)),removeItem:k=>data.delete(k)};
   const plan=['热身｜5分钟','主体｜今日可休息；若状态好可轻松骑15–25分钟｜RPE 1–2/10','放松｜5分钟'];
   const api=new Function('localStorage','trainingIndex','planKind','cardioRecoveryKey','cardioLoadPrescription','completedCardioRecovery','storedRide','recovery','rpeOptionList','rpeEffortLabel','renderTraining','refreshNutritionGuidance','document','alert','rideStorageKey','trainKey',
-    'let trainDone=false;'+rideBlock+'return {finishOptionalCardioRecovery,undoTodayRide,saveTodayRide,cardioDayHtml,getDone:()=>trainDone};')(
+    'const readDayAdjustment=()=>null,walkDayHtml=()=>"",dayAdjustmentKey=()=>"ckDayAdjustment-2026-10-11",readExtraActivities=()=>[],extraActivityKey=()=>"ckExtraActivities-2026-10-11",refreshAfterDayChange=()=>{};let trainDone=false;'+rideBlock+'return {finishOptionalCardioRecovery,undoTodayRide,saveTodayRide,cardioDayHtml,getDone:()=>trainDone};')(
     localStorage,()=>5,i=>i===5?'cardio':'strength',()=> 'ckCardioRecovery-2026-10-11',()=>({allowRest:true}),
     ()=>data.has('ckCardioRecovery-2026-10-11'),()=>{try{return JSON.parse(data.get('ckRide-2026-10-11')||'null')}catch(e){return null}},
     {state:'ok'},n=>'<option value="'+n+'">测试</option>',n=>'轻松',
