@@ -1176,7 +1176,7 @@ function saveActualWorkout(){
   if(!allowed.includes(row.muscle)||!Number.isInteger(row.sets)||row.sets<1||row.sets>8||!Number.isInteger(row.reps)||row.reps<1||row.reps>40||!Number.isFinite(row.weight)||row.weight<0||row.weight>400||!units.includes(row.unit))return alert("请检查第"+(i+1)+"个动作的部位、组数、次数、重量");
   rows.push({name,muscle:row.muscle,sets:row.sets,reps:row.reps,weight:row.unit==="自重"?0:row.weight,unit:row.unit});
  }
- const result={version:1,status:"completed",focus:d.focus,rpe:d.rpe,note:String(d.note||"").trim().slice(0,240),exercises:rows,originalIndex:old?.originalIndex??idx,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),priorTrainValue:old?.priorTrainValue??localStorage.getItem(trainKey),priorRecoveryValue:old?.priorRecoveryValue??localStorage.getItem(cardioRecoveryKey())};
+ const result={version:1,status:"completed",focus:d.focus,rpe:d.rpe,note:String(d.note||"").trim().slice(0,240),exercises:rows,originalIndex:old?.originalIndex??idx,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),priorTrainValue:old&&Object.prototype.hasOwnProperty.call(old,"priorTrainValue")?old.priorTrainValue:localStorage.getItem(trainKey),priorRecoveryValue:old&&Object.prototype.hasOwnProperty.call(old,"priorRecoveryValue")?old.priorRecoveryValue:localStorage.getItem(cardioRecoveryKey())};
  const keys=[actualWorkoutKey(),trainKey,cardioRecoveryKey()],saved=keys.map(k=>localStorage.getItem(k));
  try{
   localStorage.setItem(actualWorkoutKey(),JSON.stringify(result));
