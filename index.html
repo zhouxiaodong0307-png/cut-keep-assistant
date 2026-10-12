@@ -485,7 +485,7 @@ function actualTrainingContext(ds=localDate()){
   adjustment=readDayAdjustment(ds)?.choice||"";
  const plannedKind=planKind(index),actualStrength=!!actual,
   strength=actualStrength||completed&&plannedKind==="strength",
-  cardio=!actualStrength&&!recoveryMarker&&!!savedRide&&completed&&plannedKind==="cardio",
+  cardio=!actualStrength&&!recoveryMarker&&completed&&plannedKind==="cardio"&&!["rest","walk"].includes(adjustment),
   recoveryOnly=!actualStrength&&(recoveryMarker||["rest","walk","auto-recovery"].includes(adjustment)),
   pendingCardio=!actualStrength&&!recoveryOnly&&!completed&&plannedKind==="cardio"&&adjustment!=="defer",
   pendingStrength=!actualStrength&&!completed&&plannedKind==="strength"&&adjustment!=="hold";
@@ -787,7 +787,7 @@ function buildDietAdvice(k,p,cg,ft){
  if(recovery.state==="poor")return "今日恢复状态差：不要进一步主动压低热量。"+(proteinLeft>0?"先把蛋白质补到约 "+pt+"g；":"蛋白质已基本够；")+(strength&&!done?"力量训练前后保留正常主食。":"总热量维持原目标。");
  if(strength&&!done)return planName+"尚未完成："+(proteinLeft>30?"下一餐优先低脂蛋白 + 正常主食；蛋白质还差约 "+Math.round(proteinLeft)+"g。":p>=pt?"蛋白质已达标，剩余约 "+Math.round(kcalLeft)+" kcal 更适合留给正常主食、蔬菜和少量脂肪。":"蛋白质还差约 "+Math.round(proteinLeft)+"g；训练前后保留正常主食，不需要做低碳日。");
  if(strength&&done)return proteinLeft>20?"力量训练已完成，蛋白质还差约 "+Math.round(proteinLeft)+"g；下一餐优先低脂蛋白，不需要额外加高热量恢复餐。":fatLeft>10?"力量训练已完成，蛋白质基本达标；脂肪还差约 "+Math.round(fatLeft)+"g，可在剩余 "+Math.round(kcalLeft)+" kcal 内补适量蛋、鱼或坚果。":"力量训练已完成，主要营养目标基本到位；剩余约 "+Math.round(kcalLeft)+" kcal，按饥饿程度正常安排。";
- if(cardio)return "今天是 "+(truth.pendingCardio?"计划内 Zone 2":"已完成骑行")+"："+(proteinLeft>0?"蛋白质还差约 "+Math.round(proteinLeft)+"g；":"蛋白质基本达标；")+"不需要把有氧消耗额外吃回来，全天仍按 "+target+" kcal 左右控制。";
+ if(cardio)return "今天是 "+(truth.pendingCardio?"计划内 Zone 2":truth.ride?"已完成骑行":"已标记有氧完成（缺少实际骑行详情）")+"："+(proteinLeft>0?"蛋白质还差约 "+Math.round(proteinLeft)+"g；":"蛋白质基本达标；")+"不需要把有氧消耗额外吃回来，全天仍按 "+target+" kcal 左右控制。";
  if(rest)return proteinLeft>20?"恢复日蛋白质仍要维持，目前还差约 "+Math.round(proteinLeft)+"g；不要因为没训练就明显少吃。":fatLeft>10?"恢复日蛋白质基本达标，脂肪还差约 "+Math.round(fatLeft)+"g；在总热量内正常补足即可。":"恢复日主要营养目标基本到位；按饥饿程度正常吃，不需要故意压低热量。";
  return "剩余约 "+Math.round(kcalLeft)+" kcal，蛋白质还差约 "+Math.round(proteinLeft)+"g；先完成蛋白质目标，再安排其他食物。";
 }
@@ -816,7 +816,7 @@ function mealFitAdvice(total){
  if(strength&&!done&&protein>=25&&carbs>=30&&fat<=25)return {tag:"适合力量日",title:lower?"这顿适合今天的腿部参与训练":"这顿适合今天的力量训练",desc:"蛋白质和碳水都比较到位，脂肪也没有明显偏高；"+(lower?"腿部参与较多，保留这部分碳水有利于训练表现。":"可作为力量训练日的一顿正常正餐。")};
  if(strength&&!done&&protein>=25&&carbs<20&&base.k<target*.8)return {tag:"蛋白质够",title:"力量日这顿可以再保留一点主食",desc:"本餐蛋白质约 "+Math.round(protein)+"g，但碳水只有约 "+Math.round(carbs)+"g。今天训练尚未完成，不需要刻意做成低碳餐。"};
  if(cardio&&protein>=25&&kcal<=650)return {tag:"结构不错",title:"Zone 2 日这顿够稳",desc:"蛋白质足、热量也容易纳入全天目标；不用因为有氧再额外补吃。"};
- if(strength&&done&&protein>=20)return {tag:"训练后正常吃",title:"这顿适合已完成的"+(lower?"腿部":"力量")+"训练日",desc:"已记录实际"+(real?actualSessionTitle(real):"")+"力量训练。这顿蛋白质约 "+Math.round(protein)+"g、碳水约 "+Math.round(carbs)+"g，可正常计入全天目标；无需额外补偿性进食。"};
+ if(strength&&done&&protein>=20)return {tag:"训练后正常吃",title:"这顿适合已完成的"+(lower?"腿部":"力量")+"训练日",desc:(real?"已记录实际"+actualSessionTitle(real)+"力量训练。":"今日力量训练已标记完成。")+"这顿蛋白质约 "+Math.round(protein)+"g、碳水约 "+Math.round(carbs)+"g，可正常计入全天目标；无需额外补偿性进食。"};
  if(protein>=30&&kcal<=650)return {tag:"结构不错",title:"这顿比较适合减脂保肌",desc:"本餐蛋白质约 "+Math.round(protein)+"g，热量约 "+Math.round(kcal)+" kcal，比较容易放进今天的总量目标。"};
  if(afterP<pt*.7&&afterK>target*.7)return {tag:"优先补蛋白质",title:"今天热量进度快于蛋白质",desc:"计入这顿后，全天热量已用掉较多，但蛋白质仍明显落后；后续优先低脂高蛋白。"};
  if(done&&strength&&protein>=20)return {tag:"训练后正常吃",title:"训练完成后不需要额外加餐",desc:"这顿可以正常计入全天目标。恢复更看全天蛋白质、总热量和睡眠，不需要为了“训练后窗口”强行再吃一顿。"};
