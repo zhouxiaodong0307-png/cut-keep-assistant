@@ -237,7 +237,8 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 /* Cross-module invariant: manual load edits win over undo/recovery replay; pain status cannot claim full progression. */
 {
  if(!html.includes('painLimitsToday?"部分暂停":"允许"'))throw Error('Pain-aware top-level progression label missing');
- if(!html.includes('疼痛相关动作暂不自动加重，其他无痛动作按计划执行'))throw Error('Pain status must explain per-exercise restriction');
+ if(!html.includes('painLimitsToday')||!html.includes('planAffectedByPain(')||!html.includes('exerciseAffectedByPain('))throw Error('Pain-aware protection must remain active after hiding redundant training tip');
+ if(!html.includes('trainingAdjustment.textContent="";trainingAdjustment.hidden=true'))throw Error('Redundant training tip should be hidden');
  const extracted=sect('function rollbackExerciseFeedback(name){','function setExerciseFeedback(name,level){').slice(0,-'function setExerciseFeedback(name,level){'.length);
  const make=(next,prev,current)=>{
   const state={incline:current},logs=[],fb={'上斜哑铃卧推':{key:'incline',next,prev}},session={incline:20};
