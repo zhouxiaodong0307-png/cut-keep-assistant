@@ -947,3 +947,25 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  }
  console.log('PASS: V59 actual legs > planned cardio, rest, real ride, legacy completion and pending coherent across surfaces');
 }
+
+
+/* V59 screenshot-specific cross-surface checks: 10 sets today, meal 646kcal. */
+{
+ const food=func('mealFitAdvice','function showNutritionPasteResult');
+ const sample=new Function('actualTrainingContext','summarizeMeals','trainingIndex','meals','target','pt',food+'return mealFitAdvice;');
+ const meal=sample(()=>({actual:{focus:'legs',exercises:[{muscle:'legs'}]},strength:true,pendingStrength:false,lower:true,cardio:false,pendingCardio:false,completed:true}),
+ ()=>({k:0,p:0}),()=>5,[],1950,145);
+ const got=meal({k:646,p:68,c:44,f:22});
+ if(got.title.includes('Zone 2')||!got.title.includes('腿部')||got.tag!=='训练后正常吃')
+  throw Error('Screenshot recurrence: performed leg day still described as scheduled Zone 2 for 646kcal 68g protein');
+ const real=func('actualStressAdvice','function actualRowNeedsRest');
+ const shift=(ds,n)=>{const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+ const session={focus:'legs',rpe:6,exercises:[{name:'杠铃深蹲',muscle:'legs',sets:5},{name:'罗马尼亚硬拉',muscle:'legs',sets:5}]};
+ const advice=new Function('readActualWorkout','actualRecentMuscleLoad','ACTUAL_FOCUS',real+'return actualStressAdvice;')(
+ date=>date==='2026-10-12'?session:null,()=>[],{legs:'腿部',chest:'胸部',back:'背部',shoulders:'肩部'});
+ const today=advice('2026-10-12',true),tomorrow=advice('2026-10-13');
+ if(!today.includes('今天已做腿部力量 10组（RPE 6）')||today.includes('昨天')||!tomorrow.startsWith(''))
+  throw Error('Screenshot recurrence: same-day workout date incorrectly shown as yesterday');
+ if(!html.includes('actualTrainingContext()'))throw Error('Meal/training pages not using shared actual-vs-prescribed state');
+ console.log('PASS: V59 screenshot exact 646/68/44/22 meal recognizes actual legs and 10 sets RPE6 displays 今天, not Zone2/昨天');
+}
