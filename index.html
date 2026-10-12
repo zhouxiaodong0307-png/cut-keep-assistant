@@ -1397,7 +1397,7 @@ function benchWarmupHint(){
 let openLoadEditorKey="";
 function loadSourceLabel(key){
  if(key==="incline"&&localStorage.getItem("ckInclineCalibration20x12V1")==="1")return "已按真实工作重量校准";
- if(!validCoachWeight(loadOverrides[key])&&actualExerciseLoadForKey(key)!==null)return "参考已记录的实际工作重量 · 可手动修改";
+ if(!validCoachWeight(loadOverrides[key])&&typeof actualExerciseLoadForKey==="function"&&actualExerciseLoadForKey(key)!==null)return "参考已记录的实际工作重量 · 可手动修改";
  return validCoachWeight(loadOverrides[key])?"已根据训练反馈调整":"通用参考起点 · 尚未校准";
 }
 function toggleLoadEditor(key){openLoadEditorKey=openLoadEditorKey===key?"":key;renderTraining()}
