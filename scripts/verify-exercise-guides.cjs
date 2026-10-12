@@ -904,7 +904,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    throw Error('V57 actual leg training save did not retain weight / substitute real strength for scheduled cardio');
  if(!api.actualWorkoutHistoryHtml().includes('杠铃深蹲'))
    throw Error('Completed actual leg exercise is missing from training history');
- ui['actualWeight-0']='65';api.saveActualWorkout();
+ ui['actualWeight-0']='65';api.setDraft(JSON.parse(JSON.stringify(api.readActualWorkout())));api.saveActualWorkout();
  if(api.readActualWorkout().exercises[0].weight!==65||
     [...kv.keys()].filter(k=>k.startsWith('ckActualWorkout-')).length!==1)
    throw Error('Editing a custom exercise lost the user load or created a duplicate workout');
