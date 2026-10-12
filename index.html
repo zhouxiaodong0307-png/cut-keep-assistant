@@ -983,7 +983,113 @@ function storedRide(date=localDate()){
  const r=safeJsonParse(localStorage.getItem(rideStorageKey(date)),null);
  return r&&Number.isInteger(+r.minutes)&&+r.minutes>=5&&+r.minutes<=240&&Number.isInteger(+r.rpe)&&+r.rpe>=1&&+r.rpe<=10?r:null;
 }
+
+let dayAdjustmentOpen=false,daySwipeStart=null,ignoreTodayCardClickUntil=0;
+function startDaySwipe(event){const t=event.touches?.[0];daySwipeStart=t?{x:t.clientX,y:t.clientY}:null}
+function endDaySwipe(event,fromHome=false){
+ const t=event.changedTouches?.[0],p=daySwipeStart;daySwipeStart=null;
+ if(!t||!p||p.x-t.clientX<65||Math.abs(t.clientY-p.y)>45)return;
+ event.preventDefault();ignoreTodayCardClickUntil=Date.now()+550;
+ if(fromHome)openTodayTraining();
+ toggleDayAdjustment(true);
+}
+function onTodayCardClick(){if(Date.now()<ignoreTodayCardClickUntil)return;openTodayTraining()}
+function toggleDayAdjustment(force=false){dayAdjustmentOpen=force?true:!dayAdjustmentOpen;renderDayAdjustmentPanel()}
+function safeNextStrengthDay(index){
+ let i=(index+1)%7;for(let n=0;n<7;n++,i=(i+1)%7)if([0,2,4].includes(i))return i;
+ return index;
+}
+function strengthHeldToday(){return [0,2,4].includes(trainingIndex())&&readDayAdjustment()?.choice==="hold"&&!trainDone}
+function refreshAfterDayChange(){render();refreshNutritionGuidance()}
+function saveDayAdjustment(value){
+ try{localStorage.setItem(dayAdjustmentKey(),JSON.stringify({...value,updatedAt:new Date().toISOString()}));return true}
+ catch(e){alert("无法保存调整，原训练计划和历史记录保持不变");return false}
+}
+function adjustToday(kind){
+ const idx=trainingIndex(),base=planKind(idx),adj=readDayAdjustment();
+ const started=Object.values(exerciseDone).some(Boolean);
+ if(kind==="original"){
+  if(trainDone&&base==="cardio"&&completedCardioRecovery())return alert("请先在下方撤销今天的恢复记录，再恢复原计划。");
+  if(trainDone)return alert("今天已有训练完成记录，不能直接覆盖。");
+  if(adj?.choice==="next-strength"){
+   if(started)return alert("力量训练已开始，不能直接切回另一训练日。");
+   localStorage.setItem("ckTrainingCursorIndex",adj.originalIndex);
+   localStorage.setItem("ckTrainPlanIndex-"+localDate(),adj.originalIndex);
+  }
+  localStorage.removeItem(dayAdjustmentKey());dayAdjustmentOpen=false;refreshAfterDayChange();return;
+ }
+ if(kind==="next-strength"){
+  if(trainDone||started||storedRide())return alert("今天已有训练完成记录，请先处理原记录，避免重复计入。");
+  const target=safeNextStrengthDay(idx);
+  if(target===idx)return;
+  const recent=integratedTrainingDecision();
+  if((recent.holdStrength||sleepLoadGuard().suppress||recovery.state==="poor")&&!confirm("近期负荷或恢复提示不建议马上进行力量训练。仍要改为下一次力量训练吗？"))return;
+  if(!saveDayAdjustment({choice:"next-strength",originalIndex:adj?.choice==="next-strength"?adj.originalIndex:idx,selectedIndex:target,status:"planned"}))return;
+  localStorage.setItem("ckTrainingCursorIndex",target);
+  localStorage.setItem("ckTrainPlanIndex-"+localDate(),target);
+  dayAdjustmentOpen=false;refreshAfterDayChange();return;
+ }
+ if(kind==="hold"&&base==="strength"){
+  if(trainDone||started)return alert("今日力量动作已有完成记录，先撤销已完成动作再调整，以免遗漏训练数据。");
+  if(!saveDayAdjustment({choice:"hold",originalIndex:idx,status:"recovery-not-strength"}))return;
+  dayAdjustmentOpen=false;refreshAfterDayChange();return;
+ }
+ if(base!=="cardio")return alert("这一训练日不能使用该替换项。");
+ if(trainDone)return alert("今日已记录完成，请先撤销原记录后再调整。");
+ if(kind==="rest"){
+  if(!saveDayAdjustment({choice:"rest",originalIndex:idx,status:"recovery"}))return;
+  try{localStorage.setItem(cardioRecoveryKey(),JSON.stringify({completedAt:new Date().toISOString(),reason:"user-replaced-cardio",notZone2:true}));localStorage.setItem(trainKey,"1")}
+  catch(e){return alert("保存恢复日失败，请检查存储空间。")}
+  trainDone=true;dayAdjustmentOpen=false;refreshAfterDayChange();return;
+ }
+ if(kind==="walk"||kind==="defer"){
+  if(!saveDayAdjustment({choice:kind,originalIndex:idx,status:"planned"}))return;
+  dayAdjustmentOpen=false;refreshAfterDayChange();
+ }
+}
+function saveTodayWalk(){
+ const idx=trainingIndex(),a=readDayAdjustment();if(![1,5].includes(idx)||a?.choice!=="walk"||trainDone)return;
+ const minutes=Number(document.getElementById("walkMinutes")?.value),rpe=Number(document.getElementById("walkRpe")?.value);
+ if(!Number.isInteger(minutes)||minutes<5||minutes>120)return alert("请输入实际步行时间（5–120分钟）");
+ if(!Number.isInteger(rpe)||rpe<1||rpe>10)return alert("请输入实际强度 RPE（1–10）");
+ const id="schedule-walk-"+localDate(),entries=readExtraActivities(),old=entries.find(x=>x.id===id);
+ const entry={id,type:"walk",minutes,rpe,status:"completed",createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ try{
+  localStorage.setItem(extraActivityKey(),JSON.stringify([...entries.filter(x=>x.id!==id),entry]));
+  localStorage.setItem(cardioRecoveryKey(),JSON.stringify({completedAt:new Date().toISOString(),reason:"user-walk-substitution",notZone2:true}));
+  localStorage.setItem(dayAdjustmentKey(),JSON.stringify({...a,entryId:id,status:"completed",updatedAt:new Date().toISOString()}));
+  localStorage.setItem(trainKey,"1");
+ }catch(e){return alert("步行记录未能完全保存，请先检查存储空间，避免重复录入。")}
+ trainDone=true;refreshAfterDayChange();
+}
+function walkDayHtml(){
+ const a=readDayAdjustment(),old=readExtraActivities().find(x=>x.id===a?.entryId),done=trainDone&&!!old;
+ return '<div class="walkDayCard"><b>已改为轻松步行 · 不记作 Zone 2</b><small>可以在完成后填写实际时长和RPE；未记录前不视为已完成。下次安排仍会参考真实负荷。</small>'
+ +(done?'<div class="dayAdjustBanner">已记录 '+old.minutes+'分钟步行 · RPE '+old.rpe+'</div><button class="secondary" onclick="undoTodayRide()">撤销本次替换记录</button>':
+ '<div class="walkFields"><label>实际步行分钟<input id="walkMinutes" type="number" inputmode="numeric" min="5" max="120" placeholder="例如30"></label><label>实际RPE<select id="walkRpe">'+rpeOptionList(2)+'</select></label></div><button onclick="saveTodayWalk()">完成步行并记录</button>')
+ +'</div>';
+}
+function renderDayAdjustmentPanel(){
+ const panel=document.getElementById("dayAdjustPanel"),summary=document.getElementById("dayAdjustSummary");if(!panel)return;
+ const idx=trainingIndex(),kind=planKind(idx),a=readDayAdjustment();
+ const state=a?.choice==="rest"?"已选择休息恢复，不算 Zone 2":a?.choice==="walk"?"已改为轻松步行":a?.choice==="defer"?"本次有氧顺延":a?.choice==="hold"?"今日恢复，力量任务仍保留":a?.choice==="next-strength"?"已提前选择下一次力量训练":"";
+ if(summary)summary.textContent=state||"参考已完成活动调整 · 左滑快捷打开";
+ let html=state?'<div class="dayAdjustBanner">'+state+'</div>':"";
+ if(dayAdjustmentOpen){
+  const button=(v,label)=>'<button type="button" onclick="adjustToday(\''+v+'\')">'+label+'</button>';
+  let choices="";
+  if(kind==="cardio"){choices=button("rest","休息恢复 · 跳过本次有氧")+button("walk","换成轻松步行")+button("defer","有氧顺延到下一天")+button("next-strength","提前下一次力量训练")}
+  else if(kind==="strength")choices=button("hold","今天恢复 · 力量顺延")+(a?.choice==="hold"?button("original","恢复原力量安排"):"");
+  else choices=button("next-strength","提前下一次力量训练");
+  if(a?.choice!=="rest"&&a?.choice!=="walk"&&a?.choice!=="hold"&&a?.choice!=="next-strength"&&a?.choice!=="defer"){}
+  else if(!trainDone)choices+=button("original","恢复原安排");
+  html+='<div class="dayAdjustNote">只调整后续排程，不把休息算成有氧、也不把未做的力量算完成。完成后的实际活动单独记录。</div><div class="dayAdjustChoices">'+choices+'</div>';
+ }
+ panel.innerHTML=html;
+}
+
 function cardioDayHtml(plan){
+ if(readDayAdjustment()?.choice==="walk")return walkDayHtml();
  const ride=storedRide(),recovered=completedCardioRecovery(),core=plan.find(x=>x.startsWith("主体｜"))||"";
  const main=core.split("｜")[1]||"按当日骑行计划",warm=(plan.find(x=>x.startsWith("热身｜"))||"").split("｜")[1]||"",
   cool=(plan.find(x=>x.startsWith("放松｜"))||"").split("｜")[1]||"",advice=cardioLoadPrescription();
