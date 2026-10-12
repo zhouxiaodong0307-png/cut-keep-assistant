@@ -800,3 +800,32 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     throw Error('Legacy strength UI or user history changed');
  console.log('PASS V54: 70min easy ride after strength adjusts Day6 weekly/tomorrow/today cards; recovery option, no false Zone2 credit, undo, real ride override, old data untouched');
 }
+
+
+/* V56 regression: completed strength + 70m RPE3 ride must not force a repeat
+   of Day6 cardio after the user chose recovery; no imaginary Zone2 credit. */
+{
+ const cursorSrc=sect('function dayAdjustmentKey(','function trainingIndex(){').slice(0,-'function trainingIndex(){'.length);
+ const shift=(d,n)=>{const t=new Date(d+'T12:00:00');t.setDate(t.getDate()+n);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
+ function scenario(extra=true,defer=false,rest=false,now='2026-10-12'){
+  const d=new Map([['ckTrainingCursorIndex','5'],['ckTrainingCursorDate','2026-10-11'],['ckTrain-2026-10-10','1'],['ckTrainPlanIndex-2026-10-10','4']]);
+  if(defer)d.set('ckDayAdjustment-2026-10-11','{"choice":"defer"}');
+  if(rest){d.set('ckTrain-2026-10-11','1');d.set('ckCardioRecovery-2026-10-11','{"reason":"manual"}')}
+  const storage={getItem:k=>d.has(k)?d.get(k):null,setItem:(k,v)=>d.set(k,String(v)),removeItem:k=>d.delete(k)};
+  const f=new Function('localStorage','localDate','shiftDate','integratedTrainingLoad',
+   'const safeJsonParse=(r,f)=>{try{return r?JSON.parse(r):f}catch(e){return f}},trainingStartDate="2026-10-05",dayDiff=()=>7,storedRide=()=>null;'
+   +cursorSrc+'return {syncTrainingCursor,readDayAdjustment};')(
+   storage,()=>now,shift,()=>({days:[{date:'2026-10-11',strength:false,rideMinutes:0,maxRpe:0},{date:'2026-10-10',strength:true,rideMinutes:extra?70:0,maxRpe:extra?3:0}]}));
+  return {index:f.syncTrainingCursor(),cardioCredit:d.get('ckTrain-2026-10-11'),rest:d.get('ckCardioRecovery-2026-10-11'),choice:f.readDayAdjustment('2026-10-11')};
+ }
+ const automatic=scenario(true),missing=scenario(false),deferred=scenario(true,true),manual=scenario(true,false,true),twoDays=scenario(true,false,false,'2026-10-13');
+ if(automatic.index!==6||automatic.cardioCredit||automatic.choice?.status!=='unlogged')
+  throw Error('Do not keep requesting Day6 ride after logged 70min ride, or forge Zone2 credit');
+ if(missing.index!==5||deferred.index!==5||manual.index!==6||!manual.rest||twoDays.index!==0)
+  throw Error('Adaptive cursor / user defer / chosen recovery / subsequent rest is broken');
+ for(const name of ['adjustToday','saveTodayWalk','undoTodayRide','renderDayAdjustmentPanel','startDaySwipe','endDaySwipe']){
+  if(!html.includes('function '+name+'('))throw Error('Missing training swap control '+name);
+ }
+ if(html.includes('localStorage.clear('))throw Error('Lossy localStorage mutation');
+ console.log('PASS: Day5 strength+70min ride, Day6 rest and Day7 progression, no phantom cardio, explicit defer respected');
+}
