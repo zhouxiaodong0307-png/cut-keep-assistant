@@ -238,6 +238,31 @@ input,select{font-size:16px!important}
 .actualFormActions button.primary{border-color:#273a43;color:white;background:#273a43}.actualHint{font-size:12px;color:#496c80;line-height:1.6}
 .actualHistory{margin-top:9px}.actualHistoryRow{border-bottom:1px solid #e9eeee;padding:9px 0;display:grid;gap:3px;font-size:12px;color:#52636b}.actualHistoryRow b{font-size:13px;color:#263e4a}
 @media(max-width:420px){.actualForm{padding:9px}.actualFieldGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.actualFieldGrid label:nth-child(4),.actualFieldGrid label:nth-child(5){grid-column:span 1}.actualTopFields{grid-template-columns:minmax(0,1fr) 100px}}
+/* V68: trim unused vertical space from home recovery/sleep card only. */
+#view-today #recoveryBasicsCard{padding:13px 15px 12px!important;min-height:0}
+#recoveryBasicsCard .recoveryHead{align-items:center;gap:8px}
+#recoveryBasicsCard .recoveryHead h2{font-size:20px!important;line-height:1.15}
+#recoveryBasicsCard .recoveryHead .sub{font-size:12px;line-height:1.35;margin-top:3px!important}
+#recoveryBasicsCard .recoveryHead>small{font-size:10px;padding:4px 8px}
+#recoveryBasicsCard .recoverySections{margin-top:8px}
+#recoveryBasicsCard .recoverySection{padding:0;margin:0}
+#recoveryBasicsCard .recoverySectionHead{margin-bottom:5px;line-height:1.2}
+#recoveryBasicsCard .recoverySectionHead b{font-size:13px}
+#recoveryBasicsCard .recoverySectionHead small{font-size:11px}
+#recoveryBasicsCard .sleepTimeGrid{gap:7px}
+#recoveryBasicsCard .sleepTimeControl{height:43px;border-radius:11px;margin-top:3px}
+#recoveryBasicsCard .sleepSaveBtn{height:43px;border-radius:11px}
+#recoveryBasicsCard .sleepTimeField>small,#recoveryBasicsCard .sleepActionField>small{font-size:10px;line-height:1.2}
+#recoveryBasicsCard .sleepFooter{margin-top:4px}
+#recoveryBasicsCard .sleepFooter:has(#sleepDurationPreview:empty){display:none}
+@media(max-width:440px){
+ #view-today #recoveryBasicsCard{padding:12px 13px 11px!important}
+ #recoveryBasicsCard .sleepTimeGrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 84px;gap:6px}
+ #recoveryBasicsCard .sleepTimeControl,#recoveryBasicsCard .sleepSaveBtn{height:44px}
+ #recoveryBasicsCard .sleepTimeControl{padding:0 8px}
+ #recoveryBasicsCard .sleepTimeDisplay{font-size:13px}
+ #recoveryBasicsCard .sleepSaveBtn{font-size:11px;padding:0 4px}
+}
 </style></head><body><main class="app">
 <section class="view active" id="view-today"><span class="date" id="dateLabel"></span><h1>今天</h1>
 <section class="hero"><div class="muted" id="remainLabel">今天还可以吃</div><div class="big"><span id="remain">2250</span><small style="font-size:23px;color:#aaa"> kcal</small></div><div class="kcalHint" id="kcalHint">热量参照：—</div><div class="bar"><i id="progress"></i></div><div class="stats"><div class="stat"><span class="muted">已摄入</span><b><span id="eaten">0</span> kcal</b></div><div class="stat"><span class="muted" id="proteinLeftLabel">蛋白质还差</span><b><span id="proteinLeft">155</span> g</b></div></div></section><div class="goalStrip"><div class="goalPill"><small>每日步数</small><b id="stepGoalText">6,500–7,500</b></div><div class="goalPill"><small>蛋白质</small><b><span id="goalProtein">155</span> g</b></div><div class="goalPill"><small>目标降重</small><b>0.4–0.6 kg/周</b></div></div>
@@ -254,7 +279,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261013-home-training-card-priority-67",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261013-compact-sleep-card-68",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
