@@ -614,7 +614,7 @@ function kcalFoodReference(remainKcal,k,p,cg,ft){
  return "热量参照：今天还剩约 "+Math.round(remainKcal)+" kcal；当前蛋白质已接近目标，不需要把剩余热量全部吃满，按饥饿程度安排正常一餐";
 }
 function renderDailyCoachTip(k,p,cg,ft){
- const social=meals.find(x=>x.social),idx=trainingIndex(),plan=planTemplates[idx],planName=plan?plan[1]:"今日训练",strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx),rest=[3,6].includes(idx),done=!!trainDone;
+ const social=meals.find(x=>x.social),idx=trainingIndex(),choice=readDayAdjustment()?.choice,held=choice==="hold",walking=choice==="walk",plan=planTemplates[idx],planName=held?"恢复日":walking?"轻松步行":plan?plan[1]:"今日训练",strength=[0,2,4].includes(idx)&&!held,cardio=[1,5].includes(idx)&&!walking,rest=[3,6].includes(idx)||held||walking,done=!!trainDone;
  const kcalLeft=Math.max(0,target-k),proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),over=Math.max(0,k-target),poor=recovery.state==="poor",pain=!!recovery.painArea,sleepGuard=sleepLoadGuard(),tail=todayBasicsTail();
  const finish=(title,text)=>{todayCoachTitle.textContent=title;todayCoachText.textContent=text+tail};
  const numbers=()=>{let x=[];if(k<=target)x.push("还剩约 "+Math.round(kcalLeft)+" kcal");if(proteinLeft>0)x.push("蛋白质还差约 "+Math.round(proteinLeft)+"g");if(ft<60)x.push("脂肪还差约 "+Math.round(fatLeft)+"g");return x.slice(0,2).join("，")};
@@ -623,6 +623,7 @@ function renderDailyCoachTip(k,p,cg,ft){
  if(sleepGuard.suppress){finish(planName+" · 今天优先恢复",(strength&&!done?sleepGuard.reason+"；力量训练按计划完成但不追求加量。":sleepGuard.reason+"。")+(proteinLeft>0?"蛋白质仍尽量做到约 "+pt+"g。":"蛋白质已基本够。"));return}
  if(poor){finish(planName+" · 今天优先恢复",(strength?"力量日仍按计划下调执行；":"今天不额外加码；")+"不要因为状态差再主动砍热量。"+(proteinLeft>0?"先把蛋白质补到约 "+pt+"g；":"蛋白质已基本够；")+(strength&&!done?"训练前后正常安排主食，避免空着碳水硬练。":"总热量继续控制在目标附近。"));return}
  if(pain&&strength){finish(planName+" · 营养照常，动作按疼痛调整","疼痛状态不需要靠额外热量或补剂“顶过去”。"+(proteinLeft>0?"今天仍优先补齐约 "+Math.round(proteinLeft)+"g 蛋白质；":"蛋白质已基本达标；")+"总热量按原目标，受影响动作按训练页提示处理。");return}
+ if(walking){finish(done?"轻松步行已记录":"今天改为轻松步行",done?"本次步行已作为真实临时活动保存，不算 Zone 2 完成；后续安排仍参考实际负荷。":"实际走完后再记录分钟数和 RPE；这项替换不要求额外加练，也不自动计作 Zone 2。");return}
  if(strength){
    const heavyLower=idx===0||idx===2,session=heavyLower?"全身/腿背训练":"胸部训练";
    if(done){
@@ -643,7 +644,7 @@ function renderDailyCoachTip(k,p,cg,ft){
  finish("今天按总量和蛋白质推进",numbers()+"。优先完成蛋白质目标，再在剩余热量里安排主食、蔬菜和脂肪来源。");
 }
 function buildDietAdvice(k,p,cg,ft){
- const social=meals.some(x=>x.social),idx=trainingIndex(),strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx),rest=[3,6].includes(idx),done=!!trainDone,planName=planTemplates[idx]?.[1]||"今日训练",proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),kcalLeft=Math.max(0,target-k);
+ const social=meals.some(x=>x.social),idx=trainingIndex(),choice=readDayAdjustment()?.choice,strength=[0,2,4].includes(idx)&&choice!=="hold",cardio=[1,5].includes(idx)&&!completedCardioRecovery()&&choice!=="walk",rest=[3,6].includes(idx)||choice==="hold"||choice==="walk"||completedCardioRecovery(),done=!!trainDone,planName=planTemplates[idx]?.[1]||"今日训练",proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),kcalLeft=Math.max(0,target-k);
  if(social)return k>target?"今天含聚餐估算：当前总摄入约 "+Math.round(k)+" kcal，约超出目标 "+Math.round(k-target)+" kcal；宏量只统计明确记录部分，不补偿性少吃或加练。":"今天含聚餐估算：当前总摄入约 "+Math.round(k)+" kcal，距离目标还约 "+Math.round(target-k)+" kcal；宏量只统计明确记录部分，不追着宏量数字硬补。";
  if(k>target)return proteinLeft>25?"今天已超过目标热量，但蛋白质仍差约 "+Math.round(proteinLeft)+"g；如果还需要进食，只选低脂高蛋白和蔬菜，不做补偿性加练。":"今天已超过目标热量且蛋白质接近目标；后续按饥饿程度收尾，不需要为了凑宏量继续吃。";
  if(recovery.state==="poor")return "今日恢复状态差：不要进一步主动压低热量。"+(proteinLeft>0?"先把蛋白质补到约 "+pt+"g；":"蛋白质已基本够；")+(strength&&!done?"力量训练前后保留正常主食。":"总热量维持原目标。");
