@@ -849,8 +849,8 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const prelude='const safeJsonParse=(s,f)=>{try{return s?JSON.parse(s):f}catch(e){return f}};'
   +'const exerciseDone={},VOLUME_REFERENCE_KEY="test-manual";const localDate=()=>"2026-10-13";'
   +'const exerciseVolumeId=(idx,name)=>idx+"|"+name;const readTrainingVolumeJson=()=>({}),validExerciseVolume=()=>false;'
-  +'const parseExerciseVolume=row=>{const m=row.match(/(\d+)组\s*×\s*(?:每侧)?(\d+)[–-](\d+)次/);return m?{sets:+m[1],min:+m[2],max:+m[3],unit:"次"}:null};'
-  +'const applyExerciseVolumeToRow=(row,v)=>row.replace(/\d+组/,v.sets+"组");';
+  +'const parseExerciseVolume=row=>{const m=row.match(/(\\d+)组\\s*×\\s*(?:每侧)?(\\d+)[–-](\\d+)次/);return m?{sets:+m[1],min:+m[2],max:+m[3],unit:"次"}:null};'
+  +'const applyExerciseVolumeToRow=(row,v)=>row.replace(/\\d+组/,v.sets+"组");';
  const api=new Function('localStorage','shiftDate',prelude+model+
   'return {readActualWorkout,actualRecentMuscleLoad,actualStressAdvice,adjustPlanForActualWorkout};')(store,shift);
  if(api.readActualWorkout(day)?.exercises[1].weight!==150||
