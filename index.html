@@ -114,6 +114,19 @@ input,select{font-size:16px!important}
 .dayAdjustActions .dayAdjustToggle.primary{background:#263d4c;border-color:#263d4c;color:#fff}.dayAdjustActions .dayAdjustToggle.selected{box-shadow:0 0 0 2px #9fbcd1 inset}.dayAdjustPanel{margin-top:7px}
 @media(max-width:440px){.dayAdjustHead{grid-template-columns:1fr;gap:9px}.dayAdjustActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dayAdjustActions .dayAdjustToggle{width:100%;padding:0 6px}.dayAdjustHead .dayAdjustIntro small{font-size:11px}}
 .dayAdjustExtra[hidden]{display:none!important}.dayAdjustExtra .extraActivityDetails{margin:8px 0 2px;background:#f7fafc}.dayAdjustExtra .extraActivityDetails>summary{min-height:43px;padding:10px 12px}
+/* V62: compact expanded day actions; no scattered white gutters. */
+.dayAdjustHead{margin:8px 0 0;border-radius:13px 13px 0 0;border-bottom:0;padding:10px 12px}
+.dayAdjustPanel{margin:0}
+.dayAdjustPanel:empty{display:none}
+.dayAdjustChoices{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:8px 10px 0;background:#f4f7fb;border-left:1px solid #dce7ef;border-right:1px solid #dce7ef}
+.dayAdjustChoices button:only-child{grid-column:1/-1}
+.dayAdjustExtra{margin:0;padding:8px 10px 10px;background:#f4f7fb;border:1px solid #dce7ef;border-top:0;border-radius:0 0 13px 13px}
+.dayAdjustExtra[hidden]{display:none!important}
+.dayAdjustExtra .extraActivityDetails{margin:0;border-radius:10px;background:#fff}
+.dayAdjustExtra .extraActivityDetails>summary{min-height:40px;padding:9px 11px}
+.dayAdjustPanel:not(:empty)+.dayAdjustExtra[hidden]{display:none}
+.dayAdjustHead:has(+.dayAdjustPanel:empty + .dayAdjustExtra[hidden]){border-radius:13px;border-bottom:1px solid #dce7ef}
+@media(max-width:440px){.dayAdjustHead{padding:10px;gap:7px}.dayAdjustActions .dayAdjustToggle{height:36px;min-height:36px}.dayAdjustChoices{padding:7px 8px 0}.dayAdjustExtra{padding:7px 8px 8px}}
 /* Cycling = one session record; recovery days have no completion checklist. */
 .rideDayCard,.restDayCard{background:#fff;border:1px solid #dbe8ed;border-radius:15px;padding:13px;display:grid;gap:10px}
 .rideDayHeader{display:flex;align-items:center;justify-content:space-between;gap:8px}.rideDayHeader b{font-size:15px}.rideDayHeader small{font-size:11px;color:#647987}
@@ -232,7 +245,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261013-extra-activity-inside-adjust-61",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261013-compact-adjust-layout-62",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
