@@ -829,3 +829,49 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Lossy localStorage mutation');
  console.log('PASS: Day5 strength+70min ride, Day6 rest and Day7 progression, no phantom cardio, explicit defer respected');
 }
+
+
+/* V57: actual performed strength is never confused with a planned or completed ride. */
+{
+ const model=sect('const ACTUAL_FOCUS=','function dayAdjustmentKey(').slice(0,-'function dayAdjustmentKey('.length);
+ const shift=(ds,n)=>{const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+ const day='2026-10-12',kv=new Map(),store={
+  getItem:k=>kv.has(k)?kv.get(k):null,setItem:(k,v)=>kv.set(k,String(v)),
+  removeItem:k=>kv.delete(k),key:i=>[...kv.keys()][i],get length(){return kv.size}
+ };
+ const session={version:1,status:'completed',focus:'legs',rpe:8,exercises:[
+  {name:'杠铃深蹲',muscle:'legs',sets:4,reps:8,weight:60,unit:'总kg'},
+  {name:'腿举',muscle:'legs',sets:3,reps:10,weight:150,unit:'器械kg'},
+  {name:'俯卧腿弯举',muscle:'legs',sets:3,reps:12,weight:32,unit:'器械kg'}
+ ]};
+ kv.set('ckActualWorkout-'+day,JSON.stringify(session));
+ kv.set('ckTrain-'+day,'1');kv.set('ckCardioRecovery-'+day,JSON.stringify({reason:'actual-strength-substitution',notZone2:true}));
+ const prelude='const safeJsonParse=(s,f)=>{try{return s?JSON.parse(s):f}catch(e){return f}};'
+  +'const exerciseDone={},VOLUME_REFERENCE_KEY="test-manual";const localDate=()=>"2026-10-13";'
+  +'const exerciseVolumeId=(idx,name)=>idx+"|"+name;const readTrainingVolumeJson=()=>({}),validExerciseVolume=()=>false;'
+  +'const parseExerciseVolume=row=>{const m=row.match(/(\d+)组\s*×\s*(?:每侧)?(\d+)[–-](\d+)次/);return m?{sets:+m[1],min:+m[2],max:+m[3],unit:"次"}:null};'
+  +'const applyExerciseVolumeToRow=(row,v)=>row.replace(/\d+组/,v.sets+"组");';
+ const api=new Function('localStorage','shiftDate',prelude+model+
+  'return {readActualWorkout,actualRecentMuscleLoad,actualStressAdvice,adjustPlanForActualWorkout};')(store,shift);
+ if(api.readActualWorkout(day)?.exercises[1].weight!==150||
+    api.actualRecentMuscleLoad('2026-10-13','legs')[0]?.sets!==10||
+    !api.actualRecentMuscleLoad('2026-10-13','legs')[0]?.heavy)
+   throw Error('Actual leg training record not counted as real 10-set high-effort load');
+ const plans=[[],[],['训练日3','腿背B','55分钟',[
+  '保加利亚分腿蹲｜3组 × 每侧8–10次','坐姿划船｜3组 × 8–12次','俯卧腿弯举｜3组 × 10–15次']],[],[],[],[]];
+ api.adjustPlanForActualWorkout(plans,2,'2026-10-13');
+ if(plans[2][3].some(x=>x.includes('分腿蹲')||x.includes('腿弯举'))||
+    !plans[2][3].some(x=>x.includes('坐姿划船')))
+   throw Error('Leg session yesterday must defer duplicate legs without removing back');
+ const plans2=[[],[],['训练日3','腿背B','55分钟',[
+  '保加利亚分腿蹲｜3组 × 每侧8–10次','坐姿划船｜3组 × 8–12次']],[],[],[],[]];
+ api.adjustPlanForActualWorkout(plans2,2,'2026-10-14');
+ if(!plans2[2][3][0].includes('2组')||!plans2[2][3][1].includes('3组'))
+   throw Error('Two-day-old hard leg workout should reduce legs one set, not back');
+ if(!html.includes('function saveActualWorkout()')||!html.includes('function actualWorkoutFormHtml()')||
+    !html.includes('function removeActualWorkout()')||!html.includes('strengthDone=days.filter(x=>x.real||')||
+    !html.includes('cardioDone=days.filter(x=>x.done&&!x.real'))
+   throw Error('Actual-workout save, undo, history, or report attribution missing');
+ if(html.includes('localStorage.clear('))throw Error('Unsafe localStorage reset');
+ console.log('PASS: V57 actual leg volume, 24-hour repeat avoidance, 48-hour leg-only set reduction, truthful strength-vs-cardio attribution');
+}
