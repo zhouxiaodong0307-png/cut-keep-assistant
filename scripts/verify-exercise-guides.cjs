@@ -969,3 +969,26 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(!html.includes('actualTrainingContext()'))throw Error('Meal/training pages not using shared actual-vs-prescribed state');
  console.log('PASS: V59 screenshot exact 646/68/44/22 meal recognizes actual legs and 10 sets RPE6 displays 今天, not Zone2/昨天');
 }
+
+
+/* V60: action header always retains both choices and correctly swaps active panels. */
+{
+ const head=html.match(/<div class="dayAdjustHead"[\s\S]{0,1200}?<div id="dayAdjustPanel"/)?.[0]||"";
+ if(!head.includes('id="dayAdjustRecordBtn"')||!head.includes('id="dayAdjustToggleBtn"'))throw Error('Missing adjacent actual-training and day-change buttons');
+ const toggle=func('toggleDayAdjustment','function safeNextStrengthDay');
+ const source='let dayAdjustmentOpen=false,actualEditorOpen=false,actualDraft={focus:"legs",exercises:[]};let renders=[];'+
+ 'const cacheActualDraft=()=>renders.push("cached"),renderDayAdjustmentPanel=()=>renders.push("draw");'+toggle+
+ 'return {toggleDayAdjustment,state:()=>({dayAdjustmentOpen,actualEditorOpen,actualDraft,renders}),edit:()=>{actualEditorOpen=true;dayAdjustmentOpen=false}};';
+ const api=new Function(source)();
+ api.edit();api.toggleDayAdjustment();
+ if(!api.state().dayAdjustmentOpen||api.state().actualEditorOpen||api.state().actualDraft?.focus!=='legs'||!api.state().renders.includes("cached"))
+   throw Error('Tapping adjust after actual-workout form must display adjustment options while retaining draft');
+ api.toggleDayAdjustment();if(api.state().dayAdjustmentOpen)throw Error('Adjust button fails to close adjustment panel on second tap');
+ const panel=func('renderDayAdjustmentPanel','function cardioDayHtml');
+ if(!panel.includes('if(dayAdjustmentOpen&&!actualEditorOpen)')||!panel.includes('if(actual){choices=')||
+    !panel.includes('recordBtn.textContent=actualEditorOpen?')||!panel.includes('adjustBtn.textContent=dayAdjustmentOpen'))
+   throw Error('Panel switch or completed-record guard does not give visible feedback');
+ const a=html.indexOf('dayAdjustActions{display:grid;grid-template-columns:repeat(2');
+ if(a<0)throw Error('Compact mobile action layout is missing');
+ console.log('PASS: V60 action buttons same-row on mobile, switching from live record form to adjust works, draft retained, no inert control');
+}
