@@ -224,7 +224,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261012-actual-strength-replanning-57",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261012-actual-context-consistency-58",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -503,12 +503,15 @@ function actualRecentMuscleLoad(ds=localDate(),group="legs"){
  }
  return records;
 }
-function actualStressAdvice(ds=localDate()){
+function actualStressAdvice(ds=localDate(),includeToday=false){
  const groups=["legs","chest","back","shoulders"],parts=[];
  for(const group of groups){
-  const r=actualRecentMuscleLoad(ds,group).find(x=>x.gap<=2&&x.moderate);
+  const today=includeToday?readActualWorkout(ds):null;
+  const todayRows=today?.exercises.filter(x=>x.muscle===group)||[];
+  const todaySets=todayRows.reduce((sum,x)=>sum+x.sets,0);
+  const r=todaySets>=3?{gap:0,sets:todaySets,rpe:today.rpe}:actualRecentMuscleLoad(ds,group).find(x=>x.gap<=2&&x.moderate);
   if(!r)continue;
-  const title=ACTUAL_FOCUS[group],v=r.gap===1?"昨天":"前天";
+  const title=ACTUAL_FOCUS[group],v=r.gap===0?"今天":r.gap===1?"昨天":"前天";
   parts.push(v+"已做"+title+"力量 "+r.sets+"组（RPE "+r.rpe+"）");
  }
  return parts.length?parts.join("；")+"。后续同部位训练按实际负荷、睡眠和疼痛决定下调，未做的项目不强制补练。":"";
@@ -784,7 +787,7 @@ function normalizeFoodName(seg){return seg.toLowerCase().replace(/\s+/g,"").repl
 function qty(seg,item){let m;if(item.unit==="个"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*个/)))return{factor:+m[1],label:m[1]+"个"};if(item.unit==="根"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*根/)))return{factor:+m[1],label:m[1]+"根"};if(item.unit==="杯"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*杯/)))return{factor:+m[1],label:m[1]+"杯"};if(item.unit==="罐"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*罐/)))return{factor:+m[1],label:m[1]+"罐"};if(item.unit==="份"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*份/)))return{factor:+m[1],label:m[1]+"份"};if((m=seg.match(/(\d+(?:\.\d+)?)\s*(g|克)/i)))return{factor:+m[1]/100,label:m[1]+"g"};if(item.ml&&(m=seg.match(/(\d+(?:\.\d+)?)\s*(ml|毫升)/i)))return{factor:+m[1]/100,label:m[1]+"ml"};return item.unit?{factor:1,label:"1"+item.unit}:{factor:1,label:"100g"}}
 function autoAnalyzeQuickPaste(){const text=foodText.value.trim();if(text&&extractNutritionPaste(text))judgeFood()}
 function mealFitAdvice(total){
- const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),strength=[0,2,4].includes(idx),lower=idx===0||idx===2,cardio=[1,5].includes(idx),done=!!trainDone,fatShare=kcal>0?(fat*9/kcal):0;
+ const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),real=readActualWorkout(),adjust=readDayAdjustment(),strength=!!real||([0,2,4].includes(idx)&&adjust?.choice!=="hold"),lower=real?real.exercises.some(x=>x.muscle==="legs"):(idx===0||idx===2),cardio=!real&&[1,5].includes(idx)&&!completedCardioRecovery()&&!["rest","walk","defer"].includes(adjust?.choice),done=!!real||!!trainDone,fatShare=kcal>0?(fat*9/kcal):0;
  if(meals.some(x=>x.social)){
    if(afterK>target+150)return {tag:"注意总量",title:"计入后今天会明显超过目标",desc:"今天含聚餐估算；这顿再计入后，总摄入约 "+Math.round(afterK)+" kcal，约超出目标 "+Math.round(afterK-target)+" kcal。宏量不做精确追补，也不用靠加练补偿。"};
    if(protein<20&&kcal>=300)return {tag:"蛋白质偏低",title:"这顿蛋白质不够突出",desc:"今天已有聚餐估算，全天宏量不宜精算；仅看这顿，蛋白质偏低。计入后总摄入约 "+Math.round(afterK)+" kcal。"};
@@ -796,6 +799,7 @@ function mealFitAdvice(total){
  if(strength&&!done&&protein>=25&&carbs>=30&&fat<=25)return {tag:"适合力量日",title:lower?"这顿适合今天的腿部参与训练":"这顿适合今天的力量训练",desc:"蛋白质和碳水都比较到位，脂肪也没有明显偏高；"+(lower?"腿部参与较多，保留这部分碳水有利于训练表现。":"可作为力量训练日的一顿正常正餐。")};
  if(strength&&!done&&protein>=25&&carbs<20&&base.k<target*.8)return {tag:"蛋白质够",title:"力量日这顿可以再保留一点主食",desc:"本餐蛋白质约 "+Math.round(protein)+"g，但碳水只有约 "+Math.round(carbs)+"g。今天训练尚未完成，不需要刻意做成低碳餐。"};
  if(cardio&&protein>=25&&kcal<=650)return {tag:"结构不错",title:"Zone 2 日这顿够稳",desc:"蛋白质足、热量也容易纳入全天目标；不用因为有氧再额外补吃。"};
+ if(strength&&done&&protein>=20)return {tag:"训练后正常吃",title:"这顿适合已完成的"+(lower?"腿部":"力量")+"训练日",desc:"已记录实际"+(real?actualSessionTitle(real):"")+"力量训练。这顿蛋白质约 "+Math.round(protein)+"g、碳水约 "+Math.round(carbs)+"g，可正常计入全天目标；无需额外补偿性进食。"};
  if(protein>=30&&kcal<=650)return {tag:"结构不错",title:"这顿比较适合减脂保肌",desc:"本餐蛋白质约 "+Math.round(protein)+"g，热量约 "+Math.round(kcal)+" kcal，比较容易放进今天的总量目标。"};
  if(afterP<pt*.7&&afterK>target*.7)return {tag:"优先补蛋白质",title:"今天热量进度快于蛋白质",desc:"计入这顿后，全天热量已用掉较多，但蛋白质仍明显落后；后续优先低脂高蛋白。"};
  if(done&&strength&&protein>=20)return {tag:"训练后正常吃",title:"训练完成后不需要额外加餐",desc:"这顿可以正常计入全天目标。恢复更看全天蛋白质、总热量和睡眠，不需要为了“训练后窗口”强行再吃一顿。"};
@@ -1167,7 +1171,7 @@ function actualWorkoutFormHtml(){
 function actualSessionTitle(x){return ACTUAL_FOCUS[x.focus]||"自主"}
 function actualWorkoutSummaryHtml(x){
  const lines=x.exercises.map(row=>actualEsc(row.name)+" · "+row.sets+"组 × "+row.reps+"次 · "+row.weight+" "+actualEsc(row.unit)).join("；");
- return '<div class="actualSessionInfo"><div><b>已记录：'+actualEsc(actualSessionTitle(x))+'力量 · '+x.exercises.length+'项</b><small>'+lines+'<br>整场RPE '+x.rpe+' · 原计划未作为已完成记录</small></div><button type="button" onclick="openActualWorkoutEditor()">修改</button></div><div class="actualFormActions" style="margin-top:8px"><button type="button" onclick="removeActualWorkout()">删除这次自主训练</button><button type="button" class="primary" onclick="openActualWorkoutEditor()">编辑动作与重量</button></div><div class="actualHint" style="margin-top:8px">'+actualEsc(actualStressAdvice(shiftDate(localDate(),1)))+'</div>';
+ return '<div class="actualSessionInfo"><div><b>已记录：'+actualEsc(actualSessionTitle(x))+'力量 · '+x.exercises.length+'项</b><small>'+lines+'<br>整场RPE '+x.rpe+' · 原计划未作为已完成记录</small></div><button type="button" onclick="openActualWorkoutEditor()">修改</button></div><div class="actualFormActions" style="margin-top:8px"><button type="button" onclick="removeActualWorkout()">删除这次自主训练</button><button type="button" class="primary" onclick="openActualWorkoutEditor()">编辑动作与重量</button></div><div class="actualHint" style="margin-top:8px">'+actualEsc(actualStressAdvice(localDate(),true))+'</div>';
 }
 function actualWorkoutHistoryHtml(){
  const history=[];
