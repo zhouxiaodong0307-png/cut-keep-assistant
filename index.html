@@ -224,7 +224,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261012-actual-context-consistency-58",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261012-real-training-full-linkage-59",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -477,6 +477,23 @@ function actualExerciseLoadForKey(key,ds=localDate()){
  return null
 }
 
+
+/* Source of truth for every coaching surface. Prescription is NOT completed activity. */
+function actualTrainingContext(ds=localDate()){
+ const index=trainingIndexForDate(ds),actual=readActualWorkout(ds),recoveryMarker=completedCardioRecovery(ds),
+  savedRide=storedRide(ds),completed=localStorage.getItem("ckTrain-"+ds)==="1",
+  adjustment=readDayAdjustment(ds)?.choice||"";
+ const plannedKind=planKind(index),actualStrength=!!actual,
+  strength=actualStrength||completed&&plannedKind==="strength",
+  cardio=!actualStrength&&!recoveryMarker&&!!savedRide&&completed&&plannedKind==="cardio",
+  recoveryOnly=!actualStrength&&(recoveryMarker||["rest","walk","auto-recovery"].includes(adjustment)),
+  pendingCardio=!actualStrength&&!recoveryOnly&&!completed&&plannedKind==="cardio"&&adjustment!=="defer",
+  pendingStrength=!actualStrength&&!completed&&plannedKind==="strength"&&adjustment!=="hold";
+ return {index,plannedKind,actual,actualStrength,strength,cardio,recoveryOnly,pendingCardio,pendingStrength,
+  completed:strength||cardio,recoveryMarker,adjustment,ride:savedRide,
+  focus:actual?.focus||null,lower:actual?actual.exercises.some(x=>x.muscle==="legs"):strength&&[0,2].includes(index)};
+}
+
 function actualWorkoutKey(ds=localDate()){return "ckActualWorkout-"+ds}
 function readActualWorkout(ds=localDate()){
  const x=safeJsonParse(localStorage.getItem(actualWorkoutKey(ds)),null);
@@ -651,7 +668,7 @@ function undoTrainingVolumeOutcome(name,dayIndex=trainingIndex()){
  try{localStorage.setItem(VOLUME_HISTORY_KEY,JSON.stringify(history.filter(x=>!(x&&x.id===id&&x.date===localDate()))))}catch(e){}
 }
 function resolveExercise(a,isToday=true,dayIndex=trainingIndex()){let out=a.replace(/@steps/g,stepGoalRange());const adjusted=adaptiveVolumeReference(a,dayIndex,isToday);if(adjusted)out=applyExerciseVolumeToRow(out,adjusted);for(const key of Object.keys(coachLoads)){if(out.includes("@"+key)){out=out.replace("@"+key,coachWeight(key,isToday)+" "+coachLoads[key].unit)}}return out}
-function weightTrendRule(){const cutoff=shiftDate(localDate(),-13),recent=[...weights].filter(x=>x.date>=cutoff&&x.date<=localDate()).sort((a,b)=>a.date.localeCompare(b.date));if(recent.length<10)return {extraMinutes:0,suppressExtra:false,text:"体重数据不足14天，暂不根据体重趋势加码。"};const split=shiftDate(localDate(),-7),early=recent.filter(x=>x.date<=split),late=recent.filter(x=>x.date>split);if(early.length<4||late.length<4)return {extraMinutes:0,suppressExtra:false,text:"体重记录还不够密集，暂不根据趋势加码。"};const avg=a=>a.reduce((s,x)=>s+x.weight,0)/a.length,delta=avg(late)-avg(early);if(delta<-0.8)return {extraMinutes:0,suppressExtra:true,text:"近两周下降速度偏快，为保肌不再增加有氧或训练量。"};if(delta<=-0.2)return {extraMinutes:0,suppressExtra:false,text:"近两周下降速度处于可接受范围，不额外加训练量。"};let foodDays=0,totalK=0,socialDays=0,socialExcess=0,completed=0;for(let i=0;i<14;i++){const ds=shiftDate(localDate(),-i),t=mealTotalsOn(ds);if(t.count){foodDays++;totalK+=t.k;if(t.social){socialDays++;socialExcess+=t.socialExcess||0}}if(localStorage.getItem("ckTrain-"+ds)==="1"&&[0,1,2,4,5].includes(trainingIndexForDate(ds)))completed++}if(foodDays<10)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但饮食记录不足10天；先把记录补完整，不先加有氧。"};const avgK=totalK/foodDays;if(avgK>target+150)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但平均摄入仍高于目标约 "+Math.round(avgK-target)+" kcal；先稳定饮食，不靠加有氧补偿。"};if(socialDays>=3||socialExcess>1200)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，含聚餐估算的记录日有 "+socialDays+" 天，这些天累计超出目标约 "+Math.round(socialExcess)+" kcal；先稳定聚餐和总热量，不先加有氧。"};if(completed<7)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但训练完成量偏低；先把原计划执行稳定，不先增加 Zone 2。"};const s14=recentStepData(14);if(s14.length>=7){const savg=s14.reduce((s,x)=>s+x.steps,0)/s14.length;if(savg<stepGoal*.85)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但平均步数约 "+Math.round(savg)+"，还没达到当前活动目标；先把步数做稳定，不先增加 Zone 2。"}}return {extraMinutes:10,suppressExtra:false,text:"近两周体重下降不足0.2kg，且饮食、聚餐、步数和训练执行基本稳定：两次 Zone 2 各增加10分钟，力量训练不加量。"}}
+function weightTrendRule(){const cutoff=shiftDate(localDate(),-13),recent=[...weights].filter(x=>x.date>=cutoff&&x.date<=localDate()).sort((a,b)=>a.date.localeCompare(b.date));if(recent.length<10)return {extraMinutes:0,suppressExtra:false,text:"体重数据不足14天，暂不根据体重趋势加码。"};const split=shiftDate(localDate(),-7),early=recent.filter(x=>x.date<=split),late=recent.filter(x=>x.date>split);if(early.length<4||late.length<4)return {extraMinutes:0,suppressExtra:false,text:"体重记录还不够密集，暂不根据趋势加码。"};const avg=a=>a.reduce((s,x)=>s+x.weight,0)/a.length,delta=avg(late)-avg(early);if(delta<-0.8)return {extraMinutes:0,suppressExtra:true,text:"近两周下降速度偏快，为保肌不再增加有氧或训练量。"};if(delta<=-0.2)return {extraMinutes:0,suppressExtra:false,text:"近两周下降速度处于可接受范围，不额外加训练量。"};let foodDays=0,totalK=0,socialDays=0,socialExcess=0,completed=0;for(let i=0;i<14;i++){const ds=shiftDate(localDate(),-i),t=mealTotalsOn(ds);if(t.count){foodDays++;totalK+=t.k;if(t.social){socialDays++;socialExcess+=t.socialExcess||0}}if(actualTrainingContext(ds).completed)completed++}if(foodDays<10)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但饮食记录不足10天；先把记录补完整，不先加有氧。"};const avgK=totalK/foodDays;if(avgK>target+150)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但平均摄入仍高于目标约 "+Math.round(avgK-target)+" kcal；先稳定饮食，不靠加有氧补偿。"};if(socialDays>=3||socialExcess>1200)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，含聚餐估算的记录日有 "+socialDays+" 天，这些天累计超出目标约 "+Math.round(socialExcess)+" kcal；先稳定聚餐和总热量，不先加有氧。"};if(completed<7)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但训练完成量偏低；先把原计划执行稳定，不先增加 Zone 2。"};const s14=recentStepData(14);if(s14.length>=7){const savg=s14.reduce((s,x)=>s+x.steps,0)/s14.length;if(savg<stepGoal*.85)return {extraMinutes:0,suppressExtra:false,text:"近两周体重下降偏慢，但平均步数约 "+Math.round(savg)+"，还没达到当前活动目标；先把步数做稳定，不先增加 Zone 2。"}}return {extraMinutes:10,suppressExtra:false,text:"近两周体重下降不足0.2kg，且饮食、聚餐、步数和训练执行基本稳定：两次 Zone 2 各增加10分钟，力量训练不加量。"}}
 function currentPlansBase(){
  const idx=trainingIndex(),revisionKey="ckStrengthPlanRevision-"+localDate();
  let revision=localStorage.getItem(revisionKey);
@@ -712,7 +729,7 @@ function foodRefLine(name,amount,kcal,protein=0,note=""){return "容量参照：
 function kcalFoodReference(remainKcal,k,p,cg,ft){
  if(remainKcal<=0)return "热量参照：今天目标热量已用完，不需要为了凑宏量继续吃";
  if(meals.some(x=>x.social))return "热量参照：今天含聚餐估算，不再用单个食物做精确剩余热量推算";
- const idx=trainingIndex(),strength=[0,2,4].includes(idx),lower=idx===0||idx===2,done=!!trainDone,proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft);
+ const idx=trainingIndex(),truth=actualTrainingContext(),strength=truth.strength||truth.pendingStrength,lower=truth.lower,done=truth.completed,proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft);
  if(proteinLeft>=35){
    if(remainKcal<120)return foodRefLine("虾", "100g",99,24,"当前更缺蛋白质");
    if(remainKcal<180)return foodRefLine("瘦牛肉","100g",125,21,"当前更缺蛋白质");
@@ -734,7 +751,7 @@ function kcalFoodReference(remainKcal,k,p,cg,ft){
  return "热量参照：今天还剩约 "+Math.round(remainKcal)+" kcal；当前蛋白质已接近目标，不需要把剩余热量全部吃满，按饥饿程度安排正常一餐";
 }
 function renderDailyCoachTip(k,p,cg,ft){
- const social=meals.find(x=>x.social),idx=trainingIndex(),choice=readDayAdjustment()?.choice,real=readActualWorkout(),held=choice==="hold",walking=choice==="walk"&&!real,plan=planTemplates[idx],planName=real?actualSessionTitle(real)+"力量":held?"恢复日":walking?"轻松步行":plan?plan[1]:"今日训练",strength=(!!real||[0,2,4].includes(idx))&&!held,cardio=[1,5].includes(idx)&&!walking&&!real,rest=([3,6].includes(idx)||held||walking)&&!real,done=!!real||!!trainDone;
+ const social=meals.find(x=>x.social),idx=trainingIndex(),truth=actualTrainingContext(),choice=truth.adjustment,real=truth.actual,held=choice==="hold",walking=choice==="walk"&&!real,plan=planTemplates[idx],planName=real?actualSessionTitle(real)+"力量":held?"恢复日":walking?"轻松步行":plan?plan[1]:"今日训练",strength=truth.strength||truth.pendingStrength,cardio=truth.cardio||truth.pendingCardio,rest=truth.recoveryOnly||[3,6].includes(idx)||held,done=truth.completed;
  const kcalLeft=Math.max(0,target-k),proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),over=Math.max(0,k-target),poor=recovery.state==="poor",pain=!!recovery.painArea,sleepGuard=sleepLoadGuard(),tail=todayBasicsTail();
  const finish=(title,text)=>{todayCoachTitle.textContent=title;todayCoachText.textContent=text+tail};
  const numbers=()=>{let x=[];if(k<=target)x.push("还剩约 "+Math.round(kcalLeft)+" kcal");if(proteinLeft>0)x.push("蛋白质还差约 "+Math.round(proteinLeft)+"g");if(ft<60)x.push("脂肪还差约 "+Math.round(fatLeft)+"g");return x.slice(0,2).join("，")};
@@ -764,13 +781,13 @@ function renderDailyCoachTip(k,p,cg,ft){
  finish("今天按总量和蛋白质推进",numbers()+"。优先完成蛋白质目标，再在剩余热量里安排主食、蔬菜和脂肪来源。");
 }
 function buildDietAdvice(k,p,cg,ft){
- const social=meals.some(x=>x.social),idx=trainingIndex(),real=readActualWorkout(),choice=readDayAdjustment()?.choice,strength=!!real||[0,2,4].includes(idx)&&choice!=="hold",cardio=[1,5].includes(idx)&&!completedCardioRecovery()&&choice!=="walk"&&!real,rest=(!real)&&([3,6].includes(idx)||choice==="hold"||choice==="walk"||completedCardioRecovery()),done=!!real||!!trainDone,planName=real?actualSessionTitle(real)+"力量":planTemplates[idx]?.[1]||"今日训练",proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),kcalLeft=Math.max(0,target-k);
+ const social=meals.some(x=>x.social),idx=trainingIndex(),truth=actualTrainingContext(),real=truth.actual,choice=truth.adjustment,strength=truth.strength||truth.pendingStrength,cardio=truth.cardio||truth.pendingCardio,rest=truth.recoveryOnly||[3,6].includes(idx)||choice==="hold",done=truth.completed,planName=real?actualSessionTitle(real)+"力量":planTemplates[idx]?.[1]||"今日训练",proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),kcalLeft=Math.max(0,target-k);
  if(social)return k>target?"今天含聚餐估算：当前总摄入约 "+Math.round(k)+" kcal，约超出目标 "+Math.round(k-target)+" kcal；宏量只统计明确记录部分，不补偿性少吃或加练。":"今天含聚餐估算：当前总摄入约 "+Math.round(k)+" kcal，距离目标还约 "+Math.round(target-k)+" kcal；宏量只统计明确记录部分，不追着宏量数字硬补。";
  if(k>target)return proteinLeft>25?"今天已超过目标热量，但蛋白质仍差约 "+Math.round(proteinLeft)+"g；如果还需要进食，只选低脂高蛋白和蔬菜，不做补偿性加练。":"今天已超过目标热量且蛋白质接近目标；后续按饥饿程度收尾，不需要为了凑宏量继续吃。";
  if(recovery.state==="poor")return "今日恢复状态差：不要进一步主动压低热量。"+(proteinLeft>0?"先把蛋白质补到约 "+pt+"g；":"蛋白质已基本够；")+(strength&&!done?"力量训练前后保留正常主食。":"总热量维持原目标。");
  if(strength&&!done)return planName+"尚未完成："+(proteinLeft>30?"下一餐优先低脂蛋白 + 正常主食；蛋白质还差约 "+Math.round(proteinLeft)+"g。":p>=pt?"蛋白质已达标，剩余约 "+Math.round(kcalLeft)+" kcal 更适合留给正常主食、蔬菜和少量脂肪。":"蛋白质还差约 "+Math.round(proteinLeft)+"g；训练前后保留正常主食，不需要做低碳日。");
  if(strength&&done)return proteinLeft>20?"力量训练已完成，蛋白质还差约 "+Math.round(proteinLeft)+"g；下一餐优先低脂蛋白，不需要额外加高热量恢复餐。":fatLeft>10?"力量训练已完成，蛋白质基本达标；脂肪还差约 "+Math.round(fatLeft)+"g，可在剩余 "+Math.round(kcalLeft)+" kcal 内补适量蛋、鱼或坚果。":"力量训练已完成，主要营养目标基本到位；剩余约 "+Math.round(kcalLeft)+" kcal，按饥饿程度正常安排。";
- if(cardio)return "今天是 Zone 2："+(proteinLeft>0?"蛋白质还差约 "+Math.round(proteinLeft)+"g；":"蛋白质基本达标；")+"不需要把有氧消耗额外吃回来，全天仍按 "+target+" kcal 左右控制。";
+ if(cardio)return "今天是 "+(truth.pendingCardio?"计划内 Zone 2":"已完成骑行")+"："+(proteinLeft>0?"蛋白质还差约 "+Math.round(proteinLeft)+"g；":"蛋白质基本达标；")+"不需要把有氧消耗额外吃回来，全天仍按 "+target+" kcal 左右控制。";
  if(rest)return proteinLeft>20?"恢复日蛋白质仍要维持，目前还差约 "+Math.round(proteinLeft)+"g；不要因为没训练就明显少吃。":fatLeft>10?"恢复日蛋白质基本达标，脂肪还差约 "+Math.round(fatLeft)+"g；在总热量内正常补足即可。":"恢复日主要营养目标基本到位；按饥饿程度正常吃，不需要故意压低热量。";
  return "剩余约 "+Math.round(kcalLeft)+" kcal，蛋白质还差约 "+Math.round(proteinLeft)+"g；先完成蛋白质目标，再安排其他食物。";
 }
@@ -787,7 +804,7 @@ function normalizeFoodName(seg){return seg.toLowerCase().replace(/\s+/g,"").repl
 function qty(seg,item){let m;if(item.unit==="个"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*个/)))return{factor:+m[1],label:m[1]+"个"};if(item.unit==="根"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*根/)))return{factor:+m[1],label:m[1]+"根"};if(item.unit==="杯"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*杯/)))return{factor:+m[1],label:m[1]+"杯"};if(item.unit==="罐"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*罐/)))return{factor:+m[1],label:m[1]+"罐"};if(item.unit==="份"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*份/)))return{factor:+m[1],label:m[1]+"份"};if((m=seg.match(/(\d+(?:\.\d+)?)\s*(g|克)/i)))return{factor:+m[1]/100,label:m[1]+"g"};if(item.ml&&(m=seg.match(/(\d+(?:\.\d+)?)\s*(ml|毫升)/i)))return{factor:+m[1]/100,label:m[1]+"ml"};return item.unit?{factor:1,label:"1"+item.unit}:{factor:1,label:"100g"}}
 function autoAnalyzeQuickPaste(){const text=foodText.value.trim();if(text&&extractNutritionPaste(text))judgeFood()}
 function mealFitAdvice(total){
- const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),real=readActualWorkout(),adjust=readDayAdjustment(),strength=!!real||([0,2,4].includes(idx)&&adjust?.choice!=="hold"),lower=real?real.exercises.some(x=>x.muscle==="legs"):(idx===0||idx===2),cardio=!real&&[1,5].includes(idx)&&!completedCardioRecovery()&&!["rest","walk","defer"].includes(adjust?.choice),done=!!real||!!trainDone,fatShare=kcal>0?(fat*9/kcal):0;
+ const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),truth=actualTrainingContext(),real=truth.actual,strength=truth.strength||truth.pendingStrength,lower=truth.lower,cardio=truth.cardio||truth.pendingCardio,done=truth.completed,fatShare=kcal>0?(fat*9/kcal):0;
  if(meals.some(x=>x.social)){
    if(afterK>target+150)return {tag:"注意总量",title:"计入后今天会明显超过目标",desc:"今天含聚餐估算；这顿再计入后，总摄入约 "+Math.round(afterK)+" kcal，约超出目标 "+Math.round(afterK-target)+" kcal。宏量不做精确追补，也不用靠加练补偿。"};
    if(protein<20&&kcal>=300)return {tag:"蛋白质偏低",title:"这顿蛋白质不够突出",desc:"今天已有聚餐估算，全天宏量不宜精算；仅看这顿，蛋白质偏低。计入后总摄入约 "+Math.round(afterK)+" kcal。"};
@@ -949,11 +966,11 @@ function recentExtraLoad(ds=localDate()){
  return {minutes,maxRpe,substantial:minutes>=30&&maxRpe>=3,heavy:minutes>=75||maxRpe>=6&&minutes>=20};
 }
 function extraActivityAdvice(type="ride",minutes=35,rpe=3){
- const kind=planKind(trainingIndex()),sleep=sleepLoadGuard(),trend=weightTrendRule();
+ const context=actualTrainingContext(),kind=context.strength?"strength":context.cardio?"cardio":context.recoveryOnly?"rest":planKind(trainingIndex()),sleep=sleepLoadGuard(),trend=weightTrendRule();
  const pain=recovery.painArea||"",limbPain=["hip","knee","ankle","lowback","other"].includes(pain);
  const guard=recovery.state==="poor"||sleep.suppress||(type==="ride"&&limbPain);
  let text=guard?"当前恢复、睡眠或疼痛提示不宜再加训练负荷；建议优先休息。若仍参加，缩短为轻松活动，出现不适立即停止。":
-   type==="ride"&&kind==="strength"&&trainDone?"力量训练已经完成。额外骑行可考虑20–40分钟、RPE 2–4，保持能完整说话，不冲刺、不爬坡；腿部训练后优先20–30分钟轻松骑。":
+   type==="ride"&&kind==="strength"&&(trainDone||!!readActualWorkout())?"力量训练已经完成。额外骑行可考虑20–40分钟、RPE 2–4，保持能完整说话，不冲刺、不爬坡；腿部训练后优先20–30分钟轻松骑。":
    type==="ride"?"临时骑行以低强度交流骑为主，避免把社交骑行变成额外高强度课。":
    type==="walk"?"轻松步行即可，不需要为今天多吃的热量额外补运动。":"临时活动按自身状态选择，不以疲劳或出汗为目标。";
  if(type==="ride"&&(minutes>60||rpe>=6))text+=" 你填写的骑行较长或较强，可能增加次日恢复压力；结束后按实际数据记录，下一次有氧会减量提醒。";
@@ -1032,7 +1049,7 @@ function removeExtraActivity(id){
 function renderTrainingSummaryForExtra(){
  const hint=document.getElementById("extraActivityNextHint");
  if(hint){
-  const current=trainingIndex(),upcoming=(trainDone||current===3||current===6)?(current+1)%7:current;
+  const current=trainingIndex(),upcoming=(trainDone||!!readActualWorkout()||current===3||current===6)?(current+1)%7:current;
   hint.textContent=nextTrainingLoadAdvice(upcoming);
  }
  if(typeof renderProgress==="function"&&document.getElementById("view-progress")?.classList.contains("active"))renderProgress();
