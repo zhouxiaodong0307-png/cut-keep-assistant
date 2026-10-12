@@ -952,9 +952,9 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 /* V59 screenshot-specific cross-surface checks: 10 sets today, meal 646kcal. */
 {
  const food=func('mealFitAdvice','function showNutritionPasteResult');
- const sample=new Function('actualTrainingContext','summarizeMeals','trainingIndex','meals','target','pt',food+'return mealFitAdvice;');
+ const sample=new Function('actualTrainingContext','summarizeMeals','trainingIndex','meals','target','pt','actualSessionTitle',food+'return mealFitAdvice;');
  const meal=sample(()=>({actual:{focus:'legs',exercises:[{muscle:'legs'}]},strength:true,pendingStrength:false,lower:true,cardio:false,pendingCardio:false,completed:true}),
- ()=>({k:0,p:0}),()=>5,[],1950,145);
+ ()=>({k:0,p:0}),()=>5,[],1950,145,()=> '腿部');
  const got=meal({k:646,p:68,c:44,f:22});
  if(got.title.includes('Zone 2')||!got.title.includes('腿部')||got.tag!=='训练后正常吃')
   throw Error('Screenshot recurrence: performed leg day still described as scheduled Zone 2 for 646kcal 68g protein');
