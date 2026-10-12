@@ -875,3 +875,43 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Unsafe localStorage reset');
  console.log('PASS: V57 actual leg volume, 24-hour repeat avoidance, 48-hour leg-only set reduction, truthful strength-vs-cardio attribution');
 }
+
+
+/* V57 actual form save, update, undo: full data state, not static string checks. */
+{
+ const model=sect('const ACTUAL_FOCUS=','function dayAdjustmentKey(').slice(0,-'function dayAdjustmentKey('.length);
+ const controller=sect('let actualEditorOpen=','let dayAdjustmentOpen=').slice(0,-'let dayAdjustmentOpen='.length);
+ const kv=new Map(),ui={actualFocus:'legs',actualRpe:'8',actualNote:'今天实练腿部',
+  'actualName-0':'杠铃深蹲','actualMuscle-0':'legs','actualSets-0':'4',
+  'actualReps-0':'8','actualWeight-0':'60','actualUnit-0':'总kg'};
+ const store={getItem:k=>kv.has(k)?kv.get(k):null,setItem:(k,v)=>kv.set(k,String(v)),
+  removeItem:k=>kv.delete(k),key:i=>[...kv.keys()][i],get length(){return kv.size}};
+ const dom={getElementById:id=>Object.prototype.hasOwnProperty.call(ui,id)?{value:ui[id]}:null};
+ const shift=(ds,n)=>{const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+ const context='const localDate=()=>"2026-10-12",trainKey="ckTrain-2026-10-12",exerciseDone={};let trainDone=false;'
+  +'const safeJsonParse=(s,f)=>{try{return s?JSON.parse(s):f}catch(e){return f}};'
+  +'const cardioRecoveryKey=()=>"ckCardioRecovery-2026-10-12",trainingIndex=()=>1,planKind=()=> "cardio";'
+  +'const rpeOptionList=()=>"",refreshAfterDayChange=()=>{},renderDayAdjustmentPanel=()=>{};';
+ const api=new Function('localStorage','document','shiftDate','alert',context+model+controller+
+  'return {saveActualWorkout,removeActualWorkout,readActualWorkout,actualWorkoutHistoryHtml,setDraft:(v)=>{actualDraft=v},isDone:()=>trainDone};')(
+   store,dom,shift,(x)=>{throw Error('Unexpected form failure: '+x)});
+ api.setDraft({focus:'legs',rpe:8,note:'',exercises:[{name:'杠铃深蹲',muscle:'legs',sets:4,reps:8,weight:60,unit:'总kg'}]});
+ api.saveActualWorkout();
+ const first=api.readActualWorkout();
+ if(!first||first.exercises[0].weight!==60||first.exercises[0].sets!==4||
+    kv.get('ckTrain-2026-10-12')!=='1'||!api.isDone()||
+    JSON.parse(kv.get('ckCardioRecovery-2026-10-12')).notZone2!==true)
+   throw Error('V57 actual leg training save did not retain weight / substitute real strength for scheduled cardio');
+ if(!api.actualWorkoutHistoryHtml().includes('杠铃深蹲'))
+   throw Error('Completed actual leg exercise is missing from training history');
+ ui['actualWeight-0']='65';api.saveActualWorkout();
+ if(api.readActualWorkout().exercises[0].weight!==65||
+    [...kv.keys()].filter(k=>k.startsWith('ckActualWorkout-')).length!==1)
+   throw Error('Editing a custom exercise lost the user load or created a duplicate workout');
+ api.removeActualWorkout();
+ if(!api.readActualWorkout())throw Error('First delete tap must preserve actual workout');
+ api.removeActualWorkout();
+ if(api.readActualWorkout()||kv.has('ckTrain-2026-10-12')||kv.has('ckCardioRecovery-2026-10-12'))
+   throw Error('Confirmed custom-workout undo did not restore original pending cardio without data pollution');
+ console.log('PASS: V57 real-form leg save, weight edit, 1-session history, two-step undo, no phantom Zone2');
+}
