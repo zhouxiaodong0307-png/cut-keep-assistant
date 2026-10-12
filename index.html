@@ -263,6 +263,58 @@ input,select{font-size:16px!important}
  #recoveryBasicsCard .sleepTimeDisplay{font-size:13px}
  #recoveryBasicsCard .sleepSaveBtn{font-size:11px;padding:0 4px}
 }
+
+/* V69 — Unified iOS-inspired visual layer; visual only, no JS/data changes. */
+:root{--ios-canvas:#f2f2f7;--ios-surface:#fff;--ios-ink:#1c1c1e;--ios-muted:#8e8e93;--ios-line:rgba(60,60,67,.12);--ios-primary:#007aff;--ios-green:#34a477}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--ios-canvas);color:var(--ios-ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}
+.app{max-width:640px;padding:22px 18px calc(102px + env(safe-area-inset-bottom))}
+h1{font-size:35px;line-height:1.14;font-weight:790;letter-spacing:-.035em;margin-bottom:16px}
+.sectionTitle{font-size:26px;font-weight:780;letter-spacing:-.028em;margin-bottom:13px}
+.sectionTitle:before{display:none}
+.card{background:var(--ios-surface);border:1px solid rgba(60,60,67,.045);border-radius:23px;padding:18px;margin-top:13px;box-shadow:0 2px 10px rgba(32,40,53,.018)}
+#view-today>.card{margin-top:12px;padding:17px}
+#view-today>.card h2,.card h2{letter-spacing:-.02em}
+.hero{background:#151517;border-radius:25px;padding:23px 22px;margin-top:17px;box-shadow:0 4px 13px rgba(0,0,0,.055)}
+.big{font-weight:800;letter-spacing:-.055em}
+.goalStrip{border:1px solid var(--ios-line);border-radius:18px;margin-top:10px}
+.goalPill+ .goalPill:before{background:var(--ios-line)}
+.muted,.sub,.hint{color:#77777d}
+.date{border:1px solid var(--ios-line);background:rgba(255,255,255,.78);border-radius:15px;font-size:13px;padding:8px 12px}
+.btn,.sleepSaveBtn,.actualFormActions button,.dayAdjustToggle{border-radius:13px}
+.btn,.sleepSaveBtn{font-weight:720}
+.btn.dark,.sleepSaveBtn{background:#1c1c1e;color:#fff}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:active{filter:brightness(.94)}
+button:focus-visible,summary:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--ios-primary);outline-offset:2px}
+input,textarea,select{font-family:inherit;accent-color:var(--ios-primary)}
+.foodinput,.formGrid input,.pasteNutrition textarea,.actualForm input,.actualForm select,.actualForm textarea{background:#f6f6f8;border:1px solid var(--ios-line);border-radius:13px}
+.result{background:#f5f8f6;border-radius:20px}
+.summaryBox{background:#f5f5f8;border-radius:17px}
+.training.todayTrainingCard{background:#e9f5ef;border-color:rgba(52,164,119,.18);border-radius:21px}
+.todayTrainingMain h2{letter-spacing:-.02em}
+.trainingProgressMonitor{background:#1c1c1e}
+.trainingProgressMonitor.progressing{background:#3176ab}
+.trainingProgressMonitor.complete{background:#308e69}
+.trainingOverview div{background:#f5f5f8;border-radius:12px}
+.trainingDecision{background:#f6f7fa;border-color:var(--ios-line);border-radius:17px}
+.recoveryBtn{border-color:var(--ios-line)}
+.planDetails,.extraActivityDetails{border-color:var(--ios-line);border-radius:17px;background:#f8f8fa}
+.planDetails[open],.extraActivityDetails[open]{background:#fff}
+.dayAdjustHead{background:#f6f7fa;border-color:var(--ios-line)}
+.dayAdjustChoices,.dayAdjustExtra{background:#f6f7fa;border-color:var(--ios-line)}
+.dayAdjustChoices button,.dayAdjustExtra .extraActivityDetails,.dayAdjustExtra .extraActivityDetails>summary{border-color:var(--ios-line)}
+#view-today #recoveryBasicsCard{border-radius:22px}
+#recoveryBasicsCard .sleepTimeControl{background:#f5f5f8;border-color:var(--ios-line)}
+.socialMealBtn{background:#fffaf2;border-color:#f2e5d0;border-radius:13px}
+.socialMealPanel{border-color:#f2e5d0}
+.nav{background:rgba(250,250,252,.93);border-top:1px solid var(--ios-line);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);padding:8px 10px calc(9px + env(safe-area-inset-bottom));justify-content:space-around}
+.nav button{border-radius:14px;color:#85858b;min-width:0;flex:1;max-width:130px;min-height:51px;padding:6px 4px;font-size:12px;transition:background .18s,color .18s}
+.nav button.active{background:rgba(60,60,67,.075);color:#1c1c1e;font-weight:780}
+.nav .icon{font-size:19px;margin-bottom:3px}
+@media(min-width:700px){.app{max-width:810px;padding:30px 25px 112px}.nav{left:50%;right:auto;transform:translateX(-50%);width:min(100%,810px);border-left:1px solid var(--ios-line);border-right:1px solid var(--ios-line);border-radius:18px 18px 0 0}}
+@media(max-width:440px){.app{padding:17px 13px calc(98px + env(safe-area-inset-bottom))}.card{padding:15px;border-radius:20px}#view-today>.card{padding:15px}.hero{padding:21px 19px;border-radius:23px}.sectionTitle{font-size:25px}.nav button{min-height:51px}.todayTrainingCard{min-height:76px}}
+@media(prefers-reduced-motion:reduce){.nav button,button{transition:none!important}}
 </style></head><body><main class="app">
 <section class="view active" id="view-today"><span class="date" id="dateLabel"></span><h1>今天</h1>
 <section class="hero"><div class="muted" id="remainLabel">今天还可以吃</div><div class="big"><span id="remain">2250</span><small style="font-size:23px;color:#aaa"> kcal</small></div><div class="kcalHint" id="kcalHint">热量参照：—</div><div class="bar"><i id="progress"></i></div><div class="stats"><div class="stat"><span class="muted">已摄入</span><b><span id="eaten">0</span> kcal</b></div><div class="stat"><span class="muted" id="proteinLeftLabel">蛋白质还差</span><b><span id="proteinLeft">155</span> g</b></div></div></section><div class="goalStrip"><div class="goalPill"><small>每日步数</small><b id="stepGoalText">6,500–7,500</b></div><div class="goalPill"><small>蛋白质</small><b><span id="goalProtein">155</span> g</b></div><div class="goalPill"><small>目标降重</small><b>0.4–0.6 kg/周</b></div></div>
@@ -279,7 +331,7 @@ input,select{font-size:16px!important}
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon">⌂</span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon">◉</span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon">◆</span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon">↗</span>进度</button></nav>
 <script>
-const APP_BUILD="20261013-compact-sleep-card-68",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261013-apple-visual-system-69",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
