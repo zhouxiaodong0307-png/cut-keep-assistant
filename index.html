@@ -382,6 +382,38 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 #view-training .todayPlan{border-top:0!important;background:#f7f7fa}
 #view-training .todayPlan>summary{padding:13px 14px}
 @media(max-width:420px){#view-training .recoveryChoices{grid-template-columns:minmax(0,1fr)}#view-training #painAreaSelect{max-width:none;width:100%}#view-training .iosWeekList>.planDetails>summary{padding:13px 11px!important}#view-training .trainingDecisionGrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* V72: match diet and progress screens to V71 training's neutral iOS grouped visual system */
+#view-diet,#view-progress{--accent:#1c1c1e;--soft:#f6f6f9}
+#view-diet>.card,#view-progress>.card{background:#fff!important;border:0!important;border-radius:19px;padding:16px;box-shadow:none}
+#view-diet>.card>h2,#view-progress>.card>h2{font-size:20px;letter-spacing:-.025em;font-weight:760;color:#1c1c1e}
+#view-diet .summaryGrid,#view-progress .summaryGrid{background:#fff;border:1px solid #e5e5ea;border-radius:15px;overflow:hidden;gap:0;grid-template-columns:repeat(2,minmax(0,1fr))}
+#view-diet .summaryBox,#view-progress .summaryBox{background:#fff!important;border:0!important;border-radius:0;padding:14px 12px;min-width:0}
+#view-diet .summaryBox:nth-child(even),#view-progress .summaryBox:nth-child(even){border-left:1px solid #e5e5ea!important}
+#view-diet .summaryBox:nth-child(n+3){border-top:1px solid #e5e5ea!important}
+#view-diet .summaryBox b,#view-progress .summaryBox b{color:#1c1c1e;font-weight:750;font-size:22px}
+#view-diet .summaryBox small,#view-progress .summaryBox small{color:#8e8e93}
+#view-diet .list,#view-progress .list{border-radius:14px;overflow:hidden}
+#view-diet .list>.item,#view-progress .list>.item{background:#fff;border-color:#e5e5ea}
+#view-diet .linkCard,#view-progress .linkCard{background:#f6f6f9;border:0;border-radius:12px;color:#6e6e75;padding:12px 13px}
+#view-diet .linkCard b,#view-progress .linkCard b{color:#1c1c1e;font-size:13px}
+#view-diet #customFoodCard{background:#fff!important}
+#view-diet .formGrid input,#view-diet .formGrid select,#view-progress input{background:#f6f6f9;border:1px solid #e5e5ea;border-radius:11px;color:#1c1c1e;min-width:0}
+#view-diet .btn,#view-progress .btn{min-height:43px;border-radius:11px;font-size:13px}
+#view-diet .btn.dark,#view-progress .btn.dark{background:#242426;color:#fff;border:0}
+#view-progress .recoveryHead>small{background:#f6f6f9;color:#8e8e93!important;border-radius:8px}
+#view-progress .trendDashboard{gap:8px}
+#view-progress .trendMetric{background:#f6f6f9!important;border:0!important;border-radius:12px;padding:12px}
+#view-progress .trendMetric small{color:#8e8e93;font-size:11px}
+#view-progress .trendMetric b{color:#1c1c1e;font-weight:760;letter-spacing:-.02em}
+#view-progress .trendHint{background:#f6f6f9;border-color:#e5e5ea;color:#777780;border-radius:12px}
+#view-progress .weeklyReport{background:#fff!important}
+#view-progress .wrHero{background:#252528;border-radius:14px}
+#view-progress .wrMetric{background:#f6f6f9!important;border:0;border-radius:11px}
+#view-progress .wrMetric small{color:#8e8e93}
+#view-progress .wrMetric b{color:#1c1c1e}
+#view-progress .card:last-child{background:#fff!important}
+@media(max-width:440px){#view-diet>.card,#view-progress>.card{padding:14px}#view-diet .summaryBox,#view-progress .summaryBox{padding:12px 10px}#view-progress .trendDashboard{gap:7px}}
 </style></head><body><main class="app">
 <section class="view active" id="view-today"><span class="date" id="dateLabel"></span><h1>今天</h1>
 <section class="hero"><div class="muted" id="remainLabel">今天还可以吃</div><div class="big"><span id="remain">2250</span><small style="font-size:23px;color:#aaa"> kcal</small></div><div class="kcalHint" id="kcalHint">热量参照：—</div><div class="bar"><i id="progress"></i></div><div class="stats"><div class="stat"><span class="muted">已摄入</span><b><span id="eaten">0</span> kcal</b></div><div class="stat"><span class="muted" id="proteinLeftLabel">蛋白质还差</span><b><span id="proteinLeft">155</span> g</b></div></div></section><div class="goalStrip"><div class="goalPill"><small>每日步数</small><b id="stepGoalText">6,500–7,500</b></div><div class="goalPill"><small>蛋白质</small><b><span id="goalProtein">155</span> g</b></div><div class="goalPill"><small>目标降重</small><b>0.4–0.6 kg/周</b></div></div>
@@ -398,7 +430,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v8a4 4 0 0 0 8 0V3"/><path d="M8 3v7"/><path d="M18 3v18"/><path d="M18 3c-4 3-4 7 0 10"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6m3-9v12m10-12v12m3-9v6M7 12h10"/><path d="M2 10h2m0-3h3m0-2h2m8 0h2m0 2h3m0 3h2"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-9"/><path d="M15 6h6v6"/><path d="M3 21h18"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261013-training-grouped-ios-71",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261013-diet-progress-ios-72",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
