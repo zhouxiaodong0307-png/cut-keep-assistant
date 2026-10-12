@@ -966,7 +966,7 @@ function recentExtraLoad(ds=localDate()){
  return {minutes,maxRpe,substantial:minutes>=30&&maxRpe>=3,heavy:minutes>=75||maxRpe>=6&&minutes>=20};
 }
 function extraActivityAdvice(type="ride",minutes=35,rpe=3){
- const context=actualTrainingContext(),kind=context.strength?"strength":context.cardio?"cardio":context.recoveryOnly?"rest":planKind(trainingIndex()),sleep=sleepLoadGuard(),trend=weightTrendRule();
+ const context=typeof actualTrainingContext==="function"?actualTrainingContext():{strength:planKind(trainingIndex())==="strength"&&trainDone,cardio:false,recoveryOnly:false},kind=context.strength?"strength":context.cardio?"cardio":context.recoveryOnly?"rest":planKind(trainingIndex()),sleep=sleepLoadGuard(),trend=weightTrendRule();
  const pain=recovery.painArea||"",limbPain=["hip","knee","ankle","lowback","other"].includes(pain);
  const guard=recovery.state==="poor"||sleep.suppress||(type==="ride"&&limbPain);
  let text=guard?"当前恢复、睡眠或疼痛提示不宜再加训练负荷；建议优先休息。若仍参加，缩短为轻松活动，出现不适立即停止。":
