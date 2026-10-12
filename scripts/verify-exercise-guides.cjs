@@ -915,3 +915,35 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    throw Error('Confirmed custom-workout undo did not restore original pending cardio without data pollution');
  console.log('PASS: V57 real-form leg save, weight edit, 1-session history, two-step undo, no phantom Zone2');
 }
+
+
+/* V59: every plan-vs-actual consumer must agree on the same real workout. */
+{
+ const core=sect('function actualTrainingContext(','function actualWorkoutKey(').slice(0,-'function actualWorkoutKey('.length);
+ const shift=(ds,n)=>{const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+ const d='2026-10-12',mem=new Map(),storage={getItem:k=>mem.has(k)?mem.get(k):null,setItem:(k,v)=>mem.set(k,String(v)),removeItem:k=>mem.delete(k)};
+ const session={version:1,status:'completed',focus:'legs',rpe:6,exercises:[{name:'杠铃深蹲',muscle:'legs',sets:5,reps:12,weight:60,unit:'总kg'},{name:'罗马尼亚硬拉',muscle:'legs',sets:5,reps:12,weight:60,unit:'总kg'}]};
+ const script='const safeJsonParse=(s,f)=>{try{return s?JSON.parse(s):f}catch(e){return f}};'+
+ 'const planKind=i=>[0,2,4].includes(i)?"strength":[1,5].includes(i)?"cardio":"rest";'+
+ 'const trainingIndexForDate=()=>1,readActualWorkout=ds=>{const v=localStorage.getItem("ckActualWorkout-"+ds);return v?JSON.parse(v):null};'+
+ 'const readDayAdjustment=()=>null,completedCardioRecovery=ds=>localStorage.getItem("ckCardioRecovery-"+ds)!==null,storedRide=()=>null;'+core+'return actualTrainingContext;';
+ const ctx=new Function('localStorage',script)(storage);
+ mem.set('ckTrain-'+d,'1');mem.set('ckActualWorkout-'+d,JSON.stringify(session));
+ mem.set('ckCardioRecovery-'+d,JSON.stringify({reason:'actual-strength-substitution',notZone2:true}));
+ let t=ctx(d);
+ if(!t.actualStrength||!t.strength||t.cardio||t.pendingCardio||t.recoveryOnly||!t.completed||!t.lower)
+  throw Error('Actual 10-set legs on planned cardio must never appear as Zone2 or recovery on any page');
+ mem.delete('ckActualWorkout-'+d);t=ctx(d);
+ if(t.strength||t.cardio||!t.recoveryOnly||t.completed)
+  throw Error('Replacing ride with rest must not inflate workout completion');
+ mem.delete('ckCardioRecovery-'+d);mem.set('ckRide-'+d,'{"minutes":45,"rpe":3}');t=ctx(d);
+ if(!t.cardio||t.strength||!t.completed)throw Error('Real ridden cardio not recognized');
+ mem.delete('ckRide-'+d);t=ctx(d);
+ if(!t.cardio||!t.completed)throw Error('Legacy cardio done must retain completion without invented ride metrics');
+ mem.set('ckTrain-'+d,'0');t=ctx(d);
+ if(t.completed||!t.pendingCardio)throw Error('Unperformed cardio must remain pending, not be counted');
+ for(const key of ['function mealFitAdvice','function renderDailyCoachTip','function buildDietAdvice','function extraActivityAdvice','function weightTrendRule']){
+  if(!html.includes(key)||!html.includes('actualTrainingContext'))throw Error('Missing linked coaching consumer '+key);
+ }
+ console.log('PASS: V59 actual legs > planned cardio, rest, real ride, legacy completion and pending coherent across surfaces');
+}
