@@ -74,7 +74,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  function mockRide(day){
   const memo=new Map(),notices=[];
   const harness='const localStorage={getItem:k=>memo.has(k)?memo.get(k):null,setItem:(k,v)=>memo.set(k,String(v)),removeItem:k=>memo.delete(k)};'+
-   'const localDate=()=>"2026-10-08",trainKey="ckTrain-2026-10-08";'+
+   'const localDate=()=>"2026-10-08",shiftDate=()=> "2026-10-07",trainKey="ckTrain-2026-10-08";'+
    'const safeJsonParse=(v,f)=>{try{return v?JSON.parse(v):f}catch(e){return f}};'+
    'let trainDone=false,recovery={state:"ok"};'+
    'const cardioRecoveryKey=()=>"ckCardioRecovery-2026-10-08",cardioLoadPrescription=()=>null,completedCardioRecovery=()=>false;'+
