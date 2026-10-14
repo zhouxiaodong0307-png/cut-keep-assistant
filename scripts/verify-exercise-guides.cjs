@@ -1020,3 +1020,36 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   if(!html.includes('function '+name+'('))throw Error('Missing explicit real-history adaptation: '+name);
  console.log('PASS: V76 evidence-driven next strength, no invented leg loads and no mid-session reprogramming');
 }
+
+
+/* V77 unified training nutrition scenarios: only confirmed workouts affect decisions,
+ * while all categories of completed extras affect recovery. */
+{
+ const src=sect('function evaluateDailyReadiness(', 'function dailyTrainingDecision(').slice(0,-'function dailyTrainingDecision('.length);
+ const evaluate=new Function(src+'return evaluateDailyReadiness;')();
+ const base={sleep:7.9,priorSleep:8,feeling:'ok',pain:'',activities:[],muscleNames:{legs:'腿部'}};
+ const cases=[
+  ['rest with no activity',{},'normal'],
+  ['insufficient sleep',{sleep:6.2},'reduce'],
+  ['intense legs plus 5.8h sleep',{sleep:5.8,activities:[{gap:1,type:'strength',muscle:'legs',sets:10,minutes:60,rpe:8}]},'recover'],
+  ['brief intense unclassified extra',{activities:[{gap:1,type:'other',minutes:20,rpe:9}]},'reduce'],
+  ['recovery after long hard ride',{activities:[{gap:1,type:'ride',minutes:75,rpe:7}]},'reduce'],
+  ['completed planned strength w/o made-up RPE',{activities:[{gap:1,type:'planned-strength',minutes:0,rpe:0}]},'reduce'],
+  ['easy walk not incorrectly penalized',{activities:[{gap:1,type:'walk',minutes:35,rpe:2}]},'normal'],
+  ['poor recovery plus other sport',{feeling:'poor',activities:[{gap:1,type:'other',minutes:40,rpe:9}]},'recover']
+ ];
+ for(const [label,input,want] of cases){
+  const result=evaluate({...base,...input});
+  if(result.mode!==want)throw Error('V77 '+label+': expected '+want+' got '+result.mode);
+ }
+ const unknown=evaluate({...base,activities:[{gap:1,type:'other',minutes:70,rpe:8}]});
+ if(!unknown.hasUnclassified||!unknown.reason.includes('不推断训练部位'))
+  throw Error('V77 unknown activity fabricated muscle identity');
+ if(!html.includes('function dailyTrainingNutritionAdvice(')||
+    !html.includes('if(typeof dailyTrainingNutritionAdvice==="function")return dailyTrainingNutritionAdvice(k,p,cg,ft);')||
+    !html.includes('applyDailyReadinessToPlans(plans,idx,localDate())')||
+    !html.includes('dailyDecisionWhy.textContent=meaningful?decision.title'))
+  throw Error('V77 common readiness not linked to prescribed training and nutritional guidance');
+ if(html.includes('localStorage.clear('))throw Error('Historic fitness data cannot be cleared');
+ console.log('PASS: V77 8 sleep, strength, cardio, arbitrary extra and recovery scenarios, conservative provenance, shared nutrition');
+}
