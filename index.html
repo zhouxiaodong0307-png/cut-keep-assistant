@@ -695,14 +695,15 @@ function actualTrainingContext(ds=localDate()){
   savedRide=storedRide(ds),completed=localStorage.getItem("ckTrain-"+ds)==="1",
   adjustment=readDayAdjustment(ds)?.choice||"";
  const plannedKind=planKind(index),actualStrength=!!actual,
-  strength=actualStrength||completed&&plannedKind==="strength",
-  cardio=!actualStrength&&!recoveryMarker&&completed&&plannedKind==="cardio"&&!["rest","walk"].includes(adjustment),
-  recoveryOnly=!actualStrength&&(recoveryMarker||["rest","walk","auto-recovery"].includes(adjustment)),
-  pendingCardio=!actualStrength&&!recoveryOnly&&!completed&&plannedKind==="cardio"&&adjustment!=="defer",
-  pendingStrength=!actualStrength&&!completed&&plannedKind==="strength"&&adjustment!=="hold";
+  extraStrength=(typeof extraStrengthSessions==="function"?extraStrengthSessions(ds):[]),realStrength=actualStrength||extraStrength.length>0,
+  strength=realStrength||completed&&plannedKind==="strength",
+  cardio=!realStrength&&!recoveryMarker&&completed&&plannedKind==="cardio"&&!["rest","walk"].includes(adjustment),
+  recoveryOnly=!realStrength&&(recoveryMarker||["rest","walk","auto-recovery"].includes(adjustment)),
+  pendingCardio=!realStrength&&!recoveryOnly&&!completed&&plannedKind==="cardio"&&adjustment!=="defer",
+  pendingStrength=!realStrength&&!completed&&plannedKind==="strength"&&adjustment!=="hold";
  return {index,plannedKind,actual,actualStrength,strength,cardio,recoveryOnly,pendingCardio,pendingStrength,
   completed:strength||cardio,recoveryMarker,adjustment,ride:savedRide,
-  focus:actual?.focus||null,lower:actual?actual.exercises.some(x=>x.muscle==="legs"):strength&&[0,2].includes(index)};
+  focus:actual?.focus||extraStrength[0]?.muscle||null,lower:actual?actual.exercises.some(x=>x.muscle==="legs"):extraStrength.length?extraStrength.some(x=>x.muscle==="legs"):strength&&[0,2].includes(index),extraStrength};
 }
 
 function actualWorkoutKey(ds=localDate()){return "ckActualWorkout-"+ds}
@@ -1018,9 +1019,9 @@ function evaluateDailyReadiness(data){
  const hard=x=>x.completed!==false&&Number.isFinite(+x.rpe)&&+x.rpe>=7&&
    ((x.type==="strength"&&(+x.sets>=5||+x.minutes>=40))||(+x.minutes>=50));
  const strenuous=x=>x.completed!==false&&Number.isFinite(+x.rpe)&&
-   ((+x.rpe>=8&&+x.minutes>=30)||(+x.rpe>=6&&+x.minutes>=80));
+   ((+x.rpe>=8&&+x.minutes>=15)||(+x.rpe>=6&&+x.minutes>=80));
  const moderate=x=>x.completed!==false&&
-   ((+x.rpe>=5&&+x.minutes>=35)||(+x.minutes>=75&&+x.rpe>=3)||x.type==="planned-strength");
+   ((+x.rpe>=6&&+x.minutes>=25)||(+x.rpe>=5&&+x.minutes>=35)||(+x.minutes>=75&&+x.rpe>=3)||x.type==="planned-strength");
  const high=yesterday.some(x=>hard(x)||strenuous(x))||recent.filter(x=>strenuous(x)).length>=2;
  const medium=recent.some(moderate)||recent.some(x=>hard(x));
  const sleep=Number.isFinite(data.sleep)?data.sleep:null,prior=Number.isFinite(data.priorSleep)?data.priorSleep:null;
@@ -1144,7 +1145,7 @@ function foodRefLine(name,amount,kcal,protein=0,note=""){return "容量参照：
 function kcalFoodReference(remainKcal,k,p,cg,ft){
  if(remainKcal<=0)return "热量参照：今天目标热量已用完，不需要为了凑宏量继续吃";
  if(meals.some(x=>x.social))return "热量参照：今天含聚餐估算，不再用单个食物做精确剩余热量推算";
- const idx=trainingIndex(),truth=actualTrainingContext(),strength=truth.strength||truth.pendingStrength,lower=truth.lower,done=truth.completed,proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft);
+ const idx=trainingIndex(),truth=actualTrainingContext(),decision=typeof dailyTrainingDecision==="function"?dailyTrainingDecision():null,plan=typeof currentPlans==="function"?currentPlans()[idx]:null,strength=(truth.strength||truth.pendingStrength)&&(!decision||decision.mode!=="recover"||truth.completed),lower=truth.actual?truth.lower:plan?plan[3].some(x=>/深蹲|腿弯举|分腿蹲|罗马尼亚硬拉/.test(x.split("｜")[0])):truth.lower,done=truth.completed,proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft);
  if(proteinLeft>=35){
    if(remainKcal<120)return foodRefLine("虾", "100g",99,24,"当前更缺蛋白质");
    if(remainKcal<180)return foodRefLine("瘦牛肉","100g",125,21,"当前更缺蛋白质");
@@ -1221,7 +1222,7 @@ function normalizeFoodName(seg){return seg.toLowerCase().replace(/\s+/g,"").repl
 function qty(seg,item){let m;if(item.unit==="个"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*个/)))return{factor:+m[1],label:m[1]+"个"};if(item.unit==="根"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*根/)))return{factor:+m[1],label:m[1]+"根"};if(item.unit==="杯"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*杯/)))return{factor:+m[1],label:m[1]+"杯"};if(item.unit==="罐"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*罐/)))return{factor:+m[1],label:m[1]+"罐"};if(item.unit==="份"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*份/)))return{factor:+m[1],label:m[1]+"份"};if((m=seg.match(/(\d+(?:\.\d+)?)\s*(g|克)/i)))return{factor:+m[1]/100,label:m[1]+"g"};if(item.ml&&(m=seg.match(/(\d+(?:\.\d+)?)\s*(ml|毫升)/i)))return{factor:+m[1]/100,label:m[1]+"ml"};return item.unit?{factor:1,label:"1"+item.unit}:{factor:1,label:"100g"}}
 function autoAnalyzeQuickPaste(){const text=foodText.value.trim();if(text&&extractNutritionPaste(text))judgeFood()}
 function mealFitAdvice(total){
- const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),truth=actualTrainingContext(),real=truth.actual,strength=truth.strength||truth.pendingStrength,lower=truth.lower,cardio=truth.cardio||truth.pendingCardio,done=truth.completed,fatShare=kcal>0?(fat*9/kcal):0;
+ const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),truth=actualTrainingContext(),real=truth.actual,decision=typeof dailyTrainingDecision==="function"?dailyTrainingDecision():null,plan=typeof currentPlans==="function"?currentPlans()[idx]:null,strength=(truth.strength||truth.pendingStrength)&&(!decision||decision.mode!=="recover"||truth.completed),lower=truth.actual?truth.lower:plan?plan[3].some(x=>/深蹲|腿弯举|分腿蹲|罗马尼亚硬拉/.test(x.split("｜")[0])):truth.lower,cardio=(truth.cardio||truth.pendingCardio)&&(!decision||decision.mode!=="recover"||truth.completed),done=truth.completed,fatShare=kcal>0?(fat*9/kcal):0;
  if(meals.some(x=>x.social)){
    if(afterK>target+150)return {tag:"注意总量",title:"计入后今天会明显超过目标",desc:"今天含聚餐估算；这顿再计入后，总摄入约 "+Math.round(afterK)+" kcal，约超出目标 "+Math.round(afterK-target)+" kcal。宏量不做精确追补，也不用靠加练补偿。"};
    if(protein<20&&kcal>=300)return {tag:"蛋白质偏低",title:"这顿蛋白质不够突出",desc:"今天已有聚餐估算，全天宏量不宜精算；仅看这顿，蛋白质偏低。计入后总摄入约 "+Math.round(afterK)+" kcal。"};
