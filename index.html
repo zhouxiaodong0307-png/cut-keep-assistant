@@ -1159,7 +1159,8 @@ function applyDailyReadinessToPlans(plans,idx,ds=localDate()){
 function dailyTrainingNutritionAdvice(k,p,carbs,fat){
  const signal=dailyTrainingDecision(),actual=readActualWorkout(),index=trainingIndex(),
   p0=currentPlans()[index],extras=completedExtraActivity(),hasExtraStrength=extras.some(x=>x.type==="strength"),
-  manuallyHeld=signal.userChoice==="hold"||signal.userChoice==="rest",manualOriginal=signal.userChoice==="manual-original",completed=!!actual||trainDone||hasExtraStrength,
+  missed=typeof readMissedTraining==="function"?readMissedTraining():null,
+  manuallyHeld=signal.userChoice==="hold"||signal.userChoice==="rest"||!!missed,manualOriginal=signal.userChoice==="manual-original",completed=!!actual||trainDone||hasExtraStrength,
   actualStrength=!!actual||hasExtraStrength,
   strength=actualStrength||[0,2,4].includes(index)&&!manuallyHeld&&(signal.mode!=="recover"||manualOriginal),
   cardio=!strength&&[1,5].includes(index)&&!manuallyHeld&&(signal.mode!=="recover"||manualOriginal),
@@ -1167,13 +1168,13 @@ function dailyTrainingNutritionAdvice(k,p,carbs,fat){
  const social=meals.some(x=>x.social),left=Math.max(0,pt-p),remaining=Math.max(0,Math.round(target-k));
  const planName=actual?actualSessionTitle(actual)+"力量（已完成）":hasExtraStrength?"已记录自主力量":
   p0?.[1]||"今日训练";
- let context=actualStrength?"今天已完成真实力量训练":recovering?"今日重点是恢复":
+ let context=actualStrength?"今天已完成真实力量训练":missed?"今天因"+MISSED_TRAINING_REASONS[missed.reason]+"未训练，原训练顺延":recovering?"今日重点是恢复":
   strength?"今天计划"+planName:cardio?"今天计划"+planName:"今天按实际活动与恢复安排";
  const effort=extras.filter(x=>x.status==="completed").reduce((v,x)=>v+(+x.minutes||0),0);
- const main=manualOriginal&&!completed?"你已主动选择原计划；仍需考虑睡眠与近期活动负荷，避免逞强加量。":signal.mode==="recover"&&!completed?"先不要为了打卡硬练；待恢复改善再完成未做的力量课。":
+ const main=missed&&!completed?"不算作训练完成，不补偿性加练或将两次训练挤到同一天；按最新睡眠和活动负荷决定下次强度。":manualOriginal&&!completed?"你已主动选择原计划；仍需考虑睡眠与近期活动负荷，避免逞强加量。":signal.mode==="recover"&&!completed?"先不要为了打卡硬练；待恢复改善再完成未做的力量课。":
   signal.mode==="reduce"&&!completed?"训练量已根据近期负荷保守调整，先以动作质量为主。":"以实际完成反馈决定下次重量和训练量。";
  const food=left>20?"蛋白质还差约"+Math.round(left)+"g，下一餐优先足量的鱼、肉、蛋、奶或豆制品；":"蛋白质接近目标，后续不用为凑数字硬吃；";
- const carb=(strength||actualStrength)?"力量训练前后保留正常主食，尤其下肢训练后不刻意低碳。":
+ const carb=missed&&!actualStrength?"今日没有执行计划训练，正常安排主食和蔬菜，不按未完成训练计算额外消耗。":(strength||actualStrength)?"力量训练前后保留正常主食，尤其下肢训练后不刻意低碳。":
   cardio?"正常搭配主食，较长骑行时按饥饿与疲劳安排补给。":
   signal.high||effort>=60?"近期活动负荷不低，恢复日也保留正常碳水，不额外节食。":"恢复日保持正常主食与蔬菜，不因休息而明显减餐。";
  const kcal=k>target?"今日记录已超过设定热量；不安排补偿性加练或极端减餐。":
@@ -1189,7 +1190,7 @@ function foodRefLine(name,amount,kcal,protein=0,note=""){return "容量参照：
 function kcalFoodReference(remainKcal,k,p,cg,ft){
  if(remainKcal<=0)return "热量参照：今天目标热量已用完，不需要为了凑宏量继续吃";
  if(meals.some(x=>x.social))return "热量参照：今天含聚餐估算，不再用单个食物做精确剩余热量推算";
- const idx=trainingIndex(),truth=actualTrainingContext(),decision=typeof dailyTrainingDecision==="function"?dailyTrainingDecision():null,plan=typeof currentPlans==="function"?currentPlans()[idx]:null,strength=(truth.strength||truth.pendingStrength)&&(!decision||decision.mode!=="recover"||truth.completed),lower=truth.actual?truth.lower:plan?plan[3].some(x=>/深蹲|腿弯举|分腿蹲|罗马尼亚硬拉/.test(x.split("｜")[0])):truth.lower,done=truth.completed,proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft);
+ const idx=trainingIndex(),truth=actualTrainingContext(),decision=typeof dailyTrainingDecision==="function"?dailyTrainingDecision():null,plan=typeof currentPlans==="function"?currentPlans()[idx]:null,strength=(truth.strength||truth.pendingStrength)&&!truth.missed&&(!decision||decision.mode!=="recover"||truth.completed),lower=truth.actual?truth.lower:plan?plan[3].some(x=>/深蹲|腿弯举|分腿蹲|罗马尼亚硬拉/.test(x.split("｜")[0])):truth.lower,done=truth.completed,proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft);
  if(proteinLeft>=35){
    if(remainKcal<120)return foodRefLine("虾", "100g",99,24,"当前更缺蛋白质");
    if(remainKcal<180)return foodRefLine("瘦牛肉","100g",125,21,"当前更缺蛋白质");
@@ -1266,7 +1267,7 @@ function normalizeFoodName(seg){return seg.toLowerCase().replace(/\s+/g,"").repl
 function qty(seg,item){let m;if(item.unit==="个"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*个/)))return{factor:+m[1],label:m[1]+"个"};if(item.unit==="根"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*根/)))return{factor:+m[1],label:m[1]+"根"};if(item.unit==="杯"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*杯/)))return{factor:+m[1],label:m[1]+"杯"};if(item.unit==="罐"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*罐/)))return{factor:+m[1],label:m[1]+"罐"};if(item.unit==="份"&&(m=seg.match(/(\d+(?:\.\d+)?)\s*份/)))return{factor:+m[1],label:m[1]+"份"};if((m=seg.match(/(\d+(?:\.\d+)?)\s*(g|克)/i)))return{factor:+m[1]/100,label:m[1]+"g"};if(item.ml&&(m=seg.match(/(\d+(?:\.\d+)?)\s*(ml|毫升)/i)))return{factor:+m[1]/100,label:m[1]+"ml"};return item.unit?{factor:1,label:"1"+item.unit}:{factor:1,label:"100g"}}
 function autoAnalyzeQuickPaste(){const text=foodText.value.trim();if(text&&extractNutritionPaste(text))judgeFood()}
 function mealFitAdvice(total){
- const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),truth=actualTrainingContext(),real=truth.actual,decision=typeof dailyTrainingDecision==="function"?dailyTrainingDecision():null,plan=typeof currentPlans==="function"?currentPlans()[idx]:null,strength=(truth.strength||truth.pendingStrength)&&(!decision||decision.mode!=="recover"||truth.completed),lower=truth.actual?truth.lower:plan?plan[3].some(x=>/深蹲|腿弯举|分腿蹲|罗马尼亚硬拉/.test(x.split("｜")[0])):truth.lower,cardio=(truth.cardio||truth.pendingCardio)&&(!decision||decision.mode!=="recover"||truth.completed),done=truth.completed,fatShare=kcal>0?(fat*9/kcal):0;
+ const kcal=+total.k||0,protein=+total.p||0,carbs=+total.c||0,fat=+total.f||0,base=summarizeMeals(meals,target),afterK=base.k+kcal,afterP=base.p+protein,idx=trainingIndex(),truth=actualTrainingContext(),real=truth.actual,decision=typeof dailyTrainingDecision==="function"?dailyTrainingDecision():null,plan=typeof currentPlans==="function"?currentPlans()[idx]:null,strength=(truth.strength||truth.pendingStrength)&&!truth.missed&&(!decision||decision.mode!=="recover"||truth.completed),lower=truth.actual?truth.lower:plan?plan[3].some(x=>/深蹲|腿弯举|分腿蹲|罗马尼亚硬拉/.test(x.split("｜")[0])):truth.lower,cardio=(truth.cardio||truth.pendingCardio)&&!truth.missed&&(!decision||decision.mode!=="recover"||truth.completed),done=truth.completed,fatShare=kcal>0?(fat*9/kcal):0;
  if(meals.some(x=>x.social)){
    if(afterK>target+150)return {tag:"注意总量",title:"计入后今天会明显超过目标",desc:"今天含聚餐估算；这顿再计入后，总摄入约 "+Math.round(afterK)+" kcal，约超出目标 "+Math.round(afterK-target)+" kcal。宏量不做精确追补，也不用靠加练补偿。"};
    if(protein<20&&kcal>=300)return {tag:"蛋白质偏低",title:"这顿蛋白质不够突出",desc:"今天已有聚餐估算，全天宏量不宜精算；仅看这顿，蛋白质偏低。计入后总摄入约 "+Math.round(afterK)+" kcal。"};
