@@ -1083,12 +1083,12 @@ function dailyTrainingDecision(ds=localDate(),index=null){
  const actualToday=ds===localDate()?readActualWorkout():null;
  const started=ds===localDate()&&(trainDone||!!actualToday||Object.values(exerciseDone).some(Boolean));
  return {...result,index:idx,activities,actualToday,started,
-  userChoice:choice?.choice||"",plannedKind:planKind(idx)};
+  userChoice:choice?.choice||(localStorage.getItem("ckDailyTrainingOverride-"+ds)==="original"?"manual-original":""),plannedKind:planKind(idx)};
 }
 function applyDailyReadinessToPlans(plans,idx,ds=localDate()){
  if(!plans[idx]||typeof dailyTrainingDecision!=="function"||typeof basicsForDate!=="function"||typeof completedExtraActivity!=="function")return;
  const check=dailyTrainingDecision(ds,idx);
- if(check.started||["original","hold","rest","defer","walk","next-strength"].includes(check.userChoice))return;
+ if(check.started||["original","manual-original","hold","rest","defer","walk","next-strength"].includes(check.userChoice))return;
  const plan=plans[idx],strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx);
  if(strength&&check.mode==="recover"){
   plan[1]="今日建议恢复 · 力量顺延";
@@ -1116,18 +1116,18 @@ function applyDailyReadinessToPlans(plans,idx,ds=localDate()){
 function dailyTrainingNutritionAdvice(k,p,carbs,fat){
  const signal=dailyTrainingDecision(),actual=readActualWorkout(),index=trainingIndex(),
   p0=currentPlans()[index],extras=completedExtraActivity(),hasExtraStrength=extras.some(x=>x.type==="strength"),
-  manuallyHeld=signal.userChoice==="hold"||signal.userChoice==="rest",completed=!!actual||trainDone||hasExtraStrength,
+  manuallyHeld=signal.userChoice==="hold"||signal.userChoice==="rest",manualOriginal=signal.userChoice==="manual-original",completed=!!actual||trainDone||hasExtraStrength,
   actualStrength=!!actual||hasExtraStrength,
-  strength=actualStrength||[0,2,4].includes(index)&&!manuallyHeld&&signal.mode!=="recover",
-  cardio=!strength&&[1,5].includes(index)&&!manuallyHeld&&signal.mode!=="recover",
-  recovering=manuallyHeld||signal.mode==="recover"||[3,6].includes(index);
+  strength=actualStrength||[0,2,4].includes(index)&&!manuallyHeld&&(signal.mode!=="recover"||manualOriginal),
+  cardio=!strength&&[1,5].includes(index)&&!manuallyHeld&&(signal.mode!=="recover"||manualOriginal),
+  recovering=manuallyHeld||signal.mode==="recover"&&!manualOriginal||[3,6].includes(index);
  const social=meals.some(x=>x.social),left=Math.max(0,pt-p),remaining=Math.max(0,Math.round(target-k));
  const planName=actual?actualSessionTitle(actual)+"力量（已完成）":hasExtraStrength?"已记录自主力量":
   p0?.[1]||"今日训练";
  let context=actualStrength?"今天已完成真实力量训练":recovering?"今日重点是恢复":
   strength?"今天计划"+planName:cardio?"今天计划"+planName:"今天按实际活动与恢复安排";
  const effort=extras.filter(x=>x.status==="completed").reduce((v,x)=>v+(+x.minutes||0),0);
- const main=signal.mode==="recover"&&!completed?"先不要为了打卡硬练；待恢复改善再完成未做的力量课。":
+ const main=manualOriginal&&!completed?"你已主动选择原计划；仍需考虑睡眠与近期活动负荷，避免逞强加量。":signal.mode==="recover"&&!completed?"先不要为了打卡硬练；待恢复改善再完成未做的力量课。":
   signal.mode==="reduce"&&!completed?"训练量已根据近期负荷保守调整，先以动作质量为主。":"以实际完成反馈决定下次重量和训练量。";
  const food=left>20?"蛋白质还差约"+Math.round(left)+"g，下一餐优先足量的鱼、肉、蛋、奶或豆制品；":"蛋白质接近目标，后续不用为凑数字硬吃；";
  const carb=(strength||actualStrength)?"力量训练前后保留正常主食，尤其下肢训练后不刻意低碳。":
@@ -1713,6 +1713,9 @@ function saveDayAdjustment(value){
 function adjustToday(kind){
  const idx=trainingIndex(),base=planKind(idx),adj=readDayAdjustment();
  const started=Object.values(exerciseDone).some(Boolean);
+ if(kind==="auto"){
+  localStorage.removeItem("ckDailyTrainingOverride-"+localDate());dayAdjustmentOpen=false;refreshAfterDayChange();return;
+ }
  if(kind==="original"){
   if(trainDone&&base==="cardio"&&completedCardioRecovery())return alert("请先在下方撤销今天的恢复记录，再恢复原计划。");
   if(trainDone)return alert("今天已有训练完成记录，不能直接覆盖。");
@@ -1721,6 +1724,7 @@ function adjustToday(kind){
    localStorage.setItem("ckTrainingCursorIndex",adj.originalIndex);
    localStorage.setItem("ckTrainPlanIndex-"+localDate(),adj.originalIndex);
   }
+  localStorage.setItem("ckDailyTrainingOverride-"+localDate(),"original");
   localStorage.removeItem(dayAdjustmentKey());dayAdjustmentOpen=false;refreshAfterDayChange();return;
  }
  if(kind==="next-strength"){
@@ -1778,7 +1782,7 @@ function renderDayAdjustmentPanel(){
  const panel=document.getElementById("dayAdjustPanel"),summary=document.getElementById("dayAdjustSummary");if(!panel)return;
  const idx=trainingIndex(),kind=planKind(idx),a=readDayAdjustment();
  const extra=document.getElementById("dayAdjustExtra");if(extra)extra.hidden=!(dayAdjustmentOpen&&!actualEditorOpen);
- const state=a?.choice==="rest"?"已选择休息恢复，不算 Zone 2":a?.choice==="walk"?"已改为轻松步行":a?.choice==="defer"?"本次有氧顺延":a?.choice==="hold"?"今日恢复，力量任务仍保留":a?.choice==="next-strength"?"已提前选择下一次力量训练":"";
+ const state=(!a&&localStorage.getItem("ckDailyTrainingOverride-"+localDate())==="original")?"已手动选择原计划；仍保留风险提醒":a?.choice==="rest"?"已选择休息恢复，不算 Zone 2":a?.choice==="walk"?"已改为轻松步行":a?.choice==="defer"?"本次有氧顺延":a?.choice==="hold"?"今日恢复，力量任务仍保留":a?.choice==="next-strength"?"已提前选择下一次力量训练":"";
  if(summary)summary.textContent=actualEditorOpen?"填写真实动作、组数与重量":state||"实际记录优先 · 支持左滑调整";
  const recordBtn=document.getElementById("dayAdjustRecordBtn"),adjustBtn=document.getElementById("dayAdjustToggleBtn");
  if(recordBtn){recordBtn.textContent=actualEditorOpen?"收起记录":readActualWorkout()?"修改力量":"记录力量";recordBtn.classList.toggle("selected",actualEditorOpen)}
@@ -1793,6 +1797,7 @@ function renderDayAdjustmentPanel(){
   else if(kind==="strength")choices=button("hold","今天恢复 · 力量顺延")+(a?.choice==="hold"?button("original","恢复原力量安排"):"");
   else choices=button("next-strength","提前下一次力量训练");
   if(a&&!trainDone&&!actual)choices+=button("original","恢复原安排");
+  if(!a&&!trainDone&&!actual&&localStorage.getItem("ckDailyTrainingOverride-"+localDate())==="original")choices+=button("auto","恢复自适应推荐");
   html+=actual?choices:'<div class="dayAdjustChoices">'+choices+'</div>';
  }
  if(actual&&!actualEditorOpen)html+=actualWorkoutSummaryHtml(actual);
