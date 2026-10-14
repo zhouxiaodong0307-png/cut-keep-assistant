@@ -419,6 +419,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 #view-training .weekRealLoadContext{margin:10px 0 3px;background:#f6f6f9;color:#64646c;font-size:12px;line-height:1.55;padding:10px 12px;border-radius:11px}#view-training .weekRealLoadContext:empty{display:none}
 #view-training .historicalActivityEditor{margin:8px 0;border:1px solid #e5e5ea;border-radius:12px;background:#fff;padding:0 12px 12px}#view-training .historicalActivityEditor>summary{cursor:pointer;font-size:12px;color:#535862;font-weight:700;padding:11px 0}#view-training .historicalActivityFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:4px 0 8px}#view-training .historicalActivityFields label{display:grid;gap:5px;font-size:11px;color:#65656b}#view-training .historicalActivityFields label:first-child{grid-column:1/-1}#view-training .historicalActivityFields input,#view-training .historicalActivityFields select{width:100%;height:40px;border:1px solid #e5e5ea;background:#f6f6f9;border-radius:10px;font:inherit;padding:0 8px;min-width:0}#view-training .historicalActivityFields button{grid-column:1/-1;min-height:40px;border:0;border-radius:10px;background:#242426;color:#fff;font-weight:700}#view-training .historicalActivityEditor small{color:#85858c;line-height:1.55}
 #view-training .dailyDecisionWhy{margin-top:10px;padding:10px 11px;background:#f6f6f9;border-radius:11px;color:#666770;font-size:12px;line-height:1.55}#view-training .dailyDecisionWhy[hidden]{display:none!important}
+#view-training .extraOtherFields{margin:8px 0}#view-training .extraOtherFields[hidden]{display:none!important}#view-training .extraOtherFields label{display:grid;gap:6px;font-size:12px;color:#6b6b72}#view-training .extraOtherFields input{min-height:41px;background:#fff;border:1px solid #e5e5ea;border-radius:10px;padding:0 11px;font-size:13px}
 </style></head><body><main class="app">
 <section class="view active" id="view-today"><span class="date" id="dateLabel"></span><h1>今天</h1>
 <section class="hero"><div class="muted" id="remainLabel">今天还可以吃</div><div class="big"><span id="remain">2250</span><small style="font-size:23px;color:#aaa"> kcal</small></div><div class="kcalHint" id="kcalHint">热量参照：—</div><div class="bar"><i id="progress"></i></div><div class="stats"><div class="stat"><span class="muted">已摄入</span><b><span id="eaten">0</span> kcal</b></div><div class="stat"><span class="muted" id="proteinLeftLabel">蛋白质还差</span><b><span id="proteinLeft">155</span> g</b></div></div></section><div class="goalStrip"><div class="goalPill"><small>每日步数</small><b id="stepGoalText">6,500–7,500</b></div><div class="goalPill"><small>蛋白质</small><b><span id="goalProtein">155</span> g</b></div><div class="goalPill"><small>目标降重</small><b>0.4–0.6 kg/周</b></div></div>
@@ -1037,7 +1038,7 @@ function evaluateDailyReadiness(data){
   const describe=x=>{
    const kind=x.type==="strength"?"力量"+(x.muscle?"（"+(data.muscleNames?.[x.muscle]||x.muscle)+"）":""):
     x.type==="planned-strength"?"已标记完成的计划力量（实际组数未记录）":
-    x.type==="ride"?"骑行":x.type==="walk"?"步行":"其他活动（未分类）";
+    x.type==="ride"?"骑行":x.type==="walk"?"步行":"其他活动"+(x.title?"（"+x.title+"；训练部位未分类）":"（未分类）");
    return kind+(x.minutes?x.minutes+"分钟":"")+(x.rpe?"、RPE "+x.rpe:"")+(x.sets?"、"+x.sets+"组":"");
   };
   reasons.push("昨天："+yesterday.map(describe).slice(0,3).join("；"));
@@ -1064,7 +1065,7 @@ function dailyTrainingDecision(ds=localDate(),index=null){
    // A detail log already accounts for the same muscle's work on this date.
    if(x.type==="strength"&&actual&&actual.exercises.some(a=>a.muscle===x.muscle))continue;
    activities.push({gap,type:x.type,muscle:x.type==="strength"?x.muscle:null,
-    minutes:Number(x.minutes)||0,sets:x.type==="strength"?Number(x.sets)||0:0,rpe:Number(x.rpe)||0});
+    minutes:Number(x.minutes)||0,sets:x.type==="strength"?Number(x.sets)||0:0,rpe:Number(x.rpe)||0,title:x.type==="other"?String(x.title||"").slice(0,40):""});
   }
   const marked=localStorage.getItem("ckTrain-"+date)==="1";
   if(!actual&&marked&&!e.some(x=>x.type==="strength")){
@@ -1418,25 +1419,26 @@ function rpeOptionList(selected){
 }
 function extraActivityPanelHtml(){
  const items=readExtraActivities(),edit=items.find(x=>x.id===extraEditingId);
- const type=edit?.type||"ride",minutes=edit?.minutes??"",rpe=edit?.rpe??null,muscle=edit?.muscle||"",sets=edit?.sets??"";
+ const type=edit?.type||"ride",minutes=edit?.minutes??"",rpe=edit?.rpe??null,muscle=edit?.muscle||"",sets=edit?.sets??"",title=edit?.title||"";
  const kinds=Object.entries(EXTRA_ACTIVITY_KINDS).map(([k,v])=>'<option value="'+k+'"'+(k===type?' selected':'')+'>'+v+'</option>').join("");
  const rpes='<option value=""'+(!edit?' selected':'')+' disabled>选择实际强度</option>'+rpeOptionList(rpe);
  const rows=items.map(x=>{
   const label=EXTRA_ACTIVITY_KINDS[x.type],legacy=x.status!=="completed";
   const state=legacy?"旧版未完成记录 · 不计入训练负荷":x.type==="strength"?"已完成 · 计入真实力量次数与肌群负荷（不代替具体动作反馈）":x.type==="other"?"已完成 · 未标注训练部位，不推断为力量训练":"已完成 · 不计入主训练完成次数";
-  return '<div class="extraLogRow"><div><b>'+label+(x.type==='strength'?' · '+(ACTUAL_FOCUS[x.muscle]||'待选部位')+' · '+(x.sets||'?')+'工作组':'')+' · '+x.minutes+'分钟 · RPE '+x.rpe+'（'+rpeEffortLabel(x.rpe)+'）</b><small>'+state+'</small></div><div class="extraLogActions"><button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
+  return '<div class="extraLogRow"><div><b>'+label+(x.type==='other'&&x.title?' · '+String(x.title).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])):'')+(x.type==='strength'?' · '+(ACTUAL_FOCUS[x.muscle]||'待选部位')+' · '+(x.sets||'?')+'工作组':'')+' · '+x.minutes+'分钟 · RPE '+x.rpe+'（'+rpeEffortLabel(x.rpe)+'）</b><small>'+state+'</small></div><div class="extraLogActions"><button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
  }).join("");
  const done=items.filter(x=>x.status==="completed"),total=done.reduce((n,x)=>n+(+x.minutes||0),0);
  return '<div class="extraActivityHead"><b>临时活动</b><small>'+(total?'今天额外完成 '+total+' 分钟':"完成活动后填写实际数据")+'</small></div>'
   +'<div class="extraActivityFields"><label>类型<select id="extraType" onchange="extraActivityTypeChanged()">'+kinds+'</select></label><label>实际时长（分钟）<input id="extraMinutes" type="number" min="5" max="300" inputmode="numeric" placeholder="例如 35" value="'+minutes+'" oninput="refreshExtraActivityAdvice()"></label><label>实际强度（RPE）<select id="extraRpe" onchange="refreshExtraActivityAdvice()">'+rpes+'</select></label></div>'
   +'<div class="extraStrengthFields" id="extraStrengthFields"'+(type==="strength"?"":" hidden")+'><label>主要训练部位<select id="extraStrengthMuscle"><option value="" disabled'+(!muscle?' selected':'')+'>请选择部位</option>'+Object.entries(ACTUAL_FOCUS).filter(([k])=>k!=="full").map(([k,v])=>'<option value="'+k+'"'+(muscle===k?' selected':'')+'>'+v+'</option>').join("")+'</select></label><label>总工作组数（不含热身）<input id="extraStrengthSets" type="number" inputmode="numeric" min="1" max="40" placeholder="例如 12" value="'+sets+'"></label></div>'
+  +'<div class="extraOtherFields" id="extraOtherFields"'+(type==="other"?"":" hidden")+'><label>活动名称（自定义）<input id="extraOtherName" type="text" maxlength="40" placeholder="例如 羽毛球、登山、搬运物品" value="'+String(title).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'"></label></div>'
   +'<div class="extraActivityAdvice" id="extraActivityAdvice">'+extraActivityAdvice(type,minutes,rpe)+'</div>'
   +'<div class="extraActivityActions"><button type="button" onclick="saveExtraActivity()">'+(edit?'保存修改':'保存活动记录')+'</button></div>'
   +(edit?'<button class="extraActivityCancel" type="button" onclick="cancelExtraEdit()">取消编辑</button>':"")
   +'<div class="extraActivityLog">'+(rows||'<small class="extraEmpty">还没有额外活动记录</small>')+'</div>'
   +'<small class="extraActivityFoot">力量类型会根据真实部位、工作组和RPE调整恢复与后续计划；需具体动作重量递进请用「记录力量」。普通“其他活动”不能自动判断是练腿。不折算热量或步数。</small>';
 }
-function extraActivityTypeChanged(){const type=document.getElementById("extraType")?.value,extra=document.getElementById("extraStrengthFields");if(extra)extra.hidden=type!=="strength";refreshExtraActivityAdvice()}
+function extraActivityTypeChanged(){const type=document.getElementById("extraType")?.value,extra=document.getElementById("extraStrengthFields"),other=document.getElementById("extraOtherFields");if(extra)extra.hidden=type!=="strength";if(other)other.hidden=type!=="other";refreshExtraActivityAdvice()}
 function refreshExtraActivityAdvice(){
  const kind=document.getElementById("extraType")?.value,minutes=Number(document.getElementById("extraMinutes")?.value),rpe=Number(document.getElementById("extraRpe")?.value);
  const target=document.getElementById("extraActivityAdvice");
@@ -1457,10 +1459,11 @@ function saveExtraActivity(){
  if(!Number.isInteger(rpe)||rpe<1||rpe>10)return alert("请选择实际RPE强度（1–10）");
  const muscle=type==="strength"?document.getElementById("extraStrengthMuscle")?.value:null;
  const sets=type==="strength"?Number(document.getElementById("extraStrengthSets")?.value):null;
+ const title=type==="other"?String(document.getElementById("extraOtherName")?.value||"").trim().slice(0,40):"";
  if(type==="strength"&&(!ACTUAL_FOCUS[muscle]||muscle==="full"||!Number.isInteger(sets)||sets<1||sets>40))return alert("请选择力量训练部位并填写真实工作组数（1–40组），热身组不计入");
  const entries=readExtraActivities(),old=entries.find(x=>x.id===extraEditingId);
  const entry={id:old?.id||Date.now().toString(36)+Math.random().toString(36).slice(2,7),type,minutes,rpe,
-   ...(type==="strength"?{muscle,sets}:{}),status:"completed",createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+   ...(type==="strength"?{muscle,sets}:{}),...(type==="other"&&title?{title}:{}),status:"completed",createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  const changed=old?entries.map(x=>x.id===old.id?entry:x):[...entries,entry];
  try{localStorage.setItem(extraActivityKey(),JSON.stringify(changed))}catch(e){return alert("保存失败，原有记录未被清除")}
  extraEditingId="";extraDeletingId="";refreshLinkedTrainingGuidance();
