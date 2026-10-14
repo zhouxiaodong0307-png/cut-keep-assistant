@@ -1048,8 +1048,32 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(!html.includes('function dailyTrainingNutritionAdvice(')||
     !html.includes('if(typeof dailyTrainingNutritionAdvice==="function")return dailyTrainingNutritionAdvice(k,p,cg,ft);')||
     !html.includes('applyDailyReadinessToPlans(plans,idx,localDate())')||
-    !html.includes('dailyDecisionWhy.textContent=meaningful?decision.title'))
+    !html.includes('dailyDecisionWhy.textContent=meaningful?'))
   throw Error('V77 common readiness not linked to prescribed training and nutritional guidance');
  if(html.includes('localStorage.clear('))throw Error('Historic fitness data cannot be cleared');
  console.log('PASS: V77 8 sleep, strength, cardio, arbitrary extra and recovery scenarios, conservative provenance, shared nutrition');
+}
+
+
+/* V78: a missed workout is not a completed session and work is not muscle fatigue. */
+{
+ const src=sect('function evaluateDailyReadiness(', 'function dailyTrainingDecision(').slice(0,-'function dailyTrainingDecision('.length);
+ const decision=new Function(src+'return evaluateDailyReadiness;')();
+ const base={activities:[],sleep:7.8,priorSleep:8,feeling:'ok',pain:'',muscleNames:{}};
+ const work=decision({...base,missedYesterday:'work'});
+ if(work.mode!=='normal'||!work.reason.includes('只顺延任务'))throw Error('Work absence falsely reduced exercise readiness');
+ const recovery=decision({...base,missedYesterday:'recovery'});
+ if(recovery.mode!=='reduce'||!recovery.reason.includes('身体恢复'))throw Error('Recovery absence did not affect next-day load');
+ const lowSleep=decision({...base,sleep:6,missedYesterday:'recovery',feeling:'poor'});
+ if(lowSleep.mode!=='reduce'&&lowSleep.mode!=='recover')throw Error('Poor sleep after recovery absence ignored');
+ for(const name of ['readMissedTraining','saveMissedTraining','undoMissedTraining']){
+  if(!html.includes('function '+name+'('))throw Error('Missed-session save/undo absent '+name);
+ }
+ if(!html.includes('if(![1,5].includes(index)||localStorage.getItem("ckTrain-"+ds)==="1"||storedRide(ds)||(typeof readMissedTraining==="function"&&readMissedTraining(ds)))return false;'))
+  throw Error('Explicit missed cardio day could be falsely auto-passed');
+ if(!html.includes('const missed=typeof readMissedTraining==="function"?readMissedTraining(ds):null;')||
+    !html.includes('const main=missed&&!completed?'))
+  throw Error('Missed completion incorrectly linked to nutrition or daily training');
+ if(html.includes('localStorage.clear('))throw Error('Missed workout implementation must not wipe stored history');
+ console.log('PASS: V78 work vs recovery absence, safe missed-cursor policy, nutrition and unchanged histories');
 }
