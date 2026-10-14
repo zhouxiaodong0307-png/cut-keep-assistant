@@ -681,11 +681,11 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     throw Error('Scheduled Zone 2 select/status not using common intensity labels');
  const extraUI=func('extraActivityPanelHtml','function refreshExtraActivityAdvice(');
  const extra=new Function('readExtraActivities','extraEditingId','extraDeletingId','EXTRA_ACTIVITY_KINDS',
-   'planKind','trainingIndex','extraActivityAdvice','rpeOptionList','rpeEffortLabel',
+   'planKind','trainingIndex','extraActivityAdvice','rpeOptionList','rpeEffortLabel','ACTUAL_FOCUS',
    extraUI+'return extraActivityPanelHtml;');
  const entries=[{id:'a',type:'ride',minutes:55,rpe:5,status:'completed'}];
- const kinds={ride:'骑车',walk:'步行',other:'其他活动'};
- const sample=extra(()=>entries,'a','',kinds,()=> 'strength',()=>4,()=> '适合低强度',rpeOptionList,rpeEffortLabel)();
+ const kinds={ride:'骑车',walk:'步行',strength:'力量训练',other:'其他活动'};
+ const sample=extra(()=>entries,'a','',kinds,()=> 'strength',()=>4,()=> '适合低强度',rpeOptionList,rpeEffortLabel,{legs:'腿部',chest:'胸部',back:'背部',shoulders:'肩部',core:'核心',full:'全身'})();
  if(!sample.includes('value="5" selected')||!sample.includes('5 · 中等')||
     !sample.includes('6 · 中等偏高')||!sample.includes('RPE 5（中等）')||
     (sample.match(/<option value="/g)||[]).length<13)
