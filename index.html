@@ -415,6 +415,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 #view-progress .card:last-child{background:#fff!important}
 @media(max-width:440px){#view-diet>.card,#view-progress>.card{padding:14px}#view-diet .summaryBox,#view-progress .summaryBox{padding:12px 10px}#view-progress .trendDashboard{gap:7px}}
 #view-progress .weightHistoryToggle{display:block;width:100%;min-height:43px;margin-top:8px;border:0;background:#f6f6f9;border-radius:11px;color:#303034;font-size:13px;font-weight:700;cursor:pointer}#view-progress .weightHistoryToggle[hidden]{display:none!important}#view-progress .weightHistoryToggle:active{background:#ececf1}
+.extraStrengthFields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.extraStrengthFields[hidden]{display:none!important}.extraStrengthFields label{display:grid;gap:5px;font-size:12px;color:#62666e}.extraStrengthFields select,.extraStrengthFields input{width:100%;min-width:0;height:40px;background:#fff;border:1px solid #e5e5ea;border-radius:10px;padding:0 8px;font:inherit}@media(max-width:390px){.extraStrengthFields{grid-template-columns:1fr 1fr}}
 </style></head><body><main class="app">
 <section class="view active" id="view-today"><span class="date" id="dateLabel"></span><h1>今天</h1>
 <section class="hero"><div class="muted" id="remainLabel">今天还可以吃</div><div class="big"><span id="remain">2250</span><small style="font-size:23px;color:#aaa"> kcal</small></div><div class="kcalHint" id="kcalHint">热量参照：—</div><div class="bar"><i id="progress"></i></div><div class="stats"><div class="stat"><span class="muted">已摄入</span><b><span id="eaten">0</span> kcal</b></div><div class="stat"><span class="muted" id="proteinLeftLabel">蛋白质还差</span><b><span id="proteinLeft">155</span> g</b></div></div></section><div class="goalStrip"><div class="goalPill"><small>每日步数</small><b id="stepGoalText">6,500–7,500</b></div><div class="goalPill"><small>蛋白质</small><b><span id="goalProtein">155</span> g</b></div><div class="goalPill"><small>目标降重</small><b>0.4–0.6 kg/周</b></div></div>
@@ -431,7 +432,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8.5 16 2.2 2 4.8-4.5"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3v6.5a3 3 0 0 0 6 0V3M6.5 3v18"/><path d="M19 21V4.5c0-1.6-1.2-2-2.4-.6-2 1.8-2.3 6.3-2.3 9.1H19"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M9 10h6M15 10h0M18 6.5v11M21 9v6M6 12h12"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V9M19 20V4"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261013-weight-history-expand-75",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261014-real-load-adaptive-training-76",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -1168,7 +1169,7 @@ function exerciseGuideHtml(name,scope="today"){
 
 /* Optional extra activities are separate from prescribed workouts, trainDone,
  * phaseWeek and rideStorageKey. Plan != performed; no calorie/step invention. */
-const EXTRA_ACTIVITY_KINDS={ride:"骑车",walk:"步行",other:"其他活动"};
+const EXTRA_ACTIVITY_KINDS={ride:"骑车",walk:"步行",strength:"力量训练",other:"其他活动"};
 let extraEditingId="",extraDeletingId="";
 function extraActivityKey(ds=localDate()){return "ckExtraActivities-"+ds}
 function readExtraActivities(ds=localDate()){
@@ -1176,6 +1177,8 @@ function readExtraActivities(ds=localDate()){
  return Array.isArray(a)?a.filter(x=>x&&typeof x==="object"&&Object.prototype.hasOwnProperty.call(EXTRA_ACTIVITY_KINDS,x.type)&&Number.isInteger(+x.minutes)&&+x.minutes>=5&&+x.minutes<=300&&Number.isInteger(+x.rpe)&&+x.rpe>=1&&+x.rpe<=10&&["planned","completed"].includes(x.status)):[];
 }
 function completedExtraActivity(ds=localDate()){return readExtraActivities(ds).filter(x=>x.status==="completed")}
+function extraStrengthSessions(ds=localDate()){return completedExtraActivity(ds).filter(x=>x.type==="strength"&&x.muscle&&ACTUAL_FOCUS[x.muscle]&&Number.isInteger(+x.sets)&&+x.sets>=1)}
+function hasExtraStrengthSession(ds=localDate()){return extraStrengthSessions(ds).length>0}
 function recentExtraLoad(ds=localDate()){
  const completed=completedExtraActivity(shiftDate(ds,-1)).filter(x=>x.type==="ride");
  const maxRpe=completed.reduce((n,x)=>Math.max(n,+x.rpe),0),minutes=completed.reduce((n,x)=>n+(+x.minutes||0),0);
@@ -1185,6 +1188,7 @@ function extraActivityAdvice(type="ride",minutes=35,rpe=3){
  const context=typeof actualTrainingContext==="function"?actualTrainingContext():{strength:planKind(trainingIndex())==="strength"&&trainDone,cardio:false,recoveryOnly:false},kind=context.strength?"strength":context.cardio?"cardio":context.recoveryOnly?"rest":planKind(trainingIndex()),sleep=sleepLoadGuard(),trend=weightTrendRule();
  const pain=recovery.painArea||"",limbPain=["hip","knee","ankle","lowback","other"].includes(pain);
  const guard=recovery.state==="poor"||sleep.suppress||(type==="ride"&&limbPain);
+ if(type==="strength")return "记录真实训练部位、总工作组和RPE后，系统会据此计算近7天肌群负荷及恢复间隔；如需按具体动作调整工作重量，请使用「记录力量」录入动作明细。";
  let text=guard?"当前恢复、睡眠或疼痛提示不宜再加训练负荷；建议优先休息。若仍参加，缩短为轻松活动，出现不适立即停止。":
    type==="ride"&&kind==="strength"&&(trainDone||!!readActualWorkout())?"力量训练已经完成。额外骑行可考虑20–40分钟、RPE 2–4，保持能完整说话，不冲刺、不爬坡；腿部训练后优先20–30分钟轻松骑。":
    type==="ride"?"临时骑行以低强度交流骑为主，避免把社交骑行变成额外高强度课。":
@@ -1205,23 +1209,25 @@ function rpeOptionList(selected){
 }
 function extraActivityPanelHtml(){
  const items=readExtraActivities(),edit=items.find(x=>x.id===extraEditingId);
- const type=edit?.type||"ride",minutes=edit?.minutes??"",rpe=edit?.rpe??null;
+ const type=edit?.type||"ride",minutes=edit?.minutes??"",rpe=edit?.rpe??null,muscle=edit?.muscle||"",sets=edit?.sets??"";
  const kinds=Object.entries(EXTRA_ACTIVITY_KINDS).map(([k,v])=>'<option value="'+k+'"'+(k===type?' selected':'')+'>'+v+'</option>').join("");
  const rpes='<option value=""'+(!edit?' selected':'')+' disabled>选择实际强度</option>'+rpeOptionList(rpe);
  const rows=items.map(x=>{
   const label=EXTRA_ACTIVITY_KINDS[x.type],legacy=x.status!=="completed";
-  const state=legacy?"旧版未完成记录 · 不计入训练负荷":"已完成 · 不计入主训练完成次数";
-  return '<div class="extraLogRow"><div><b>'+label+' · '+x.minutes+'分钟 · RPE '+x.rpe+'（'+rpeEffortLabel(x.rpe)+'）</b><small>'+state+'</small></div><div class="extraLogActions"><button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
+  const state=legacy?"旧版未完成记录 · 不计入训练负荷":x.type==="strength"?"已完成 · 计入真实力量次数与肌群负荷（不代替具体动作反馈）":x.type==="other"?"已完成 · 未标注训练部位，不推断为力量训练":"已完成 · 不计入主训练完成次数";
+  return '<div class="extraLogRow"><div><b>'+label+(x.type==='strength'?' · '+(ACTUAL_FOCUS[x.muscle]||'待选部位')+' · '+(x.sets||'?')+'工作组':'')+' · '+x.minutes+'分钟 · RPE '+x.rpe+'（'+rpeEffortLabel(x.rpe)+'）</b><small>'+state+'</small></div><div class="extraLogActions"><button type="button" onclick="editExtraActivity(\''+x.id+'\')">修改</button><button type="button" onclick="removeExtraActivity(\''+x.id+'\')">'+(extraDeletingId===x.id?'确认删除':'删除')+'</button></div></div>';
  }).join("");
  const done=items.filter(x=>x.status==="completed"),total=done.reduce((n,x)=>n+(+x.minutes||0),0);
  return '<div class="extraActivityHead"><b>临时活动</b><small>'+(total?'今天额外完成 '+total+' 分钟':"完成活动后填写实际数据")+'</small></div>'
-  +'<div class="extraActivityFields"><label>类型<select id="extraType" onchange="refreshExtraActivityAdvice()">'+kinds+'</select></label><label>实际时长（分钟）<input id="extraMinutes" type="number" min="5" max="300" inputmode="numeric" placeholder="例如 35" value="'+minutes+'" oninput="refreshExtraActivityAdvice()"></label><label>实际强度（RPE）<select id="extraRpe" onchange="refreshExtraActivityAdvice()">'+rpes+'</select></label></div>'
+  +'<div class="extraActivityFields"><label>类型<select id="extraType" onchange="extraActivityTypeChanged()">'+kinds+'</select></label><label>实际时长（分钟）<input id="extraMinutes" type="number" min="5" max="300" inputmode="numeric" placeholder="例如 35" value="'+minutes+'" oninput="refreshExtraActivityAdvice()"></label><label>实际强度（RPE）<select id="extraRpe" onchange="refreshExtraActivityAdvice()">'+rpes+'</select></label></div>'
+  +'<div class="extraStrengthFields" id="extraStrengthFields"'+(type==="strength"?"":" hidden")+'><label>主要训练部位<select id="extraStrengthMuscle">'+Object.entries(ACTUAL_FOCUS).filter(([k])=>k!=="full").map(([k,v])=>'<option value="'+k+'"'+(muscle===k?' selected':'')+'>'+v+'</option>').join("")+'</select></label><label>总工作组数（不含热身）<input id="extraStrengthSets" type="number" inputmode="numeric" min="1" max="40" placeholder="例如 12" value="'+sets+'"></label></div>'
   +'<div class="extraActivityAdvice" id="extraActivityAdvice">'+extraActivityAdvice(type,minutes,rpe)+'</div>'
   +'<div class="extraActivityActions"><button type="button" onclick="saveExtraActivity()">'+(edit?'保存修改':'保存活动记录')+'</button></div>'
   +(edit?'<button class="extraActivityCancel" type="button" onclick="cancelExtraEdit()">取消编辑</button>':"")
   +'<div class="extraActivityLog">'+(rows||'<small class="extraEmpty">还没有额外活动记录</small>')+'</div>'
-  +'<small class="extraActivityFoot">仅记录已完成的实际运动；不修改原力量训练和正式 Zone 2 的完成状态，也不自动折算 kcal 或步数。</small>';
+  +'<small class="extraActivityFoot">力量类型会根据真实部位、工作组和RPE调整恢复与后续计划；需具体动作重量递进请用「记录力量」。普通“其他活动”不能自动判断是练腿。不折算热量或步数。</small>';
 }
+function extraActivityTypeChanged(){const type=document.getElementById("extraType")?.value,extra=document.getElementById("extraStrengthFields");if(extra)extra.hidden=type!=="strength";refreshExtraActivityAdvice()}
 function refreshExtraActivityAdvice(){
  const kind=document.getElementById("extraType")?.value,minutes=Number(document.getElementById("extraMinutes")?.value),rpe=Number(document.getElementById("extraRpe")?.value);
  const target=document.getElementById("extraActivityAdvice");
@@ -1240,9 +1246,12 @@ function saveExtraActivity(){
  if(!Object.prototype.hasOwnProperty.call(EXTRA_ACTIVITY_KINDS,type))return alert("请选择活动类型");
  if(!Number.isInteger(minutes)||minutes<5||minutes>300)return alert("请输入实际活动时长（5–300分钟）");
  if(!Number.isInteger(rpe)||rpe<1||rpe>10)return alert("请选择实际RPE强度（1–10）");
+ const muscle=type==="strength"?document.getElementById("extraStrengthMuscle")?.value:null;
+ const sets=type==="strength"?Number(document.getElementById("extraStrengthSets")?.value):null;
+ if(type==="strength"&&(!ACTUAL_FOCUS[muscle]||muscle==="full"||!Number.isInteger(sets)||sets<1||sets>40))return alert("请选择力量训练部位并填写真实工作组数（1–40组），热身组不计入");
  const entries=readExtraActivities(),old=entries.find(x=>x.id===extraEditingId);
  const entry={id:old?.id||Date.now().toString(36)+Math.random().toString(36).slice(2,7),type,minutes,rpe,
-   status:"completed",createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+   ...(type==="strength"?{muscle,sets}:{}),status:"completed",createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  const changed=old?entries.map(x=>x.id===old.id?entry:x):[...entries,entry];
  try{localStorage.setItem(extraActivityKey(),JSON.stringify(changed))}catch(e){return alert("保存失败，原有记录未被清除")}
  extraEditingId="";extraDeletingId="";refreshLinkedTrainingGuidance();
