@@ -725,7 +725,7 @@ function actualRecentMuscleLoad(ds=localDate(),group="legs"){
   const rows=session?.exercises.filter(x=>x.muscle===group||x.muscle==="full")||[];
   const directSets=rows.reduce((sum,x)=>sum+x.sets,0);
   // Never double-count a muscle already detailed in an actual workout.
-  const extras=directSets?[]:extraStrengthSessions(date).filter(x=>x.muscle===group);
+  const extras=directSets||typeof extraStrengthSessions!=="function"?[]:extraStrengthSessions(date).filter(x=>x.muscle===group);
   const sets=directSets+extras.reduce((sum,x)=>sum+Number(x.sets),0);
   if(!sets)continue;
   const rpe=Math.max(directSets?Number(session.rpe)||0:0,...extras.map(x=>Number(x.rpe)||0));
