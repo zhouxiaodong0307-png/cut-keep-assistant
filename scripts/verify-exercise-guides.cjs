@@ -1077,3 +1077,30 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('Missed workout implementation must not wipe stored history');
  console.log('PASS: V78 work vs recovery absence, safe missed-cursor policy, nutrition and unchanged histories');
 }
+
+/* V78 cursor and absence persistence dynamic test */
+{
+ const source=sect('const MISSED_TRAINING_REASONS=','function trainingIndex(').slice(0,-'function trainingIndex('.length);
+ let day='2026-10-14';const map=new Map([['ckTrainingCursorDate',day],['ckTrainingCursorIndex','1']]);
+ const storage={getItem:key=>map.has(key)?map.get(key):null,setItem:(key,v)=>map.set(key,String(v)),removeItem:key=>map.delete(key)};
+ const shift=(date,n)=>{const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+ const actions=new Function('localStorage','localDate','trainingIndex','dayDiff','trainingStartDate','readDayAdjustment','dayAdjustmentKey','readActualWorkout','hasExtraStrengthSession','storedRide','integratedTrainingLoad','actualRecentMuscleLoad','shiftDate','safeJsonParse','refreshAfterDayChange','alert','exerciseDone','trainDone',
+  'let dayAdjustmentOpen=false;'+source+'return {readMissedTraining,saveMissedTraining,undoMissedTraining,syncTrainingCursor,shouldPassOptionalCardio};')(
+  storage,()=>day,()=>1,()=>1,'2026-09-01',()=>null,ds=>'ckDayAdjustment-'+ds,()=>null,()=>false,()=>null,
+  ()=>({days:[{date:'2026-10-13',strength:true,rideMinutes:75,maxRpe:7}]}),()=>[],shift,
+  (v,def)=>{try{return v?JSON.parse(v):def}catch(e){return def}},()=>{},()=>{}, {},false);
+ actions.saveMissedTraining('work');
+ if(actions.readMissedTraining()?.reason!=='work'||map.has('ckTrain-2026-10-14'))
+  throw Error('Missed work was not preserved independently from completed workout');
+ if(actions.shouldPassOptionalCardio(day,1))
+  throw Error('Missed Zone 2 was auto-passed despite user scheduling conflict');
+ day='2026-10-15';
+ if(actions.syncTrainingCursor()!==1||actions.readMissedTraining('2026-10-14')?.reason!=='work')
+  throw Error('Missed workout did not remain pending the following day');
+ day='2026-10-14';actions.undoMissedTraining();
+ if(map.has('ckTrainingMissed-2026-10-14')||map.has('ckTrain-2026-10-14'))
+  throw Error('Undo missed reason altered actual training history');
+ actions.saveMissedTraining('recovery');
+ if(actions.readMissedTraining()?.reason!=='recovery')throw Error('Recovery reason cannot be saved');
+ console.log('PASS: V78 save, next-day workout pending, no false cardio auto-pass, undo and preserved completion history');
+}
