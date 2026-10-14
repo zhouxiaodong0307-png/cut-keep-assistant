@@ -436,7 +436,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8.5 16 2.2 2 4.8-4.5"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3v6.5a3 3 0 0 0 6 0V3M6.5 3v18"/><path d="M19 21V4.5c0-1.6-1.2-2-2.4-.6-2 1.8-2.3 6.3-2.3 9.1H19"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M9 10h6M15 10h0M18 6.5v11M21 9v6M6 12h12"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V9M19 20V4"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261014-unified-training-nutrition-77",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261014-honest-missed-workout-78",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -784,8 +784,39 @@ function adjustPlanForActualWorkout(plans,idx,ds){
 
 function dayAdjustmentKey(ds=localDate()){return "ckDayAdjustment-"+ds}
 function readDayAdjustment(ds=localDate()){const o=safeJsonParse(localStorage.getItem(dayAdjustmentKey(ds)),null);return o&&typeof o==="object"&&typeof o.choice==="string"?o:null}
+/* V78: explicitly missed a session, not completed training.
+ * Distinguish schedule conflicts from real recovery needs. Do not touch ckTrain history. */
+const MISSED_TRAINING_REASONS={work:"工作安排 · 没时间训练",recovery:"身体需要恢复",other:"临时有事 · 无法训练"};
+function missedTrainingKey(ds=localDate()){return "ckTrainingMissed-"+ds}
+function readMissedTraining(ds=localDate()){
+ const value=safeJsonParse(localStorage.getItem(missedTrainingKey(ds)),null);
+ if(!value||value.status!=="missed"||!Object.prototype.hasOwnProperty.call(MISSED_TRAINING_REASONS,value.reason))return null;
+ // Completion supersedes a forgotten missed marker without destroying the old record.
+ if(localStorage.getItem("ckTrain-"+ds)==="1"||!!readActualWorkout(ds)||
+    (typeof hasExtraStrengthSession==="function"&&hasExtraStrengthSession(ds)))return null;
+ return value;
+}
+function saveMissedTraining(reason){
+ if(!Object.prototype.hasOwnProperty.call(MISSED_TRAINING_REASONS,reason))return;
+ const index=trainingIndex();
+ if(![0,1,2,4,5].includes(index))return alert("今天是休息日，无需登记漏练。");
+ if(trainDone||!!readActualWorkout()||Object.values(exerciseDone).some(Boolean)||
+    !!storedRide()||hasExtraStrengthSession())return alert("今天已有实际训练或部分动作记录，请先核对，不会将已练内容标记为未训练。");
+ try{
+  localStorage.setItem(missedTrainingKey(),JSON.stringify({
+   status:"missed",reason,plannedIndex:index,updatedAt:new Date().toISOString()
+  }));
+ }catch(e){return alert("未能保存未训练原因，原有训练数据保持不变。")}
+ dayAdjustmentOpen=false;refreshAfterDayChange();
+}
+function undoMissedTraining(){
+ if(!readMissedTraining())return;
+ try{localStorage.removeItem(missedTrainingKey())}catch(e){return alert("撤销失败，原记录保留。")}
+ dayAdjustmentOpen=true;refreshAfterDayChange();
+}
+
 function shouldPassOptionalCardio(ds,index){
- if(![1,5].includes(index)||localStorage.getItem("ckTrain-"+ds)==="1"||storedRide(ds))return false;
+ if(![1,5].includes(index)||localStorage.getItem("ckTrain-"+ds)==="1"||storedRide(ds)||readMissedTraining(ds))return false;
  const choice=readDayAdjustment(ds);
  if(choice&&["defer","walk"].includes(choice.choice))return false;
  const previous=shiftDate(ds,-1),load=integratedTrainingLoad(ds);
@@ -1026,11 +1057,11 @@ function evaluateDailyReadiness(data){
  const high=yesterday.some(x=>hard(x)||strenuous(x))||recent.filter(x=>strenuous(x)).length>=2;
  const medium=recent.some(moderate)||recent.some(x=>hard(x));
  const sleep=Number.isFinite(data.sleep)?data.sleep:null,prior=Number.isFinite(data.priorSleep)?data.priorSleep:null;
- const shortSleep=sleep!==null&&sleep<6.5,veryShort=sleep!==null&&sleep<6;
+ const shortSleep=sleep!==null&&sleep<6.5,veryShort=sleep!==null&&sleep<6,recoveryMiss=data.missedYesterday==="recovery";
  const repeatedShort=shortSleep&&prior!==null&&prior<7,poor=data.feeling==="poor";
  const pain=!!data.pain;
- const mode=(veryShort&&high)||(poor&&high)||(repeatedShort&&high)?"recover":
-   high||poor||shortSleep||repeatedShort||pain||medium?"reduce":"normal";
+ const mode=(veryShort&&high)||(poor&&high)||(repeatedShort&&high)||(recoveryMiss&&poor&&shortSleep)?"recover":
+   high||poor||shortSleep||repeatedShort||pain||medium||recoveryMiss?"reduce":"normal";
  const reasons=[];
  if(sleep!==null)reasons.push("上次睡眠"+sleep.toFixed(1)+"小时"+(shortSleep?"（不足）":""));
  else reasons.push("睡眠未记录，不将其视为恢复良好");
@@ -1043,6 +1074,9 @@ function evaluateDailyReadiness(data){
   };
   reasons.push("昨天："+yesterday.map(describe).slice(0,3).join("；"));
  }else reasons.push("昨天没有已确认的训练或临时活动记录");
+ if(data.missedYesterday==="work")reasons.push("昨天因工作未训练：只顺延任务，不视为训练能力不足");
+ if(data.missedYesterday==="other")reasons.push("昨天因临时安排未训练：任务顺延，不额外加课");
+ if(recoveryMiss)reasons.push("昨天因身体恢复暂停训练：今天结合睡眠及自评保守安排");
  if(data.feeling==="poor")reasons.push("今天自评恢复差");
  if(pain)reasons.push("已标记疼痛，相关动作以无痛为前提");
  if(recent.some(x=>x.type==="other"))reasons.push("未分类活动只用于总体负荷，不推断训练部位");
@@ -1076,19 +1110,20 @@ function dailyTrainingDecision(ds=localDate(),index=null){
    }
   }
  }
- const result=evaluateDailyReadiness({activities,sleep,priorSleep:prev,
+ const previousMissed=readMissedTraining(y);
+ const result=evaluateDailyReadiness({activities,sleep,priorSleep:prev,missedYesterday:previousMissed?.reason||null,
   feeling:ds===localDate()?recovery.state:"ok",pain:ds===localDate()?recovery.painArea:"",
   muscleNames:typeof ACTUAL_FOCUS==="object"?ACTUAL_FOCUS:{}});
  const choice=ds===localDate()?readDayAdjustment():null;
  const actualToday=ds===localDate()?readActualWorkout():null;
  const started=ds===localDate()&&(trainDone||!!actualToday||Object.values(exerciseDone).some(Boolean));
- return {...result,index:idx,activities,actualToday,started,
+ return {...result,index:idx,activities,actualToday,started,missed:readMissedTraining(ds),previousMissed,
   userChoice:choice?.choice||(localStorage.getItem("ckDailyTrainingOverride-"+ds)==="original"?"manual-original":""),plannedKind:planKind(idx)};
 }
 function applyDailyReadinessToPlans(plans,idx,ds=localDate()){
  if(!plans[idx]||typeof dailyTrainingDecision!=="function"||typeof basicsForDate!=="function"||typeof completedExtraActivity!=="function")return;
  const check=dailyTrainingDecision(ds,idx);
- if(check.started||["original","manual-original","hold","rest","defer","walk","next-strength"].includes(check.userChoice))return;
+ if(check.started||check.missed||["original","manual-original","hold","rest","defer","walk","next-strength"].includes(check.userChoice))return;
  const plan=plans[idx],strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx);
  if(strength&&check.mode==="recover"){
   plan[1]="今日建议恢复 · 力量顺延";
@@ -1587,6 +1622,7 @@ function cacheActualDraft(){
  }));
 }
 function openActualWorkoutEditor(){
+ if(readMissedTraining())return alert("今天已登记无法训练。请先在「调整今日」里撤销标记，再记录实际完成的力量训练。");
  const previous=readActualWorkout();
  if(trainDone&&!previous)return alert("当前训练日已有已完成记录。请先撤销原记录后再替换，避免重复统计。");
  if(!previous&&Object.values(exerciseDone).some(Boolean))return alert("已有部分原计划动作记录，请先处理这些完成项，避免覆盖历史训练。");
@@ -1641,6 +1677,7 @@ function actualWorkoutHistoryHtml(){
 }
 function renderActualWorkoutHistory(){const e=document.getElementById("actualHistoryList");if(e)e.innerHTML=actualWorkoutHistoryHtml()}
 function saveActualWorkout(){
+ if(readMissedTraining())return alert("请先撤销今天的未训练标记，再保存实际训练。");
  cacheActualDraft();
  const d=actualDraft,old=readActualWorkout(),idx=trainingIndex();
  if(!d||!d.exercises.length)return;
@@ -1711,6 +1748,7 @@ function saveDayAdjustment(value){
  catch(e){alert("无法保存调整，原训练计划和历史记录保持不变");return false}
 }
 function adjustToday(kind){
+ if(readMissedTraining())return alert("今天已登记无法训练。请先撤销该记录，再选择其他训练安排。");
  const idx=trainingIndex(),base=planKind(idx),adj=readDayAdjustment();
  const started=Object.values(exerciseDone).some(Boolean);
  if(kind==="auto"){
