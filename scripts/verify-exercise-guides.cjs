@@ -993,3 +993,30 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(a<0)throw Error('Compact mobile action layout is missing');
  console.log('PASS: V60 action buttons same-row on mobile, switching from live record form to adjust works, draft retained, no inert control');
 }
+
+
+/* V76: real leg training modifies an upcoming session; ambiguous activity does not. */
+{
+ const code=sect('function recentStrengthPlanEvidence(', 'function recentUnclassifiedActivities(').slice(0,-'function recentUnclassifiedActivities('.length);
+ const templates=Array.from({length:7},()=>['','','',[]]);
+ for(const [day,name] of [[0,'器械推胸'],[0,'坐姿划船'],[0,'死虫'],[2,'中立握高位下拉'],[2,'绳索面拉'],[2,'Pallof Press 抗旋转']])
+  templates[day][3].push(name+'｜2组 × 10–12次｜推荐重量：@test');
+ const baseline=Array.from({length:7},()=>['训练日','原定力量训练','50分钟',[]]);
+ baseline[0][3]=['热身｜下肢热身','杠铃深蹲｜3组','器械推胸｜3组','坐姿划船｜3组','杠铃罗马尼亚硬拉｜3组','死虫｜2组'];
+ const create=()=>baseline.map(day=>[day[0],day[1],day[2],[...day[3]]]);
+ const harness=new Function('actualRecentMuscleLoad','planTemplates','localDate','readActualWorkout','trainDone','exerciseDone','actualRowNeedsRest','resolveExercise','ACTUAL_FOCUS',code+'return applyWeekStrengthLoad;');
+ const run=(legs,done={})=>harness((ds,g)=>g==='legs'?legs:[],templates,()=>'2026-10-14',()=>null,false,done,
+  (name,group)=>group==='legs'&&/深蹲|硬拉|分腿蹲|腿弯举/.test(name),
+  row=>row.replace('@test','42 kg'),{legs:'腿部',chest:'胸部',back:'背部',shoulders:'肩部',core:'核心'});
+ const hardLegs=[{date:'2026-10-12',gap:2,sets:10,rpe:8,heavy:true,moderate:true}];
+ const planned=create();run(hardLegs)(planned,0,'2026-10-14');
+ if(!planned[0][1].includes('腿部恢复')||planned[0][3].some(x=>/深蹲|硬拉/.test(x))||planned[0][3].length<4)
+  throw Error('Two-day-old completed heavy legs did not change next workout');
+ const unknown=create();run([])(unknown,0,'2026-10-14');
+ if(unknown[0][1]!=='原定力量训练')throw Error('Unidentified extra activity was invented as a leg workout');
+ const started=create();run(hardLegs,{'杠铃深蹲':true})(started,0,'2026-10-14');
+ if(started[0][1]!=='原定力量训练')throw Error('In-progress exercise was changed after user started');
+ for(const name of ['extraStrengthSessions','classifyHistoricalExtraStrength','weeklyRealTrainingContext'])
+  if(!html.includes('function '+name+'('))throw Error('Missing explicit real-history adaptation: '+name);
+ console.log('PASS: V76 evidence-driven next strength, no invented leg loads and no mid-session reprogramming');
+}
