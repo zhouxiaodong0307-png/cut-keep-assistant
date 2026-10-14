@@ -718,13 +718,16 @@ function actualMuscleForName(name,fallback="legs"){
 }
 function actualRecentMuscleLoad(ds=localDate(),group="legs"){
  const records=[];
- for(let gap=1;gap<=3;gap++){
+ for(let gap=1;gap<=7;gap++){
   const date=shiftDate(ds,-gap),session=readActualWorkout(date);
-  if(!session)continue;
-  const rows=session.exercises.filter(x=>x.muscle===group||x.muscle==="full"||group==="legs"&&x.muscle==="legs");
-  if(!rows.length)continue;
-  const sets=rows.reduce((a,x)=>a+x.sets,0);
-  records.push({date,gap,sets,rpe:session.rpe,heavy:session.rpe>=7&&sets>=5,moderate:sets>=3});
+  const rows=session?.exercises.filter(x=>x.muscle===group||x.muscle==="full")||[];
+  const directSets=rows.reduce((sum,x)=>sum+x.sets,0);
+  // Never double-count a muscle already detailed in an actual workout.
+  const extras=directSets?[]:extraStrengthSessions(date).filter(x=>x.muscle===group);
+  const sets=directSets+extras.reduce((sum,x)=>sum+Number(x.sets),0);
+  if(!sets)continue;
+  const rpe=Math.max(directSets?Number(session.rpe)||0:0,...extras.map(x=>Number(x.rpe)||0));
+  records.push({date,gap,sets,rpe,heavy:rpe>=7&&sets>=5,moderate:sets>=3,source:directSets?"actual":"extra"});
  }
  return records;
 }
@@ -785,10 +788,10 @@ function shouldPassOptionalCardio(ds,index){
 }
 function syncTrainingCursor(){const today=localDate();let idx=+(localStorage.getItem("ckTrainingCursorIndex")),ds=localStorage.getItem("ckTrainingCursorDate");if(!Number.isInteger(idx)||idx<0||idx>6||!ds){idx=dayDiff(trainingStartDate,today)%7;ds=today}while(ds<today){const autoPass=shouldPassOptionalCardio(ds,idx);
 if(autoPass&&!readDayAdjustment(ds)){try{localStorage.setItem(dayAdjustmentKey(ds),JSON.stringify({choice:"auto-recovery",status:"unlogged",originalIndex:idx,reason:"strength-plus-ride"}))}catch(e){}}
-if(idx===3||idx===6||localStorage.getItem("ckTrain-"+ds)==="1"||autoPass)idx=(idx+1)%7;ds=shiftDate(ds,1)}localStorage.setItem("ckTrainingCursorIndex",idx);localStorage.setItem("ckTrainingCursorDate",today);return idx}
+if(idx===3||idx===6||localStorage.getItem("ckTrain-"+ds)==="1"||hasExtraStrengthSession(ds)||autoPass)idx=(idx+1)%7;ds=shiftDate(ds,1)}localStorage.setItem("ckTrainingCursorIndex",idx);localStorage.setItem("ckTrainingCursorDate",today);return idx}
 function trainingIndex(){const idx=syncTrainingCursor();localStorage.setItem("ckTrainPlanIndex-"+localDate(),idx);return idx}
 function trainingIndexForDate(ds){const saved=localStorage.getItem("ckTrainPlanIndex-"+ds);return saved!==null&&Number.isInteger(+saved)?+saved:dayDiff(trainingStartDate,ds)%7}
-function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;if(/^ckActualWorkout-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckActualWorkout-".length);if(readActualWorkout(ds))dates.push(ds);continue}if(!k.startsWith("ckTrain-")||localStorage.getItem(k)!=="1")continue;const ds=k.slice(8),idx=trainingIndexForDate(ds);if([0,2,4].includes(idx))dates.push(ds)}return [...new Set(dates)].sort()}
+function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;if(/^ckActualWorkout-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckActualWorkout-".length);if(readActualWorkout(ds))dates.push(ds);continue}if(!k.startsWith("ckTrain-")||localStorage.getItem(k)!=="1")continue;const ds=k.slice(8),idx=trainingIndexForDate(ds);if([0,2,4].includes(idx))dates.push(ds)}for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^ckExtraActivities-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckExtraActivities-".length);if(hasExtraStrengthSession(ds))dates.push(ds)}}return [...new Set(dates)].sort()}
 function completedStrengthSessions(){return strengthSessionDates().length}
 function completedStrengthSessionsBeforeToday(){return strengthSessionDates().filter(ds=>ds<localDate()).length}
 function phaseWeek(){return Math.min(12,Math.floor(completedStrengthSessionsBeforeToday()/3)+1)}
@@ -1220,7 +1223,7 @@ function extraActivityPanelHtml(){
  const done=items.filter(x=>x.status==="completed"),total=done.reduce((n,x)=>n+(+x.minutes||0),0);
  return '<div class="extraActivityHead"><b>临时活动</b><small>'+(total?'今天额外完成 '+total+' 分钟':"完成活动后填写实际数据")+'</small></div>'
   +'<div class="extraActivityFields"><label>类型<select id="extraType" onchange="extraActivityTypeChanged()">'+kinds+'</select></label><label>实际时长（分钟）<input id="extraMinutes" type="number" min="5" max="300" inputmode="numeric" placeholder="例如 35" value="'+minutes+'" oninput="refreshExtraActivityAdvice()"></label><label>实际强度（RPE）<select id="extraRpe" onchange="refreshExtraActivityAdvice()">'+rpes+'</select></label></div>'
-  +'<div class="extraStrengthFields" id="extraStrengthFields"'+(type==="strength"?"":" hidden")+'><label>主要训练部位<select id="extraStrengthMuscle">'+Object.entries(ACTUAL_FOCUS).filter(([k])=>k!=="full").map(([k,v])=>'<option value="'+k+'"'+(muscle===k?' selected':'')+'>'+v+'</option>').join("")+'</select></label><label>总工作组数（不含热身）<input id="extraStrengthSets" type="number" inputmode="numeric" min="1" max="40" placeholder="例如 12" value="'+sets+'"></label></div>'
+  +'<div class="extraStrengthFields" id="extraStrengthFields"'+(type==="strength"?"":" hidden")+'><label>主要训练部位<select id="extraStrengthMuscle"><option value="" disabled'+(!muscle?' selected':'')+'>请选择部位</option>'+Object.entries(ACTUAL_FOCUS).filter(([k])=>k!=="full").map(([k,v])=>'<option value="'+k+'"'+(muscle===k?' selected':'')+'>'+v+'</option>').join("")+'</select></label><label>总工作组数（不含热身）<input id="extraStrengthSets" type="number" inputmode="numeric" min="1" max="40" placeholder="例如 12" value="'+sets+'"></label></div>'
   +'<div class="extraActivityAdvice" id="extraActivityAdvice">'+extraActivityAdvice(type,minutes,rpe)+'</div>'
   +'<div class="extraActivityActions"><button type="button" onclick="saveExtraActivity()">'+(edit?'保存修改':'保存活动记录')+'</button></div>'
   +(edit?'<button class="extraActivityCancel" type="button" onclick="cancelExtraEdit()">取消编辑</button>':"")
