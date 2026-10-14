@@ -434,7 +434,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8.5 16 2.2 2 4.8-4.5"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3v6.5a3 3 0 0 0 6 0V3M6.5 3v18"/><path d="M19 21V4.5c0-1.6-1.2-2-2.4-.6-2 1.8-2.3 6.3-2.3 9.1H19"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M9 10h6M15 10h0M18 6.5v11M21 9v6M6 12h12"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V9M19 20V4"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261014-real-load-adaptive-training-76",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261014-unified-training-nutrition-77",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -936,6 +936,7 @@ function currentPlans(){
  const choice=readDayAdjustment();
  if(choice?.choice==="walk"&&[1,5].includes(idx)){plans[idx][1]="轻松步行（自主替换）";plans[idx][2]="轻松步行 · 以实际记录为准"}
  if(choice?.choice==="hold"&&[0,2,4].includes(idx)&&!trainDone){plans[idx][1]="今天恢复 · 力量顺延";plans[idx][2]="休息 · 不计入力量完成"}
+ if(typeof applyDailyReadinessToPlans==="function")applyDailyReadinessToPlans(plans,idx,localDate());
  return plans;
 }
 /* V76: Scheduled strength slots respond to real muscle loads recorded within seven days.
@@ -1007,6 +1008,133 @@ function weeklyRealTrainingContext(ds=localDate()){
  if(unknown)parts.push(unknown+"条其他活动未标记训练部位，可在临时活动中编辑");
  return parts.length?"最近7天真实负荷："+parts.join(" · ")+"。同部位高负荷安排按恢复间隔调整；未标注的活动不会被猜成腿训。":"近7天缺少分部位力量记录，暂使用基础安排；可用「记录力量」填写动作，或在「临时活动」标注训练部位与工作组，让后续计划据实调整。";
 }
+
+/* V77: one evidence-led, deliberately conservative decision for both training and food.
+ * Provenance matters: an unclassified workout informs general fatigue but NEVER invents
+ * a muscle group, exercise weight, calorie burn or completed prescribed workout. */
+function evaluateDailyReadiness(data){
+ const rows=[...(data.activities||[])],yesterday=rows.filter(x=>x.gap===1),recent=rows.filter(x=>x.gap<=2);
+ const hard=x=>x.completed!==false&&Number.isFinite(+x.rpe)&&+x.rpe>=7&&
+   ((x.type==="strength"&&(+x.sets>=5||+x.minutes>=40))||(+x.minutes>=50));
+ const strenuous=x=>x.completed!==false&&Number.isFinite(+x.rpe)&&
+   ((+x.rpe>=8&&+x.minutes>=30)||(+x.rpe>=6&&+x.minutes>=80));
+ const moderate=x=>x.completed!==false&&
+   ((+x.rpe>=5&&+x.minutes>=35)||(+x.minutes>=75&&+x.rpe>=3)||x.type==="planned-strength");
+ const high=yesterday.some(x=>hard(x)||strenuous(x))||recent.filter(x=>strenuous(x)).length>=2;
+ const medium=recent.some(moderate)||recent.some(x=>hard(x));
+ const sleep=Number.isFinite(data.sleep)?data.sleep:null,prior=Number.isFinite(data.priorSleep)?data.priorSleep:null;
+ const shortSleep=sleep!==null&&sleep<6.5,veryShort=sleep!==null&&sleep<6;
+ const repeatedShort=shortSleep&&prior!==null&&prior<7,poor=data.feeling==="poor";
+ const pain=!!data.pain;
+ const mode=(veryShort&&high)||(poor&&high)||(repeatedShort&&high)?"recover":
+   high||poor||shortSleep||repeatedShort||pain||medium?"reduce":"normal";
+ const reasons=[];
+ if(sleep!==null)reasons.push("上次睡眠"+sleep.toFixed(1)+"小时"+(shortSleep?"（不足）":""));
+ else reasons.push("睡眠未记录，不将其视为恢复良好");
+ if(yesterday.length){
+  const describe=x=>{
+   const kind=x.type==="strength"?"力量"+(x.muscle?"（"+(data.muscleNames?.[x.muscle]||x.muscle)+"）":""):
+    x.type==="planned-strength"?"已标记完成的计划力量（实际组数未记录）":
+    x.type==="ride"?"骑行":x.type==="walk"?"步行":"其他活动（未分类）";
+   return kind+(x.minutes?x.minutes+"分钟":"")+(x.rpe?"、RPE "+x.rpe:"")+(x.sets?"、"+x.sets+"组":"");
+  };
+  reasons.push("昨天："+yesterday.map(describe).slice(0,3).join("；"));
+ }else reasons.push("昨天没有已确认的训练或临时活动记录");
+ if(data.feeling==="poor")reasons.push("今天自评恢复差");
+ if(pain)reasons.push("已标记疼痛，相关动作以无痛为前提");
+ if(recent.some(x=>x.type==="other"))reasons.push("未分类活动只用于总体负荷，不推断训练部位");
+ let title=mode==="recover"?"建议优先恢复，力量任务保留":mode==="reduce"?"建议保守减量，不追加训练":"按当前计划执行，完成反馈决定递进";
+ return {mode,title,reason:reasons.join(" · "),high,medium,shortSleep,veryShort,poor,pain,
+  hasUnknownSleep:sleep===null,hasUnclassified:recent.some(x=>x.type==="other"),yesterdayCount:yesterday.length};
+}
+function dailyTrainingDecision(ds=localDate(),index=null){
+ const idx=Number.isInteger(index)?index:trainingIndex(),y=shiftDate(ds,-1);
+ const currentSleep=basicsForDate(ds),previousSleep=basicsForDate(y);
+ const sleep=validSleep(currentSleep.sleep)?Number(currentSleep.sleep):validSleep(previousSleep.sleep)?Number(previousSleep.sleep):null;
+ const prev=validSleep(previousSleep.sleep)?Number(previousSleep.sleep):null;
+ const activities=[];
+ for(let gap=0;gap<=2;gap++){
+  const date=shiftDate(ds,-gap),actual=readActualWorkout(date);
+  if(actual)activities.push({gap,type:"strength",muscle:actual.focus==="full"?null:actual.focus,
+   minutes:0,sets:actual.exercises.reduce((n,x)=>n+Number(x.sets||0),0),rpe:actual.rpe});
+  const e=completedExtraActivity(date);
+  for(const x of e){
+   // A detail log already accounts for the same muscle's work on this date.
+   if(x.type==="strength"&&actual&&actual.exercises.some(a=>a.muscle===x.muscle))continue;
+   activities.push({gap,type:x.type,muscle:x.type==="strength"?x.muscle:null,
+    minutes:Number(x.minutes)||0,sets:x.type==="strength"?Number(x.sets)||0:0,rpe:Number(x.rpe)||0});
+  }
+  const marked=localStorage.getItem("ckTrain-"+date)==="1";
+  if(!actual&&marked&&!e.some(x=>x.type==="strength")){
+   const historicalIndex=trainingIndexForDate(date);
+   if([0,2,4].includes(historicalIndex))activities.push({gap,type:"planned-strength",rpe:0,sets:0,minutes:0});
+   else if([1,5].includes(historicalIndex)&&!completedCardioRecovery(date)){
+    const ride=storedRide(date);if(ride)activities.push({gap,type:"ride",minutes:Number(ride.minutes),rpe:Number(ride.rpe)});
+   }
+  }
+ }
+ const result=evaluateDailyReadiness({activities,sleep,priorSleep:prev,
+  feeling:ds===localDate()?recovery.state:"ok",pain:ds===localDate()?recovery.painArea:"",
+  muscleNames:typeof ACTUAL_FOCUS==="object"?ACTUAL_FOCUS:{}});
+ const choice=ds===localDate()?readDayAdjustment():null;
+ const actualToday=ds===localDate()?readActualWorkout():null;
+ const started=ds===localDate()&&(trainDone||!!actualToday||Object.values(exerciseDone).some(Boolean));
+ return {...result,index:idx,activities,actualToday,started,
+  userChoice:choice?.choice||"",plannedKind:planKind(idx)};
+}
+function applyDailyReadinessToPlans(plans,idx,ds=localDate()){
+ if(!plans[idx]||typeof dailyTrainingDecision!=="function")return;
+ const check=dailyTrainingDecision(ds,idx);
+ if(check.started||["original","hold","rest","defer","walk","next-strength"].includes(check.userChoice))return;
+ const plan=plans[idx],strength=[0,2,4].includes(idx),cardio=[1,5].includes(idx);
+ if(strength&&check.mode==="recover"){
+  plan[1]="今日建议恢复 · 力量顺延";
+  plan[2]="睡眠与前期负荷叠加 · 原力量内容保留，未自动记为完成";
+  return;
+ }
+ if(strength&&check.mode==="reduce"){
+  const manual=readTrainingVolumeJson(VOLUME_REFERENCE_KEY,{});
+  plan[3]=plan[3].map(row=>{
+   const key=row.split("｜")[0],v=parseExerciseVolume(row),id=exerciseVolumeId(idx,key);
+   if(!v||!v.sets||v.sets<=1||validExerciseVolume(manual[id]))return row;
+   return applyExerciseVolumeToRow(row,{...v,sets:v.sets-1});
+  });
+  plan[1]+=" · 恢复减量";
+  plan[2]+=" · 工作组保守调整、不自动加重";
+ }
+ if(cardio&&(check.mode!=="normal")){
+  const body=plan[3].findIndex(x=>x.startsWith("主体｜"));
+  const rest=check.mode==="recover";
+  plan[1]=rest?"建议恢复 / 可选轻松活动":"低强度恢复骑行";
+  plan[2]=rest?"休息或15–25分钟非常轻松活动":"20–30分钟轻松骑 · RPE 2–3/10";
+  if(body>=0)plan[3][body]=rest?"主体｜可休息；若恢复允许，可轻松活动15–25分钟｜RPE 1–2/10":"主体｜20–30分钟低强度骑行｜RPE 2–3/10";
+ }
+}
+function dailyTrainingNutritionAdvice(k,p,carbs,fat){
+ const signal=dailyTrainingDecision(),actual=readActualWorkout(),index=trainingIndex(),
+  p0=currentPlans()[index],extras=completedExtraActivity(),hasExtraStrength=extras.some(x=>x.type==="strength"),
+  manuallyHeld=signal.userChoice==="hold"||signal.userChoice==="rest",completed=!!actual||trainDone||hasExtraStrength,
+  actualStrength=!!actual||hasExtraStrength,
+  strength=actualStrength||[0,2,4].includes(index)&&!manuallyHeld&&signal.mode!=="recover",
+  cardio=!strength&&[1,5].includes(index)&&!manuallyHeld&&signal.mode!=="recover",
+  recovering=manuallyHeld||signal.mode==="recover"||[3,6].includes(index);
+ const social=meals.some(x=>x.social),left=Math.max(0,pt-p),remaining=Math.max(0,Math.round(target-k));
+ const planName=actual?actualSessionTitle(actual)+"力量（已完成）":hasExtraStrength?"已记录自主力量":
+  p0?.[1]||"今日训练";
+ let context=actualStrength?"今天已完成真实力量训练":recovering?"今日重点是恢复":
+  strength?"今天计划"+planName:cardio?"今天计划"+planName:"今天按实际活动与恢复安排";
+ const effort=extras.filter(x=>x.status==="completed").reduce((v,x)=>v+(+x.minutes||0),0);
+ const main=signal.mode==="recover"&&!completed?"先不要为了打卡硬练；待恢复改善再完成未做的力量课。":
+  signal.mode==="reduce"&&!completed?"训练量已根据近期负荷保守调整，先以动作质量为主。":"以实际完成反馈决定下次重量和训练量。";
+ const food=left>20?"蛋白质还差约"+Math.round(left)+"g，下一餐优先足量的鱼、肉、蛋、奶或豆制品；":"蛋白质接近目标，后续不用为凑数字硬吃；";
+ const carb=(strength||actualStrength)?"力量训练前后保留正常主食，尤其下肢训练后不刻意低碳。":
+  cardio?"正常搭配主食，较长骑行时按饥饿与疲劳安排补给。":
+  signal.high||effort>=60?"近期活动负荷不低，恢复日也保留正常碳水，不额外节食。":"恢复日保持正常主食与蔬菜，不因休息而明显减餐。";
+ const kcal=k>target?"今日记录已超过设定热量；不安排补偿性加练或极端减餐。":
+  "仍以原有约"+Math.round(target)+" kcal/日为总框架，当前剩余约"+remaining+" kcal；不凭RPE推算运动消耗。";
+ return context+"。"+main+" "+food+carb+" "+kcal+(social?" 聚餐宏量为估算，不据此精确追补。":"");
+}
+
 function planAffectedByPain(idx,area){if(!area||![0,2,4].includes(idx))return false;return (planTemplates[idx]?.[3]||[]).some(row=>exerciseAffectedByPain(row.split("｜")[0],area))}
 function tomorrowPreview(){const t=totalsForDate(localDate()),cur=trainingIndex(),advance=trainDone||!!readActualWorkout()||cur===3||cur===6,idx=advance?(cur+1)%7:cur,p=currentPlans()[idx],over=t.kcal-target,trend=weightTrendRule(),parts=[];parts.push(advance?"明天按顺序进入："+p[1]+"。":"今天训练尚未完成，明天继续顺延："+p[1]+"。");if(t.social>0)parts.push(over>0?"今天含聚餐估算，目前约超出目标 "+Math.round(over)+" kcal；明天不补偿性少吃或加练。":"今天含聚餐估算，但当前总量仍未超过目标；明天不做补偿性调整。");else if(over>200)parts.push("即使今天约超出 "+Math.round(over)+" kcal，明天仍按原计划，不用补偿性加练。");else if(!t.count)parts.push("今天饮食记录还不完整，明天不据此调整训练。");if(recovery.state==="poor")parts.push("如果明早恢复状态仍差，继续按恢复下调版本执行。");if(recovery.painArea&&planAffectedByPain(idx,recovery.painArea))parts.push("如果"+(painLabels[recovery.painArea]||"当前")+"疼痛仍在，相关动作不自动加重，诱发疼痛就停止或换无痛动作。");const loggedStrength=readActualWorkout();if(loggedStrength)parts.push("今天真正完成的是"+actualSessionTitle(loggedStrength)+"力量训练（"+loggedStrength.exercises.length+"个动作，整场RPE "+loggedStrength.rpe+"），不计为原定骑行；后续根据训练部位和完成负荷调整。");const extraDone=completedExtraActivity();if(extraDone.length){const extraMinutes=extraDone.reduce((n,x)=>n+x.minutes,0);parts.push("今天另外完成了"+extraDone.length+"项临时活动（共"+extraMinutes+"分钟）；明天优先看恢复，计划内有氧可适当缩短，不算补偿性训练。")}const nextLoadAdvice=nextTrainingLoadAdvice(idx);if(nextLoadAdvice)parts.push(nextLoadAdvice);if(trend.suppressExtra)parts.push("近期体重下降偏快，明天不额外增加有氧或训练量。");else if((trend.extraMinutes||0)>0&&[1,5].includes(idx))parts.push("按当前两周趋势，若恢复正常，明天 Zone 2 会增加约 "+Math.min(15,trend.extraMinutes)+" 分钟。");return parts.join("")}
 dateLabel.textContent=(new Date().getMonth()+1)+"月"+new Date().getDate()+"日";
@@ -1067,6 +1195,7 @@ function renderDailyCoachTip(k,p,cg,ft){
  finish("今天按总量和蛋白质推进",numbers()+"。优先完成蛋白质目标，再在剩余热量里安排主食、蔬菜和脂肪来源。");
 }
 function buildDietAdvice(k,p,cg,ft){
+ if(typeof dailyTrainingNutritionAdvice==="function")return dailyTrainingNutritionAdvice(k,p,cg,ft);
  const social=meals.some(x=>x.social),idx=trainingIndex(),truth=actualTrainingContext(),real=truth.actual,choice=truth.adjustment,strength=truth.strength||truth.pendingStrength,cardio=truth.cardio||truth.pendingCardio,rest=truth.recoveryOnly||[3,6].includes(idx)||choice==="hold",done=truth.completed,planName=real?actualSessionTitle(real)+"力量":planTemplates[idx]?.[1]||"今日训练",proteinLeft=Math.max(0,pt-p),fatLeft=Math.max(0,60-ft),kcalLeft=Math.max(0,target-k);
  if(social)return k>target?"今天含聚餐估算：当前总摄入约 "+Math.round(k)+" kcal，约超出目标 "+Math.round(k-target)+" kcal；宏量只统计明确记录部分，不补偿性少吃或加练。":"今天含聚餐估算：当前总摄入约 "+Math.round(k)+" kcal，距离目标还约 "+Math.round(target-k)+" kcal；宏量只统计明确记录部分，不追着宏量数字硬补。";
  if(k>target)return proteinLeft>25?"今天已超过目标热量，但蛋白质仍差约 "+Math.round(proteinLeft)+"g；如果还需要进食，只选低脂高蛋白和蔬菜，不做补偿性加练。":"今天已超过目标热量且蛋白质接近目标；后续按饥饿程度收尾，不需要为了凑宏量继续吃。";
