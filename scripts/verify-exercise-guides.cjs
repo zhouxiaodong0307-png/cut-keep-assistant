@@ -469,7 +469,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 /* Same-day extra ride: actual entry only (no pre-plan, no departure time).
    Preserve historical planned records without counting them as performed. */
 {
- const extraCode=sect('const EXTRA_ACTIVITY_KINDS=','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
+ const extraCode=sect('const ACTUAL_FOCUS=','const ACTUAL_EXERCISE_PRESETS=').slice(0,-'const ACTUAL_EXERCISE_PRESETS='.length)+'\n'+sect('const EXTRA_ACTIVITY_KINDS=','function rideStorageKey(').slice(0,-'function rideStorageKey('.length);
  function mock(initialDay='2026-10-10',initialEntries=[]){
   let date=initialDay,trainDone=true,idx=4;
   const memory=new Map([
