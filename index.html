@@ -789,10 +789,10 @@ function shouldPassOptionalCardio(ds,index){
 }
 function syncTrainingCursor(){const today=localDate();let idx=+(localStorage.getItem("ckTrainingCursorIndex")),ds=localStorage.getItem("ckTrainingCursorDate");if(!Number.isInteger(idx)||idx<0||idx>6||!ds){idx=dayDiff(trainingStartDate,today)%7;ds=today}while(ds<today){const autoPass=shouldPassOptionalCardio(ds,idx);
 if(autoPass&&!readDayAdjustment(ds)){try{localStorage.setItem(dayAdjustmentKey(ds),JSON.stringify({choice:"auto-recovery",status:"unlogged",originalIndex:idx,reason:"strength-plus-ride"}))}catch(e){}}
-if(idx===3||idx===6||localStorage.getItem("ckTrain-"+ds)==="1"||hasExtraStrengthSession(ds)||autoPass)idx=(idx+1)%7;ds=shiftDate(ds,1)}localStorage.setItem("ckTrainingCursorIndex",idx);localStorage.setItem("ckTrainingCursorDate",today);return idx}
+if(idx===3||idx===6||localStorage.getItem("ckTrain-"+ds)==="1"||(typeof hasExtraStrengthSession==="function"&&hasExtraStrengthSession(ds))||autoPass)idx=(idx+1)%7;ds=shiftDate(ds,1)}localStorage.setItem("ckTrainingCursorIndex",idx);localStorage.setItem("ckTrainingCursorDate",today);return idx}
 function trainingIndex(){const idx=syncTrainingCursor();localStorage.setItem("ckTrainPlanIndex-"+localDate(),idx);return idx}
 function trainingIndexForDate(ds){const saved=localStorage.getItem("ckTrainPlanIndex-"+ds);return saved!==null&&Number.isInteger(+saved)?+saved:dayDiff(trainingStartDate,ds)%7}
-function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;if(/^ckActualWorkout-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckActualWorkout-".length);if(readActualWorkout(ds))dates.push(ds);continue}if(!k.startsWith("ckTrain-")||localStorage.getItem(k)!=="1")continue;const ds=k.slice(8),idx=trainingIndexForDate(ds);if([0,2,4].includes(idx))dates.push(ds)}for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^ckExtraActivities-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckExtraActivities-".length);if(hasExtraStrengthSession(ds))dates.push(ds)}}return [...new Set(dates)].sort()}
+function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;if(/^ckActualWorkout-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckActualWorkout-".length);if(readActualWorkout(ds))dates.push(ds);continue}if(!k.startsWith("ckTrain-")||localStorage.getItem(k)!=="1")continue;const ds=k.slice(8),idx=trainingIndexForDate(ds);if([0,2,4].includes(idx))dates.push(ds)}for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^ckExtraActivities-\d{4}-\d{2}-\d{2}$/.test(k)){const ds=k.slice("ckExtraActivities-".length);if(typeof hasExtraStrengthSession==="function"&&hasExtraStrengthSession(ds))dates.push(ds)}}return [...new Set(dates)].sort()}
 function completedStrengthSessions(){return strengthSessionDates().length}
 function completedStrengthSessionsBeforeToday(){return strengthSessionDates().filter(ds=>ds<localDate()).length}
 function phaseWeek(){return Math.min(12,Math.floor(completedStrengthSessionsBeforeToday()/3)+1)}
@@ -945,7 +945,7 @@ function recentStrengthPlanEvidence(ds=localDate()){
  return {legs,chest,back,recentLeg};
 }
 function applyWeekStrengthLoad(plans,idx,ds){
- if(![0,2].includes(idx)||!plans[idx]||ds===localDate()&&(trainDone||!!readActualWorkout()||Object.values(exerciseDone).some(Boolean)))return;
+ if(![0,2].includes(idx)||!plans[idx]||typeof actualRecentMuscleLoad!=="function"||typeof readActualWorkout!=="function"||ds===localDate()&&(trainDone||!!readActualWorkout()||Object.values(exerciseDone).some(Boolean)))return;
  const evidence=recentStrengthPlanEvidence(ds),leg=evidence.recentLeg;
  if(!leg)return;
  const busy=group=>actualRecentMuscleLoad(ds,group).some(x=>x.gap<=2&&x.heavy);
