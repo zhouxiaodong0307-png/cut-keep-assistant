@@ -1243,7 +1243,7 @@ function currentPlans(){
  if(choice?.choice==="hold"&&[0,2,4].includes(idx)&&!trainDone){plans[idx][1]="今天恢复 · 力量顺延";plans[idx][2]="休息 · 不计入力量完成"}
  if(typeof applyDailyReadinessToPlans==="function")applyDailyReadinessToPlans(plans,idx,localDate());
  if(typeof planPartialMakeup==="function")planPartialMakeup(plans,idx,localDate());
- const frozen=readStartedExercisePlan(),choiceNow=readDayAdjustment()?.choice;
+ const frozen=typeof readStartedExercisePlan==="function"?readStartedExercisePlan():null,choiceNow=typeof readDayAdjustment==="function"?readDayAdjustment()?.choice:null;
  if(frozen&&frozen.index===idx&&!["hold","rest","next-strength","defer","walk","original"].includes(choiceNow))plans[idx][3]=[...frozen.rows];
  return plans;
 }
