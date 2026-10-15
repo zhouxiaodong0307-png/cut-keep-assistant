@@ -1023,7 +1023,7 @@ function planPartialMakeup(plans,index,ds=localDate()){
  const decision=dailyTrainingDecision(ds,index),recent={};
  for(const x of candidates)if(x.muscle&&!Object.prototype.hasOwnProperty.call(recent,x.muscle))
   recent[x.muscle]=actualRecentMuscleLoad(ds,x.muscle)[0]?.gap??99;
- const output=assessPartialMakeup(candidates,plans[index][3],"strength",decision.mode,recent),
+ const output=assessPartialMakeup(candidates,plans[index][3],"strength",decision.hasUnknownSleep?"unknown-sleep":decision.mode,recent),
   storedKey="ckPartialMakeupPlan-"+ds,old=safeJsonParse(localStorage.getItem(storedKey),null);
  // Once today's first real movement begins, freeze the already proposed top-up.
  // Never insert a new exercise mid-session, and always honor manual overrides.
