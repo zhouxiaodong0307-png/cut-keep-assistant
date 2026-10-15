@@ -1144,3 +1144,22 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(pending.some(x=>x.name==='死虫'))throw Error('V80 completed top-up remained a new training debt');
  console.log('PASS: V80 actual partial sets, no full-session replay, no forced next-day/cardio, conservative optional make-up, stable started plan and automatic debt clearance');
 }
+
+/* V80 next-day trained muscle protection: partial sets count even when RPE is absent. */
+{
+ const part=sect('function adjustPlanForActualWorkout(', 'function dayAdjustmentKey(').slice(0,-'function dayAdjustmentKey('.length);
+ const plans=Array.from({length:7},(_,idx)=>['训练日'+idx,'腿部与背部训练','50分钟',[]]);
+ plans[2][3]=['热身｜准备','保加利亚分腿蹲｜3组 × 每侧8–10次','中立握高位下拉｜3组 × 8–12次','俯卧腿弯举｜3组 × 10–15次','绳索面拉｜2组 × 12–15次'];
+ const simulate=new Function('localStorage','actualRecentMuscleLoad','readTrainingVolumeJson','VOLUME_REFERENCE_KEY','parseExerciseVolume','validExerciseVolume','exerciseVolumeId','applyExerciseVolumeToRow','localDate','exerciseDone','actualRowNeedsRest',
+  part+'return adjustPlanForActualWorkout;')(
+  {getItem:()=>null},(_ds,g)=>g==='legs'?[{gap:1,sets:6,rpe:0,heavy:false,moderate:true,source:'partial'}]:[],
+  ()=>({}),'refs',row=>({sets:Number(row.match(/(\d+)组/)?.[1]||0),min:8,max:12,unit:'次'}),
+  ()=>false,(i,n)=>i+'|'+n,row=>row,()=> '2026-10-15',{},
+  (name,g)=>g==='legs'?/深蹲|分腿蹲|硬拉|腿弯举/.test(name):false);
+ simulate(plans,2,'2026-10-15');
+ if(plans[2][3].some(x=>/保加利亚分腿蹲|俯卧腿弯举/.test(x))||
+    !plans[2][3].some(x=>x.startsWith('中立握高位下拉'))||
+    !plans[2][1].includes('实际负荷调整'))
+  throw Error('V80 completed partial leg sets without RPE caused another full leg prescription the next day');
+ console.log('PASS: V80 completed partial legs suppress next-day duplicate lower-body work; upper-body movements retained');
+}
