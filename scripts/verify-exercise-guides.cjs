@@ -1072,7 +1072,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(!html.includes('if(![1,5].includes(index)||localStorage.getItem("ckTrain-"+ds)==="1"||storedRide(ds)||(typeof readMissedTraining==="function"&&readMissedTraining(ds)))return false;'))
   throw Error('Explicit missed cardio day could be falsely auto-passed');
  if(!html.includes('const missed=typeof readMissedTraining==="function"?readMissedTraining(ds):null;')||
-    !html.includes('const main=missed&&!completed?'))
+    !html.includes('missed&&!completed?"不算作训练完成'))
   throw Error('Missed completion incorrectly linked to nutrition or daily training');
  if(html.includes('localStorage.clear('))throw Error('Missed workout implementation must not wipe stored history');
  console.log('PASS: V78 work vs recovery absence, safe missed-cursor policy, nutrition and unchanged histories');
@@ -1114,7 +1114,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const json=(v,def)=>{try{return v?JSON.parse(v):def}catch(e){return def}};
  const shift=(d,n)=>{const date=new Date(d+'T12:00:00Z');date.setUTCDate(date.getUTCDate()+n);return date.toISOString().slice(0,10)};
  const actions=new Function('localStorage','localDate','shiftDate','safeJsonParse','actualRowNeedsRest','parseExerciseVolume','readActualWorkout','dailyTrainingDecision','actualRecentMuscleLoad','renderTraining','refreshNutritionGuidance','alert',
-  code+'return {savePartialWorkout,readPartialWorkout,partialPendingCandidates,partialStrengthVolume,assessPartialMakeup,planPartialMakeup};')(
+  code+'return {savePartialWorkout,readPartialWorkout,partialPendingCandidates,partialStrengthVolume,assessPartialMakeup,planPartialMakeup,meaningfulPartialWorkout,freezeStartedExercisePlan,readStartedExercisePlan,editStartedExercisePlan};')(
   store,()=>day,shift,json,(name,group)=>({legs:/深蹲|硬拉/.test(name),chest:/推胸|卧推/.test(name),back:/划船|下拉/.test(name),shoulders:/面拉/.test(name)})[group],
   row=>{const x=row.match(/(\d+)组/);return x?{sets:+x[1]}:null},()=>null,
   ()=>({mode,hasUnknownSleep:unknownSleep,started,missed:null,userChoice:''}), (ds,group)=>group==='legs'?[{gap:4}]:[],()=>{},()=>{},()=>{});
@@ -1142,6 +1142,32 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  memory.set('ckExerciseDone-2026-10-18',JSON.stringify({'死虫':true}));
  pending=actions.partialPendingCandidates();
  if(pending.some(x=>x.name==='死虫'))throw Error('V80 completed top-up remained a new training debt');
+ const afterDone=plan();
+ if(!actions.planPartialMakeup(afterDone,4).accepted.some(x=>x.name==='死虫')||
+   !afterDone[4][3].some(x=>x.startsWith('死虫')))
+  throw Error('V80 completed optional top-up vanished from active workout');
+ if(saved.completed.some(x=>x.weight!==null||x.feedback!==null))
+  throw Error('V80 unconfirmed weight or effort was fabricated');
+ day='2026-10-19';started=false;
+ const seven=['杠铃深蹲｜3组 × 6–10次','器械推胸｜3组 × 6–12次','坐姿划船｜3组 × 8–12次',
+  '杠铃罗马尼亚硬拉｜3组 × 8–10次','死虫｜2组 × 每侧10–12次',
+  '平板支撑｜2组 × 30–45秒','Pallof Press 抗旋转｜2组 × 10–12次'];
+ actions.savePartialWorkout(seven,0,Object.fromEntries(seven.slice(0,6).map(x=>[x.split('｜')[0],true])));
+ if(actions.readPartialWorkout()?.completed.length!==6||actions.readPartialWorkout()?.pending.length!==1||
+    !actions.meaningfulPartialWorkout())throw Error('V80 six-of-seven workout did not persist');
+ memory.set('ckMeals-2026-10-19','[{"kcal":600}]');
+ day='2026-10-20';
+ if(actions.readPartialWorkout('2026-10-19')?.completed.length!==6||
+    memory.get('ckMeals-2026-10-19')!=='[{"kcal":600}]')
+  throw Error('V80 midnight damaged training or food history');
+ actions.freezeStartedExercisePlan(0,seven);
+ if(actions.readStartedExercisePlan()?.rows.length!==7)throw Error('V80 missing frozen plan');
+ actions.freezeStartedExercisePlan(0,['new unwanted plan']);
+ if(actions.readStartedExercisePlan()?.rows.length!==7)throw Error('V80 plan overwritten during exercise');
+ actions.editStartedExercisePlan(0,rows=>rows.map(x=>x.startsWith('杠铃深蹲')?'杠铃深蹲｜2组 × 6–10次':x));
+ if(!actions.readStartedExercisePlan().rows[0].includes('2组'))throw Error('V80 manual update lost');
+ actions.savePartialWorkout(['死虫｜2组 × 每侧10–12次'],4,{'死虫':true});
+ if(actions.meaningfulPartialWorkout())throw Error('V80 small accessory falsely advanced cycle');
  console.log('PASS: V80 actual partial sets, no full-session replay, no forced next-day/cardio, conservative optional make-up, stable started plan and automatic debt clearance');
 }
 
@@ -1162,4 +1188,20 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     !plans[2][1].includes('实际负荷调整'))
   throw Error('V80 completed partial leg sets without RPE caused another full leg prescription the next day');
  console.log('PASS: V80 completed partial legs suppress next-day duplicate lower-body work; upper-body movements retained');
+}
+
+/* V80 live-call integration checks */
+{
+ const links=[
+  'freezeStartedExercisePlan(idx,list);if(!exerciseDone[name])',
+  'plans[idx][3]=[...frozen.rows];',
+  'savePartialWorkout(currentPlans()[trainingIndex()][3],trainingIndex(),exerciseDone);renderTraining()',
+  'advance=trainDone||!!readActualWorkout()||meaningfulPartialWorkout()',
+  'actual=readActualWorkout(),partial=readPartialWorkout(),index=trainingIndex()',
+  'actualStrength=!!actual||hasExtraStrength||!!partial',
+  '未记录RPE'
+ ];
+ for(const k of links)if(!html.includes(k))throw Error('V80 missing live integration: '+k);
+ if(html.includes('localStorage.clear('))throw Error('V80 must preserve ck* history');
+ console.log('PASS: V80 in-progress plan, user overrides, exercise evidence, nutrition and missing-RPE');
 }
