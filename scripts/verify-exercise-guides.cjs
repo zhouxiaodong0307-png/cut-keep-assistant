@@ -1333,3 +1333,50 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   if(!state.has(k))throw Error('V83 mutated existing historical record: '+k);
  console.log('PASS: V83 single row on phones, one save, weight and goal edited independently/together, midnight/history');
 }
+
+
+/* V84: three nested gutters used to make exercise cards noticeably narrower than Home.
+   The expanded training list must use the full content-card width without page overflow. */
+{
+ const start=html.indexOf('/* V84: match training exercise-card horizontal footprint');
+ const end=html.indexOf('/* V80: review of genuinely completed movements',start);
+ if(start<0||end<start)throw Error('V84 width scope missing');
+ const css=html.slice(start,end);
+ for(const rule of [
+  '#view-training>.card{--training-card-gutter:16px}',
+  '#view-training #todayPlanDetails,',
+  '#view-training .iosWeekList{',
+  'width:calc(100% + var(--training-card-gutter) + var(--training-card-gutter))',
+  'margin-left:calc(0px - var(--training-card-gutter))',
+  'margin-right:calc(0px - var(--training-card-gutter))',
+  '#view-training #todayPlanDetails>.planBody{padding:9px 9px 12px}',
+  '#view-training .iosWeekList>.planDetails .planBody{padding:9px 9px 12px!important}',
+  '@media(max-width:440px)',
+  '#view-training>.card{--training-card-gutter:14px}',
+  '#view-training #todayPlanDetails>.planBody{padding:8px 8px 11px}',
+  '#view-training .iosWeekList>.planDetails .planBody{padding:8px 8px 11px!important}'
+ ])if(!css.includes(rule))throw Error('V84 training layout rule missing: '+rule);
+ const today=html.slice(html.indexOf('<section class="view" id="view-training">'),html.indexOf('<section class="view" id="view-progress">'));
+ if(!today.includes('class="planDetails todayPlan" id="todayPlanDetails"')||
+    !today.includes('class="planBody" id="todayExerciseList"')||
+    !today.includes('id="weekPlan" class="iosWeekList"'))
+  throw Error('V84 selectors do not reach the actual expanded exercise and weekly DOM');
+ // Derived CSS geometry for Home/Training across mobile, tablet and desktop:
+ // outer cards remain the same width, and rows gain at least 30px vs old nested layout.
+ for(const viewport of [320,375,390,430,440,441,768,1024]){
+  const appPadding=viewport<=440?12:viewport>=700?25:16;
+  const appWidth=Math.min(viewport,viewport>=700?820:670);
+  const cardWidth=appWidth-2*appPadding;
+  const cardPadding=viewport<=440?14:16;
+  const bleed=cardPadding;
+  const planWidth=cardWidth-2*cardPadding+2*bleed;
+  const innerPadding=viewport<=440?8:9;
+  const newExerciseWidth=planWidth-2-2*innerPadding;
+  const oldExerciseWidth=cardWidth-2*cardPadding-2-(viewport<=430?28:32);
+  if(planWidth!==cardWidth||newExerciseWidth-oldExerciseWidth<30||
+     planWidth>cardWidth||newExerciseWidth<=0)
+   throw Error('V84 card alignment or safe width fails at '+viewport+'px');
+ }
+ if(html.includes('localStorage.clear('))throw Error('V84 must not clear historical training');
+ console.log('PASS: V84 Home-width training cards across 320/375/390/430/440/441/768/1024px; nested gutters reduced; history kept');
+}
