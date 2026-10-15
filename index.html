@@ -1011,12 +1011,25 @@ function planPartialMakeup(plans,index,ds=localDate()){
  const decision=dailyTrainingDecision(ds,index),recent={};
  for(const x of candidates)if(x.muscle&&!Object.prototype.hasOwnProperty.call(recent,x.muscle))
   recent[x.muscle]=actualRecentMuscleLoad(ds,x.muscle)[0]?.gap??99;
- const output=assessPartialMakeup(candidates,plans[index][3],"strength",decision.mode,recent);
- if(decision.started||decision.missed||decision.userChoice)return {accepted:[],held:[...output.held,...output.accepted.map(x=>({...x,why:"已开始或手动调整训练，暂不添加"}))]};
+ const output=assessPartialMakeup(candidates,plans[index][3],"strength",decision.mode,recent),
+  storedKey="ckPartialMakeupPlan-"+ds,old=safeJsonParse(localStorage.getItem(storedKey),null);
+ // Once today's first real movement begins, freeze the already proposed top-up.
+ // Never insert a new exercise mid-session, and always honor manual overrides.
+ if(decision.missed||decision.userChoice)return {accepted:[],held:output.held};
+ if(decision.started){
+  const chosen=old?.index===index?candidates.find(x=>x.date===old.date&&x.name===old.name):null;
+  if(chosen&&!plans[index][3].some(x=>x.split("｜")[0]===chosen.name)){
+   plans[index][3].push(chosen.row);
+   plans[index][2]+=" · 已开始训练，保留原定补做动作";
+  }
+  return {accepted:chosen?[chosen]:[],held:output.held};
+ }
  if(output.accepted.length){
+  const chosen=output.accepted[0];
+  try{localStorage.setItem(storedKey,JSON.stringify({index,date:chosen.date,name:chosen.name}))}catch(e){}
   plans[index][3].push(...output.accepted.map(x=>x.row));
   plans[index][2]+=" · 含1项安全条件允许的待补动作";
- }
+ }else if(old){try{localStorage.removeItem(storedKey)}catch(e){}}
  return output;
 }
 
