@@ -1104,3 +1104,43 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(actions.readMissedTraining()?.reason!=='recovery')throw Error('Recovery reason cannot be saved');
  console.log('PASS: V78 save, next-day workout pending, no false cardio auto-pass, undo and preserved completion history');
 }
+
+
+/* V80 real partial strength and recovery-aware top-up */
+{
+ const code=sect('function partialWorkoutKey(','function shouldPassOptionalCardio(').slice(0,-'function shouldPassOptionalCardio('.length);
+ let day='2026-10-14',started=false,mode='normal',unknownSleep=false;
+ const memory=new Map(),store={getItem:k=>memory.has(k)?memory.get(k):null,setItem:(k,v)=>memory.set(k,String(v)),removeItem:k=>memory.delete(k)};
+ const json=(v,def)=>{try{return v?JSON.parse(v):def}catch(e){return def}};
+ const shift=(d,n)=>{const date=new Date(d+'T12:00:00Z');date.setUTCDate(date.getUTCDate()+n);return date.toISOString().slice(0,10)};
+ const actions=new Function('localStorage','localDate','shiftDate','safeJsonParse','actualRowNeedsRest','parseExerciseVolume','readActualWorkout','dailyTrainingDecision','actualRecentMuscleLoad','renderTraining','refreshNutritionGuidance','alert',
+  code+'return {savePartialWorkout,readPartialWorkout,partialPendingCandidates,partialStrengthVolume,assessPartialMakeup,planPartialMakeup};')(
+  store,()=>day,shift,json,(name,group)=>({legs:/深蹲|硬拉/.test(name),chest:/推胸|卧推/.test(name),back:/划船|下拉/.test(name),shoulders:/面拉/.test(name)})[group],
+  row=>{const x=row.match(/(\d+)组/);return x?{sets:+x[1]}:null},()=>null,
+  ()=>({mode,hasUnknownSleep:unknownSleep,started,missed:null,userChoice:''}), (ds,group)=>group==='legs'?[{gap:4}]:[],()=>{},()=>{},()=>{});
+ const rows=['热身｜5分钟','杠铃深蹲｜3组 × 6–10次','器械推胸｜3组 × 6–12次','坐姿划船｜3组 × 8–12次','杠铃罗马尼亚硬拉｜3组 × 8–10次','死虫｜2组 × 每侧10–12次'];
+ actions.savePartialWorkout(rows,0,{'杠铃深蹲':true,'器械推胸':true,'坐姿划船':true});
+ const saved=actions.readPartialWorkout();
+ if(saved?.completed.length!==3||saved.pending.length!==2||memory.has('ckTrain-2026-10-14'))
+  throw Error('V80 partial checkmarks must remain real activity, not full completion');
+ if(actions.partialStrengthVolume(day,'legs').sets!==3)throw Error('V80 real completed leg sets not counted');
+ day='2026-10-15';
+ let pending=actions.partialPendingCandidates();
+ if(pending.length!==2||actions.assessPartialMakeup(pending,[],'cardio','normal',{}).accepted.length)
+  throw Error('V80 cardio day must not be forced to complete missed strength actions');
+ day='2026-10-18';
+ const plan=()=>Array.from({length:7},(_,i)=>['训练日','原计划','50分钟',i===4?['热身｜5分钟','杠铃卧推｜3组 × 8–10次','上斜哑铃卧推｜3组 × 8–10次','中立握高位下拉｜3组 × 8–10次','杠铃罗马尼亚硬拉｜2组 × 8–10次','Pallof Press 抗旋转｜2组 × 10–12次']:[]]);
+ const p1=plan();unknownSleep=true;
+ if(actions.planPartialMakeup(p1,4).accepted.length)throw Error('V80 unknown sleep must not auto-add exercises');
+ unknownSleep=false;
+ const p2=plan(),chosen=actions.planPartialMakeup(p2,4).accepted;
+ if(chosen.length!==1||chosen[0].name!=='死虫'||p2[4][3].filter(x=>x.startsWith('杠铃罗马尼亚硬拉')).length!==1)
+  throw Error('V80 should add at most one safe unique accessory; no duplicate hard legs');
+ started=true;
+ const p3=plan(),frozen=actions.planPartialMakeup(p3,4).accepted;
+ if(frozen.length!==1||!p3[4][3].some(x=>x.startsWith('死虫')))throw Error('V80 planned top-up disappeared after first action');
+ memory.set('ckExerciseDone-2026-10-18',JSON.stringify({'死虫':true}));
+ pending=actions.partialPendingCandidates();
+ if(pending.some(x=>x.name==='死虫'))throw Error('V80 completed top-up remained a new training debt');
+ console.log('PASS: V80 actual partial sets, no full-session replay, no forced next-day/cardio, conservative optional make-up, stable started plan and automatic debt clearance');
+}
