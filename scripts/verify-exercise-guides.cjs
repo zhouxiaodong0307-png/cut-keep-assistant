@@ -1272,3 +1272,35 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    if(!html.includes(anchor))throw Error('V81 goal display or editing missing: '+anchor);
  console.log('PASS: V81 editable weight target, daily gap/reach/below, midnight, same-date corrections, historical backup and unchanged kcal/protein');
 }
+
+/* V82: the screenshot's two-stack goal UI must fit ONE row, including narrow phones. */
+{
+ const start=html.indexOf('<div class="goalWeightSetting">');
+ const end=html.indexOf('</section><section class="card"><h2>趋势</h2>',start);
+ if(start<0||end<start)throw Error('V82 target-row markup not found');
+ const snippet=html.slice(start,end);
+ for(const anchor of ['for="goalWeightInput"','id="goalWeightInput"','onclick="saveGoalWeight()"',
+  'class="goalWeightInline"','id="goalWeightRemaining"','id="goalWeightResultLabel"'])
+  if(!snippet.includes(anchor))throw Error('V82 missing single-row element: '+anchor);
+ if(snippet.includes('</div><div class="goalWeightProgress"')||
+    snippet.includes('goalWeightResultDetail')||html.includes('class="goalWeightProgress"'))
+  throw Error('V82 old redundant second result card still renders');
+ if(snippet.indexOf('class="goalWeightInline"')>snippet.indexOf('</div>'))
+  throw Error('V82 result is below row rather than inside it');
+ const cssStart=html.indexOf('#view-progress .goalWeightSetting{');
+ const cssEnd=html.indexOf('.extraStrengthFields{',cssStart);
+ const css=html.slice(cssStart,cssEnd);
+ for(const rule of ['grid-template-columns:auto 65px auto minmax(0,1fr)','@media(max-width:360px)',
+  'grid-template-columns:auto 61px auto minmax(0,1fr)','white-space:nowrap','min-width:0',
+  'justify-content:flex-end','font-size:16px'])
+  if(!css.includes(rule))throw Error('V82 compact responsive rule missing: '+rule);
+ // Phone layout has enough width for a label, decimal entry, save action and gap.
+ // 320px screen: 40px outer app padding + 28px card padding => 252px inner.
+ const contentWidth=320-40-28,label=24,input=61,save=44,gaps=15;
+ if(contentWidth-label-input-save-gaps<100)
+  throw Error('V82 controls leave insufficient narrow-phone gap width');
+ if(!html.includes('goalWeightResultLabel.textContent=goal===null?"未设置"')||
+    !html.includes('goalWeightInline.title=result.detail'))
+  throw Error('V82 inline state or accessible full explanation disconnected');
+ console.log('PASS: V82 one-row target, save and remaining gap at desktop, 375px and 320px, no second card');
+}
