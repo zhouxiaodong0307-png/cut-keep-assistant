@@ -1265,7 +1265,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     !data['ckMeals-2026-10-15']||!data['ckBasics-2026-10-15']||
     map.get('ckTarget')!=='2200'||map.get('ckProtein')!=='140')
   throw Error('V81 backup/history, nutrition or sleep was altered');
- for(const anchor of ['id="goalWeightInput"','id="goalWeightRemaining"','onclick="saveGoalWeight()"',
+ for(const anchor of ['id="goalWeightInput"','id="goalWeightRemaining"','onclick="saveWeightAndGoal()"',
   'const goal=readGoalWeight(),result=goalWeightSummary(recent[0]?.weight,goal)',
   'goalWeightRemaining.textContent=result.value',
   'document.activeElement!==goalWeightInput'])
@@ -1273,34 +1273,63 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  console.log('PASS: V81 editable weight target, daily gap/reach/below, midnight, same-date corrections, historical backup and unchanged kcal/protein');
 }
 
-/* V82: the screenshot's two-stack goal UI must fit ONE row, including narrow phones. */
+
+/* V83: user expects record weight, target, distance, and one save on ONE row */
 {
- const start=html.indexOf('<div class="goalWeightSetting">');
- const end=html.indexOf('</section><section class="card"><h2>趋势</h2>',start);
- if(start<0||end<start)throw Error('V82 target-row markup not found');
- const snippet=html.slice(start,end);
- for(const anchor of ['for="goalWeightInput"','id="goalWeightInput"','onclick="saveGoalWeight()"',
-  'class="goalWeightInline"','id="goalWeightRemaining"','id="goalWeightResultLabel"'])
-  if(!snippet.includes(anchor))throw Error('V82 missing single-row element: '+anchor);
- if(snippet.includes('</div><div class="goalWeightProgress"')||
-    snippet.includes('goalWeightResultDetail')||html.includes('class="goalWeightProgress"'))
-  throw Error('V82 old redundant second result card still renders');
- if(snippet.indexOf('class="goalWeightInline"')>snippet.indexOf('</div>'))
-  throw Error('V82 result is below row rather than inside it');
- const cssStart=html.indexOf('#view-progress .goalWeightSetting{');
- const cssEnd=html.indexOf('.extraStrengthFields{',cssStart);
- const css=html.slice(cssStart,cssEnd);
- for(const rule of ['grid-template-columns:auto 65px auto minmax(0,1fr)','@media(max-width:360px)',
-  'grid-template-columns:auto 61px auto minmax(0,1fr)','white-space:nowrap','min-width:0',
-  'justify-content:flex-end','font-size:16px'])
-  if(!css.includes(rule))throw Error('V82 compact responsive rule missing: '+rule);
- // Phone layout has enough width for a label, decimal entry, save action and gap.
- // 320px screen: 40px outer app padding + 28px card padding => 252px inner.
- const contentWidth=320-40-28,label=24,input=61,save=44,gaps=15;
- if(contentWidth-label-input-save-gaps<100)
-  throw Error('V82 controls leave insufficient narrow-phone gap width');
- if(!html.includes('goalWeightResultLabel.textContent=goal===null?"未设置"')||
-    !html.includes('goalWeightInline.title=result.detail'))
-  throw Error('V82 inline state or accessible full explanation disconnected');
- console.log('PASS: V82 one-row target, save and remaining gap at desktop, 375px and 320px, no second card');
+ const begin=html.indexOf('<section class="card"><h2>记录体重</h2>');
+ const end=html.indexOf('</section><section class="card"><h2>趋势</h2>',begin);
+ if(begin<0||end<begin)throw Error('Missing V83 weight card');
+ const card=html.slice(begin,end);
+ for(const field of ['class="weightOneRow"','for="weightInput"','for="goalWeightInput"',
+  'id="goalWeightRemaining"','id="goalWeightResultLabel"',
+  'onclick="saveWeightAndGoal()"','aria-live="polite"'])
+  if(!card.includes(field))throw Error('V83 one-row element absent: '+field);
+ if((card.match(/<button/g)||[]).length!==1||
+    card.includes('goalWeightSetting')||card.includes('goalWeightProgress')||
+    card.includes('onclick="saveWeight()"')||card.includes('onclick="saveGoalWeight()"'))
+  throw Error('V83 duplicated rows or save actions');
+ const css=html.slice(html.indexOf('#view-progress .weightOneRow{'),html.indexOf('.extraStrengthFields{'));
+ for(const k of ['grid-template-columns:minmax(0,1.1fr) minmax(0,.95fr) minmax(0,1fr) auto',
+  '@media(max-width:390px)','@media(max-width:340px)','white-space:nowrap','font-size:16px',
+  'min-width:0'])if(!css.includes(k))throw Error('V83 missing compact CSS: '+k);
+ if(320-40-28<62+55+50+40+12)throw Error('V83 narrow screen cannot fit fields');
+ const code=sect('function saveWeightAndGoal(){','let weightHistoryExpanded=false;').slice(0,-'let weightHistoryExpanded=false;'.length);
+ const state=new Map([['ckWeights','[{"date":"2026-10-15","weight":77.2}]'],
+  ['ckGoalWeight','70.0'],['ckMeals-2026-10-15','[{"kcal":550}]'],
+  ['ckTrain-2026-10-15','1'],['ckRecovery-2026-10-15','{"state":"ok"}'],
+  ['ckTargetKcal','2250'],['ckTargetProtein','145']]);
+ const storage={getItem:k=>state.has(k)?state.get(k):null,setItem:(k,v)=>state.set(k,String(v)),
+  removeItem:k=>state.delete(k),key:i=>[...state.keys()][i],get length(){return state.size}};
+ let date='2026-10-16',renders=0;
+ const weightInput={value:''},goalWeightInput={value:'70.0'},errors=[];
+ const factory=new Function('localStorage','weightInput','goalWeightInput','readGoalWeight','localDate','render','alert','history',
+  'let weights=history;'+code+'return {saveWeightAndGoal,records:()=>weights};');
+ const service=factory(storage,weightInput,goalWeightInput,()=>Number(storage.getItem('ckGoalWeight')),
+  ()=>date,()=>renders++,v=>errors.push(v),[{date:'2026-10-15',weight:77.2}]);
+ weightInput.value='76.8';service.saveWeightAndGoal();
+ if(service.records().length!==2||service.records()[1].weight!==76.8||
+    state.get('ckGoalWeight')!=='70.0'||weightInput.value!=='')
+  throw Error('V83 weight-only saving changed target/history');
+ weightInput.value='76.6';service.saveWeightAndGoal();
+ if(service.records().length!==2||service.records()[0].weight!==77.2||
+    service.records()[1].weight!==76.6)throw Error('V83 today correction duplicates');
+ goalWeightInput.value='68.0';service.saveWeightAndGoal();
+ if(service.records().length!==2||state.get('ckGoalWeight')!=='68.0')
+  throw Error('V83 goal-only save generated phantom weight');
+ date='2026-10-17';weightInput.value='75.2';goalWeightInput.value='69.5';service.saveWeightAndGoal();
+ if(service.records().length!==3||service.records().at(-1).weight!==75.2||
+    state.get('ckGoalWeight')!=='69.5')throw Error('V83 simultaneous update or next day failed');
+ const weightBefore=state.get('ckWeights');
+ weightInput.value='74.8';goalWeightInput.value='250.1';service.saveWeightAndGoal();
+ if(state.get('ckWeights')!==weightBefore||state.get('ckGoalWeight')!=='69.5')
+  throw Error('V83 invalid goal changed weight record');
+ weightInput.value='26';goalWeightInput.value='70';service.saveWeightAndGoal();
+ if(state.get('ckWeights')!==weightBefore||state.get('ckGoalWeight')!=='69.5')
+  throw Error('V83 invalid weight changed goal');
+ weightInput.value='';goalWeightInput.value='69.5';service.saveWeightAndGoal();
+ if(renders!==4||errors.length!==3)throw Error('V83 unchanged form or invalid validation failed');
+ for(const k of ['ckMeals-2026-10-15','ckTrain-2026-10-15',
+  'ckRecovery-2026-10-15','ckTargetKcal','ckTargetProtein'])
+  if(!state.has(k))throw Error('V83 mutated existing historical record: '+k);
+ console.log('PASS: V83 single row on phones, one save, weight and goal edited independently/together, midnight/history');
 }
