@@ -1205,3 +1205,70 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(html.includes('localStorage.clear('))throw Error('V80 must preserve ck* history');
  console.log('PASS: V80 in-progress plan, user overrides, exercise evidence, nutrition and missing-RPE');
 }
+
+/* V81: goal body weight only updates from confirmed weight records and survives date changes and backups. */
+{
+ const code=sect('function readGoalWeight(){','let weightHistoryExpanded=false;').slice(0,-'let weightHistoryExpanded=false;'.length);
+ let day='2026-10-16',renders=0;
+ const map=new Map([
+  ['ckWeights','[{"date":"2026-10-15","weight":79.2}]'],
+  ['ckTrain-2026-10-15','1'],['ckMeals-2026-10-15','[{"kcal":700}]'],
+  ['ckBasics-2026-10-15','{"sleep":8}'],['ckTarget','2200'],['ckProtein','140']
+ ]);
+ const storage={getItem:k=>map.has(k)?map.get(k):null,setItem:(k,v)=>map.set(k,String(v)),
+   key:i=>[...map.keys()][i],get length(){return map.size}};
+ const goalInput={value:''},alerts=[];
+ const build=new Function('localStorage','goalWeightInput','renderProgress','alert',
+  code+'return {readGoalWeight,goalWeightSummary,saveGoalWeight};');
+ const goal=build(storage,goalInput,()=>renders++,msg=>alerts.push(msg));
+ if(goal.readGoalWeight()!==null||goal.goalWeightSummary(79.2,null).value!=='—')
+  throw Error('V81 missing target must not create an imaginary number');
+ goalInput.value='70';
+ goal.saveGoalWeight();
+ if(goal.readGoalWeight()!==70||map.get('ckGoalWeight')!=='70.0'||renders!==1)
+  throw Error('V81 target did not save independently');
+ const a=goal.goalWeightSummary(79.2,goal.readGoalWeight());
+ if(a.label!=='距离目标还差'||a.value!=='9.2 kg')
+  throw Error('V81 current weight minus target calculated incorrectly');
+ if(goal.goalWeightSummary(70,70).label!=='已达到目标'||
+    goal.goalWeightSummary(69.4,70).value!=='0.6 kg'||
+    goal.goalWeightSummary(null,70).value!=='—')
+  throw Error('V81 reached, below-target or no weight state incorrect');
+ // Original save flow stays intact: newest date wins and today's correction replaces, not appends.
+ const save=sect('function saveWeight(){','function readGoalWeight(){').slice(0,-'function readGoalWeight(){'.length);
+ const newWeightInput={value:'78.5'};
+ const make=new Function('localStorage','weightInput','stepInput','localDate','render','maybeAdvanceStepGoal','alert',
+  'let weights=[{date:"2026-10-15",weight:79.2}],steps=[];'+save+'return {saveWeight,read:()=>weights};');
+ const record=make(storage,newWeightInput,{value:''},()=>day,()=>renders++,()=>{},msg=>alerts.push(msg));
+ record.saveWeight();
+ if(record.read().length!==2||goal.goalWeightSummary(record.read()[1].weight,goal.readGoalWeight()).value!=='8.5 kg')
+  throw Error('V81 gap not recalculated from new record');
+ day='2026-10-17';newWeightInput.value='77.8';record.saveWeight();
+ if(goal.goalWeightSummary(record.read().at(-1).weight,goal.readGoalWeight()).value!=='7.8 kg')
+  throw Error('V81 next-day gap failed');
+ newWeightInput.value='77.5';record.saveWeight();
+ if(record.read().length!==3||record.read().at(-1).weight!==77.5||
+    goal.goalWeightSummary(record.read().at(-1).weight,goal.readGoalWeight()).value!=='7.5 kg')
+  throw Error('V81 same-date edit duplicated or failed to update latest weight');
+ goalInput.value='69.5';goal.saveGoalWeight();
+ if(goal.readGoalWeight()!==69.5||
+    goal.goalWeightSummary(77.5,goal.readGoalWeight()).value!=='8.0 kg')
+  throw Error('V81 manually adjusted target ignored');
+ const prior=map.get('ckGoalWeight');
+ goalInput.value='';goal.saveGoalWeight();
+ goalInput.value='29';goal.saveGoalWeight();
+ if(map.get('ckGoalWeight')!==prior||alerts.length!==2)
+  throw Error('V81 invalid target overwrote saved data');
+ const portable=sect('function portableData(){','function trimSafetySnapshots(){').slice(0,-'function trimSafetySnapshots(){'.length);
+ const data=new Function('localStorage','UPGRADE_BACKUP_PREFIX',portable+'return portableData();')(storage,'ckUpgradeBackup-');
+ if(data.ckGoalWeight!=='69.5'||!data.ckWeights||!data['ckTrain-2026-10-15']||
+    !data['ckMeals-2026-10-15']||!data['ckBasics-2026-10-15']||
+    map.get('ckTarget')!=='2200'||map.get('ckProtein')!=='140')
+  throw Error('V81 backup/history, nutrition or sleep was altered');
+ for(const anchor of ['id="goalWeightInput"','id="goalWeightRemaining"','onclick="saveGoalWeight()"',
+  'const goal=readGoalWeight(),result=goalWeightSummary(recent[0]?.weight,goal)',
+  'goalWeightRemaining.textContent=result.value',
+  'document.activeElement!==goalWeightInput'])
+   if(!html.includes(anchor))throw Error('V81 goal display or editing missing: '+anchor);
+ console.log('PASS: V81 editable weight target, daily gap/reach/below, midnight, same-date corrections, historical backup and unchanged kcal/protein');
+}
