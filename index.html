@@ -2253,7 +2253,7 @@ function saveTrainingReference(index){
    }
    localStorage.setItem("ckLoadOverrides",JSON.stringify(overrides));loadOverrides=overrides;
   }
-  editStartedExercisePlan(idx,rows=>rows.map(original=>{
+  if(typeof editStartedExercisePlan==="function")editStartedExercisePlan(idx,rows=>rows.map(original=>{
    if(exerciseName(original)!==name||exerciseDone[name])return original;
    let next=applyExerciseVolumeToRow(original,v);
    if(key&&next.includes("推荐重量："))next=next.replace(/推荐重量：[^｜]+/,"推荐重量："+weight+" "+coachLoads[key].unit);
