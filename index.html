@@ -982,11 +982,23 @@ function skipPartialMakeup(date,name){
  catch(e){return alert("保存失败，请重试")}
  renderTraining();refreshNutritionGuidance();
 }
+function partialAlreadyCompletedLater(from,date,name){
+ for(let d=shiftDate(from,1),n=0;d<=date&&n<8;d=shiftDate(d,1),n++){
+  const names=safeJsonParse(localStorage.getItem("ckExerciseDone-"+d),{});
+  if(names&&names[name]===true)return true;
+  const completed=readPartialWorkout(d)?.completed||[];
+  if(completed.some(x=>x.name===name))return true;
+  const actual=typeof readActualWorkout==="function"?readActualWorkout(d):null;
+  if(actual?.exercises.some(x=>x.name===name))return true;
+ }
+ return false;
+}
 function partialPendingCandidates(ds=localDate()){
  const ignored=partialMakeupIgnored(),found=[];
  for(let gap=1;gap<=7;gap++){
   const date=shiftDate(ds,-gap),snap=readPartialWorkout(date);if(!snap)continue;
-  for(const item of snap.pending)if(!ignored[date+"|"+item.name])found.push({...item,date,gap});
+  for(const item of snap.pending)if(!ignored[date+"|"+item.name]&&!partialAlreadyCompletedLater(date,ds,item.name))
+   found.push({...item,date,gap});
  }
  return found;
 }
@@ -1050,7 +1062,8 @@ function strengthSessionDates(){const dates=[];for(let i=0;i<localStorage.length
  for(let i=0;i<localStorage.length;i++){
   const key=localStorage.key(i);
   if(!key||!/^ckPartialWorkout-\d{4}-\d{2}-\d{2}$/.test(key))continue;
-  const date=key.slice("ckPartialWorkout-".length),p=readPartialWorkout(date);
+  const date=key.slice("ckPartialWorkout-".length);if(date>=localDate())continue;
+  const p=readPartialWorkout(date);
   if(p&&p.completed.length>=2&&p.completed.reduce((n,x)=>n+(+x.sets||0),0)>=5)dates.push(date);
  }
  return [...new Set(dates)].sort()}
