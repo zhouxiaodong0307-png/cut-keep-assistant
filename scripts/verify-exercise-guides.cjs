@@ -1072,7 +1072,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(!html.includes('if(![1,5].includes(index)||localStorage.getItem("ckTrain-"+ds)==="1"||storedRide(ds)||(typeof readMissedTraining==="function"&&readMissedTraining(ds)))return false;'))
   throw Error('Explicit missed cardio day could be falsely auto-passed');
  if(!html.includes('const missed=typeof readMissedTraining==="function"?readMissedTraining(ds):null;')||
-    !html.includes('const main=missed&&!completed?'))
+    !html.includes('missed&&!completed?"不算作训练完成'))
   throw Error('Missed completion incorrectly linked to nutrition or daily training');
  if(html.includes('localStorage.clear('))throw Error('Missed workout implementation must not wipe stored history');
  console.log('PASS: V78 work vs recovery absence, safe missed-cursor policy, nutrition and unchanged histories');
