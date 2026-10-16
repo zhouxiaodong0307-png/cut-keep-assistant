@@ -111,7 +111,7 @@ function env(initial={},account='owner@example.com',configured=true){
  await wait();
  await browser.app.login("login");
  assert.equal(browser.status().state,"review");
- assert.equal(browser.data.get("ckTrain-2026-10-16"),null);
+ assert.equal(browser.data.get("ckTrain-2026-10-16"),undefined);
  await browser.app.download();
  assert.equal(browser.reload,1);
  assert.equal(browser.data.get("ckTrain-2026-10-16"),"1");
