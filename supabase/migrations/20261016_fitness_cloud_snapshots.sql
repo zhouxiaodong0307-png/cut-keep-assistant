@@ -34,7 +34,7 @@ begin
   if uid is null then raise exception 'AUTH_REQUIRED' using errcode = '42501'; end if;
   if p_snapshot is null or jsonb_typeof(p_snapshot) <> 'object' or pg_column_size(p_snapshot) > 10485760
     then raise exception 'INVALID_SNAPSHOT' using errcode = '22023'; end if;
-  if jsonb_object_length(p_snapshot) > 2000
+  if (select count(*) from jsonb_object_keys(p_snapshot)) > 2000
     then raise exception 'TOO_MANY_KEYS' using errcode = '22023'; end if;
   for item in select key, value from jsonb_each(p_snapshot) loop
     if item.key !~ '^ck[A-Za-z0-9_-]{0,120}$' or
