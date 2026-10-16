@@ -46,7 +46,7 @@ assert.equal(actualSession.training.title,'已记录自主力量训练');
 assert(!html.includes('localStorage.clear('));
 assert(html.includes('onclick="syncIosWidget()"'));
 assert(html.includes('onclick="copyIosWidgetScript()"'));
-assert(html.includes('scriptable:///run/'));
+assert(html.includes('scriptable:///run?scriptName='));
 assert(!script.includes('new Request('));
 assert(!script.includes('fetch('));
 const operations=[];
