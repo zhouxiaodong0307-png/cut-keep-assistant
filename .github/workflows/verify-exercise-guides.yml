@@ -11,6 +11,7 @@ on:
       - cloud-config.js
       - supabase/**
       - scripts/verify-cloud-sync.cjs
+      - scripts/verify-cloud-live.cjs
       - widgets/**
       - .github/workflows/verify-exercise-guides.yml
   pull_request:
@@ -23,6 +24,7 @@ on:
       - cloud-config.js
       - supabase/**
       - scripts/verify-cloud-sync.cjs
+      - scripts/verify-cloud-live.cjs
       - widgets/**
       - .github/workflows/verify-exercise-guides.yml
 jobs:
@@ -39,3 +41,5 @@ jobs:
         run: node scripts/verify-ios-widget.cjs
       - name: Validate private account cloud sync and multi-device conflict prevention
         run: node scripts/verify-cloud-sync.cjs
+      - name: Verify real backend rejects anonymous health-data access
+        run: node scripts/verify-cloud-live.cjs
