@@ -153,7 +153,7 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
 
  assert(html.includes('widgets/cut-keep-scriptable.js?version=88'));
  assert(html.includes('复制新版脚本'));
- assert(html.includes('全选旧代码并粘贴覆盖'));
+ assert(html.includes('全选旧代码、粘贴覆盖并保存'));
  // V86: URLScheme must target the actual Scriptable script by name, not just open the app.
  assert(html.includes('id="iosWidgetScriptName"'));
  const linkCode=between('function iosWidgetRunUrl(name){','function saveWeight(){');
