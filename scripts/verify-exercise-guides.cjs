@@ -198,19 +198,19 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  }
  const rowSrc=sect('function exerciseHtml(a,i,interactive=false,scope="today"){','function completeAllExercises(){').slice(0,-'function completeAllExercises(){'.length);
  const row=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
-  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml',
+  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml','expandedCompletedExercises','partialWorkRow',
   rowSrc+'return exerciseHtml;')(
   {'杠铃卧推':true},{'杠铃卧推':{level:'good',next:45,key:'bench'}},'',()=> 'bench',()=>false,
-  {'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'' );
+  {'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'',new Set(),()=>true );
  const done=row('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
- if(!done.includes('exerciseRow isDone')||!done.includes('已完成 ✓')||
-   !done.includes('45 kg')||!done.includes('完成反馈')||!done.includes('合适')||
-   !done.includes('effortBtn active')||done.includes('finishedCompact'))
-  throw Error('Completed work set must retain original full V45 card and feedback');
+ if(!done.includes('exerciseRow isDone isCompact')||!done.includes('已完成 ✓')||
+   !done.includes('训练反馈 · 合适')||!done.includes('下次参考 45 kg')||
+   done.includes('effortBtn active')||done.includes('正式组 ·'))
+  throw Error('V90 completed work must be compact, retain feedback and truthful next weight');
  const active=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
-  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml',
+  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml','expandedCompletedExercises','partialWorkRow',
   rowSrc+'return exerciseHtml;')(
-  {},{},'',()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'' )
+  {},{},'',()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'',new Set(),()=>true )
   ('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
  if(active.includes('exerciseRow isDone')||!active.includes('>完成</button>')||
    active.includes('完成反馈'))throw Error('Unfinished training card changed');
@@ -231,7 +231,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   if(!html.includes('function '+fn+'('))throw Error('Core screen or training handler missing '+fn);
  }
  if(html.includes('localStorage.clear('))throw Error('Never clear user history');
- console.log('PASS: V45 completed UI restored, feedback retained, no unintended card redesign, four screens and training handlers.');
+ console.log('PASS: V90 compact completion, retained feedback, unchanged unfinished & weekly guide scopes.');
 }
 
 /* Cross-module invariant: manual load edits win over undo/recovery replay; pain status cannot claim full progression. */
