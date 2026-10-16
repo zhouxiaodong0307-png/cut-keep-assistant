@@ -29,12 +29,12 @@ function env(initial={},account='owner@example.com',configured=true){
  }
  elements.get("fitnessCloudEmail").value=account;
  elements.get("fitnessCloudPassword").value="safe-password";
- let reload=0,snapshots=0;
+ let reload=0,snapshots=0,failKey=null,failed=false;
  const localStorage={
   get length(){return data.size},
   key:i=>[...data.keys()][i]||null,
   getItem:k=>data.has(k)?data.get(k):null,
-  setItem:(k,v)=>data.set(k,String(v)),
+  setItem:(k,v)=>{if(k===failKey&&!failed){failed=true;throw Error('simulated quota error')}data.set(k,String(v))},
   removeItem:k=>data.delete(k)
  };
  const fetch=async(url,options={})=>{
@@ -84,7 +84,7 @@ function env(initial={},account='owner@example.com',configured=true){
  context.window.window=context.window;
  vm.runInNewContext(js,context,{filename:"cloud-sync.js"});
  return {app:context.window.FitnessCloudSync,data,messages,logs,elements,fetch,
-   get reload(){return reload},get snapshots(){return snapshots},
+   failOnce:k=>{failKey=k;failed=false},get reload(){return reload},get snapshots(){return snapshots},
    snapshot:()=>Object.fromEntries([...data].filter(([k])=>k.startsWith("ck")&&!k.startsWith("ckUpgradeBackup-"))),
    status:()=>context.window.FitnessCloudSync.status()};
 }
@@ -123,6 +123,17 @@ function env(initial={},account='owner@example.com',configured=true){
  assert(!Object.hasOwn(cloud.get("user-1").snapshot,"ckWidgetScriptName"));
  assert(!Object.hasOwn(cloud.get("user-1").snapshot,"fitnessCloudAuth-v1"));
  assert(phone.snapshots>=1,"Upload must take safety snapshot first");
+ const failedRestore=env({'ckMeals-2026-10-16':'[{"kcal":40}]'});
+ await wait();
+ await failedRestore.app.login("login");
+ assert.equal(failedRestore.status().state,"review");
+ failedRestore.failOnce("ckWeights");
+ await failedRestore.app.download();
+ assert.equal(failedRestore.reload,0,"A failed restore must not refresh a corrupted data set");
+ assert.equal(failedRestore.data.get("ckMeals-2026-10-16"),'[{"kcal":40}]',
+  "A mid-restore write failure must preserve the original calories");
+ assert.equal(failedRestore.data.get("ckWeights"),undefined,"A failed restore must not leave partial weight history");
+ assert(failedRestore.snapshots>=1,"Restore failure must preserve a safety snapshot");
  const browser=env({ckAppBuild:"V90"});
  await wait();
  await browser.app.login("login");
