@@ -98,11 +98,24 @@ function safety(){
  return id;
 }
 function applyCloud(data,rev){
- safety();
+ if(!data||typeof data!=="object"||Array.isArray(data)||!Number.isInteger(rev)||rev<1||
+   Object.entries(data).some(([k,v])=>!eligible(k)||typeof v!=="string"))
+  throw Error("云端记录格式校验失败，已拒绝恢复");
+ safety(); // Full original is captured before any mutation.
  const current=snapshot();
- // CK settings not in the sync set (widget-name, local backups) remain intact.
- for(const k of Object.keys(current))if(!Object.hasOwn(data,k))localStorage.removeItem(k);
- for(const [k,v] of Object.entries(data))if(eligible(k)&&typeof v==="string")localStorage.setItem(k,v);
+ try{
+  // CK settings not in the sync set (widget-name, local backups) remain intact.
+  for(const k of Object.keys(current))if(!Object.hasOwn(data,k))localStorage.removeItem(k);
+  for(const [k,v] of Object.entries(data))localStorage.setItem(k,v);
+ }catch(e){
+  // localStorage writes are not transactional: restore original in-memory
+  // records best-effort if a write ever fails; never mark cloud as adopted.
+  try{
+   for(const k of Object.keys(snapshot()))if(!Object.hasOwn(current,k))localStorage.removeItem(k);
+   for(const [k,v] of Object.entries(current))localStorage.setItem(k,v);
+  }catch(_){}
+  throw Error("恢复过程中本机存储写入失败，已停止并尝试回滚；恢复前安全快照仍保留");
+ }
  saveBaseline(rev,data);
  state="ready";lastSync=Date.now();show();
  location.reload(); // In-memory meals, training and weight must be reconstructed from new storage.
