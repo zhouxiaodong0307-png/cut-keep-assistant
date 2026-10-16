@@ -132,7 +132,7 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  const startLaunch=script.indexOf('function widgetLaunchUrl(parameter){'),endLaunch=script.indexOf('const isSync =',startLaunch);
  if(startLaunch<0||endLaunch<0)throw Error('V88 Scriptable launch function missing');
  const launchCode=script.slice(startLaunch,endLaunch);
- const widgetLaunch=new Function(launchCode+'return widgetLaunchUrl;')();
+ const widgetLaunch=new Function('appURL',launchCode+'return widgetLaunchUrl;')('https://cut-keep-assistant.onrender.com/');
  assert.equal(widgetLaunch(undefined),'https://cut-keep-assistant.onrender.com/');
  assert.equal(widgetLaunch(''),'https://cut-keep-assistant.onrender.com/');
  assert.equal(widgetLaunch('任意文字'),'https://cut-keep-assistant.onrender.com/');
