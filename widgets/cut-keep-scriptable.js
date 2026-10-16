@@ -99,7 +99,7 @@ if (!data) {
     data.weight.remaining < 0 ? "低于 "+fmt(Math.abs(data.weight.remaining),"kg") : "已达标";
   line(widget,status,21,true);
   widget.addSpacer();
-  const progress = data.training.kind === "strength" ?
+  const progress = data.training.actual ? "已记录自主训练" : data.training.kind === "strength" ?
     (data.training.done === null || data.training.total === null ? "训练 —" : "训练 "+data.training.done+"/"+data.training.total) :
     data.training.kind === "cardio" ? "有氧安排" : "恢复日";
   line(widget,progress,11,false,mutedColor);
@@ -108,7 +108,7 @@ if (!data) {
   const left=main.addStack();left.layoutVertically();left.spacing=5;
   line(left,"今日训练",11,false,mutedColor);
   const trainValue=data.training.kind==="strength"
-    ? (data.training.done===null||data.training.total===null?"尚无完成记录":data.training.done+" / "+data.training.total+" 动作")
+    ? (data.training.actual?"已记录自主训练":data.training.done===null||data.training.total===null?"尚无完成记录":data.training.done+" / "+data.training.total+" 动作")
     : data.training.kind==="cardio"?"有氧训练日":"恢复日";
   line(left,trainValue,19,true);
   line(left,data.training.title.slice(0,30)||"—",10,false,mutedColor);
