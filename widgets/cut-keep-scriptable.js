@@ -1,9 +1,17 @@
-// 减脂保肌小组件 · V87
+// 健身助手 · V88 小组件
 // 需要 Scriptable（iPhone / iPad）。仅在设备本地保存和显示网页中主动同步的数据。
-// 脚本名称必须设为「减脂保肌小组件」。
+// 保留手机中已有的 Scriptable 脚本名称；网页“同步小组件”的名称与其一致即可。
 const fm = FileManager.local();
 const path = fm.joinPath(fm.documentsDirectory(), "cut_keep_widget_v1.json");
 const appURL = "https://cut-keep-assistant.onrender.com/";
+// 普通网页链接无法保证在 iOS 启动已安装的主屏幕网页应用。
+// 可选：在 Scriptable 小组件的 Parameter 输入「快捷指令:健身助手」。
+// 用户需先自行创建同名快捷指令；若系统不能选中主屏网页应用，则保留默认网页模式。
+function widgetLaunchUrl(parameter){
+ const raw=String(parameter||"").trim();
+ const m=raw.match(/^(?:快捷指令|shortcut)\s*[:：]\s*(.{1,70})$/i);
+ return m?("shortcuts://run-shortcut?name="+encodeURIComponent(m[1].trim())):appURL;
+}
 const isSync = args.queryParameters && args.queryParameters.mode === "sync";
 const textColor = new Color("#1c1c1e");
 const mutedColor = new Color("#83838b");
@@ -58,12 +66,12 @@ if (isSync) {
   }
 }
 const stale = !!data && (data.date !== dateLocal(new Date()) || Date.now()-Date.parse(data.syncedAt) > 36*3600000);
-// V87 · 统一黑白灰、紧凑分栏，不使用会把内容顶到角落的弹性纵向留白。
+// V88 · 不插入弹性纵向留白；主指标区域使用弹性横向间隔撑满卡片。
 const family = config.widgetFamily || "medium";
 const small = family === "small";
 const widget = new ListWidget();
 widget.backgroundColor = white;
-widget.url = appURL;
+widget.url = widgetLaunchUrl(args.widgetParameter);
 widget.refreshAfterDate = new Date(Date.now()+45*60*1000);
 widget.setPadding(small?13:16,small?13:17,small?12:15,small?13:17);
 function line(parent,value,size,bold=false,color=textColor){
@@ -109,7 +117,7 @@ function dateText(d){
  return new Date(d).toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
 }
 const head=widget.addStack();head.layoutHorizontally();head.centerAlignContent();
-line(head,"减脂保肌",small?13:15,true);
+line(head,"健身助手",small?13:15,true);
 head.addSpacer();
 line(head,!data?"未同步":stale?"待更新":"已同步",small?9:10,false,stale?new Color("#977042"):mutedColor);
 widget.addSpacer(small?11:12);
@@ -130,7 +138,7 @@ if(!data){
  line(left,gapLabel(),small?10:11,false,mutedColor);
  line(left,gapText(),small?19:25,true);
  if(!small)line(left,latestInfo(),10,false,mutedColor);
- panel.addSpacer(small?9:22);
+ panel.addSpacer(); // flexible HORIZONTAL spacing stretches the shared KPI surface to the widget width
  const right=panel.addStack();right.layoutVertically();right.spacing=small?5:6;
  line(right,small?"今日训练":"训练进度",small?10:11,false,mutedColor);
  line(right,trainingText(),small?19:24,true);
@@ -153,7 +161,7 @@ if(!data){
  }
  widget.addSpacer(small?8:10);
  // 时间与数据状态明确，但不放单独的宽大底部卡片。
- line(widget,(stale?"请重新同步 · ":"更新于 ")+dateText(data.syncedAt),small?9:10,false,mutedColor);
+ line(widget,(stale?"待更新 · ":"更新 ")+dateText(data.syncedAt),small?9:10,false,mutedColor);
 }
 Script.setWidget(widget);
 if(!config.runsInWidget&&!isSync){

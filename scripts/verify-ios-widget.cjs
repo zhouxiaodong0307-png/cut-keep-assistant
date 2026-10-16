@@ -121,11 +121,39 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  // V87: assert old local snapshot schema and import are unchanged and both widget families use the compact 2-column surface.
  assert(script.includes('const path = fm.joinPath(fm.documentsDirectory(), "cut_keep_widget_v1.json")'));
  assert(script.includes('panel.backgroundColor=pale;panel.cornerRadius=small?13:15'));
- assert(script.includes('panel.addSpacer(small?9:22)'));
+ assert(script.includes('panel.addSpacer(); // flexible HORIZONTAL spacing'));
  assert(!script.includes('widget.addSpacer()'),'Unbounded vertical spacers waste home-screen widget area');
- assert(html.includes('widgets/cut-keep-scriptable.js?version=87'));
+ assert(script.includes('line(head,"健身助手"'));
+ assert(script.includes('widget.url = widgetLaunchUrl(args.widgetParameter);'));
+ assert(html.includes('<title>健身助手</title>'));
+ assert(html.includes('name="apple-mobile-web-app-title" content="健身助手"'));
+ assert(html.includes('a.download="健身助手完整备份_"'));
+ assert(html.includes('format:"cut-keep-assistant-backup"'),'Old backups remain valid after rename');
+ const startLaunch=script.indexOf('function widgetLaunchUrl(parameter){'),endLaunch=script.indexOf('const isSync =',startLaunch);
+ if(startLaunch<0||endLaunch<0)throw Error('V88 Scriptable launch function missing');
+ const launchCode=script.slice(startLaunch,endLaunch);
+ const widgetLaunch=new Function('appURL',launchCode+'return widgetLaunchUrl;')('https://cut-keep-assistant.onrender.com/');
+ assert.equal(widgetLaunch(undefined),'https://cut-keep-assistant.onrender.com/');
+ assert.equal(widgetLaunch(''),'https://cut-keep-assistant.onrender.com/');
+ assert.equal(widgetLaunch('任意文字'),'https://cut-keep-assistant.onrender.com/');
+ assert.equal(widgetLaunch('快捷指令:健身助手'),
+  'shortcuts://run-shortcut?name='+encodeURIComponent('健身助手'));
+ assert.equal(widgetLaunch('shortcut:健身助手'),
+  'shortcuts://run-shortcut?name='+encodeURIComponent('健身助手'));
+ assert(!widgetLaunch('快捷指令:健身助手').includes('weight'),'Deep link cannot transmit health information');
+ mock.args.widgetParameter='快捷指令:健身助手';
+ mock.config.widgetFamily='small';mock.config.runsInWidget=true;mock.args.queryParameters={};
+ await launcher(...Object.values(mock));
+ assert.equal(currentWidget.url,'shortcuts://run-shortcut?name='+encodeURIComponent('健身助手'));
+ assert(operations.includes('健身助手'));
+ mock.args.widgetParameter='';
+ await launcher(...Object.values(mock));
+ assert.equal(currentWidget.url,'https://cut-keep-assistant.onrender.com/');
+ assert(html.includes('不要为改名删除现有桌面应用'));
+
+ assert(html.includes('widgets/cut-keep-scriptable.js?version=88'));
  assert(html.includes('复制新版脚本'));
- assert(html.includes('全选旧代码并粘贴覆盖'));
+ assert(html.includes('全选旧代码、粘贴覆盖并保存'));
  // V86: URLScheme must target the actual Scriptable script by name, not just open the app.
  assert(html.includes('id="iosWidgetScriptName"'));
  const linkCode=between('function iosWidgetRunUrl(name){','function saveWeight(){');
@@ -161,5 +189,5 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  // Installed Scriptable V85 script receives mode=sync from queryParameters.
  assert(script.includes('args.queryParameters.mode === "sync"'));
  console.log('PASS: V86 configurable exact installed name, valid scriptable:///run?scriptName= URL, no false sync success, no personal-data query and no records changed');
- console.log('PASS: V87 compact Apple-style small/medium 2-column widget, bounded vertical spacing, legacy snapshot import, layout update flow, no network or record mutations');
+ console.log('PASS: V88 健身助手 names, full-width horizontal KPI panel, optional Shortcuts deep link, browser fallback, unchanged data/schema, compact small & medium layouts');
 })().catch(e=>{console.error(e);process.exitCode=1;});
