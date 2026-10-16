@@ -1,6 +1,6 @@
 // 健身助手 · V88 小组件
 // 需要 Scriptable（iPhone / iPad）。仅在设备本地保存和显示网页中主动同步的数据。
-// 脚本名称必须设为「减脂保肌小组件」。
+// 保留手机中已有的 Scriptable 脚本名称；网页“同步小组件”的名称与其一致即可。
 const fm = FileManager.local();
 const path = fm.joinPath(fm.documentsDirectory(), "cut_keep_widget_v1.json");
 const appURL = "https://cut-keep-assistant.onrender.com/";
