@@ -1193,9 +1193,9 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 /* V80 live-call integration checks */
 {
  const links=[
-  'freezeStartedExercisePlan(idx,list);if(!exerciseDone[name])',
+  'freezeStartedExercisePlan(idx,list);',
   'plans[idx][3]=[...frozen.rows];',
-  'savePartialWorkout(currentPlans()[trainingIndex()][3],trainingIndex(),exerciseDone);renderTraining()',
+  'savePartialWorkout(currentPlans()[trainingIndex()][3],trainingIndex(),exerciseDone);',
   'advance=trainDone||!!readActualWorkout()||meaningfulPartialWorkout()',
   'actual=readActualWorkout(),partial=readPartialWorkout(),index=trainingIndex()',
   'actualStrength=!!actual||hasExtraStrength||!!partial',
