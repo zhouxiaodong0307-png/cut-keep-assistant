@@ -9,7 +9,7 @@ create table if not exists public.fitness_sync_snapshots (
   constraint fitness_sync_snapshot_limit check (pg_column_size(snapshot) <= 10485760)
 );
 alter table public.fitness_sync_snapshots enable row level security;
-revoke all on public.fitness_sync_snapshots from anon;
+revoke all on public.fitness_sync_snapshots from public, anon, authenticated;
 grant select on public.fitness_sync_snapshots to authenticated;
 -- All writes must go through the CAS function, never direct REST UPDATE/INSERT.
 revoke insert,update,delete on public.fitness_sync_snapshots from authenticated;
