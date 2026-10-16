@@ -7,6 +7,11 @@ on:
       - assets/**
       - scripts/verify-exercise-guides.cjs
       - scripts/verify-ios-widget.cjs
+      - cloud-sync.js
+      - cloud-config.js
+      - supabase/**
+      - scripts/verify-cloud-sync.cjs
+      - scripts/verify-cloud-live.cjs
       - widgets/**
       - .github/workflows/verify-exercise-guides.yml
   pull_request:
@@ -15,6 +20,11 @@ on:
       - assets/**
       - scripts/verify-exercise-guides.cjs
       - scripts/verify-ios-widget.cjs
+      - cloud-sync.js
+      - cloud-config.js
+      - supabase/**
+      - scripts/verify-cloud-sync.cjs
+      - scripts/verify-cloud-live.cjs
       - widgets/**
       - .github/workflows/verify-exercise-guides.yml
 jobs:
@@ -29,3 +39,7 @@ jobs:
         run: node scripts/verify-exercise-guides.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
+      - name: Validate private account cloud sync and multi-device conflict prevention
+        run: node scripts/verify-cloud-sync.cjs
+      - name: Verify real backend rejects anonymous health-data access
+        run: node scripts/verify-cloud-live.cjs
