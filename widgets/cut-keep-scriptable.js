@@ -1,4 +1,4 @@
-// 减脂保肌小组件 · V85
+// 减脂保肌小组件 · V87
 // 需要 Scriptable（iPhone / iPad）。仅在设备本地保存和显示网页中主动同步的数据。
 // 脚本名称必须设为「减脂保肌小组件」。
 const fm = FileManager.local();
@@ -58,81 +58,106 @@ if (isSync) {
   }
 }
 const stale = !!data && (data.date !== dateLocal(new Date()) || Date.now()-Date.parse(data.syncedAt) > 36*3600000);
+// V87 · 统一黑白灰、紧凑分栏，不使用会把内容顶到角落的弹性纵向留白。
 const family = config.widgetFamily || "medium";
 const small = family === "small";
 const widget = new ListWidget();
-widget.backgroundColor=white;
-widget.setPadding(small?13:17,small?13:18,small?13:17,small?13:18);
-widget.url=appURL;
-widget.refreshAfterDate=new Date(Date.now()+45*60*1000);
-function line(parent,t,size,bold=false,color=textColor) {
- const a=parent.addText(String(t));
- a.font=bold?Font.boldSystemFont(size):Font.systemFont(size);
- a.textColor=color;
- a.lineLimit=1;
- a.minimumScaleFactor=.72;
- return a;
+widget.backgroundColor = white;
+widget.url = appURL;
+widget.refreshAfterDate = new Date(Date.now()+45*60*1000);
+widget.setPadding(small?13:16,small?13:17,small?12:15,small?13:17);
+function line(parent,value,size,bold=false,color=textColor){
+ const item=parent.addText(String(value));
+ item.font=bold?Font.boldSystemFont(size):Font.systemFont(size);
+ item.textColor=color;
+ item.lineLimit=1;
+ item.minimumScaleFactor=.77;
+ return item;
 }
-function cell(parent,label,value,accent=false) {
- const b=parent.addStack(); b.layoutVertically(); b.spacing=4;
- line(b,label,small?10:11,false,mutedColor);
- line(b,value,small?16:20,true,accent?new Color("#315f88"):textColor);
- return b;
+function fmt(v,unit){return isNum(v)?Number(v).toFixed(1)+(unit?" "+unit:""):"—";}
+function num(v){return isNum(v)?String(Math.round(v)):"—";}
+function gapLabel(){
+ if(!data||data.weight.remaining===null)return "距目标";
+ return data.weight.remaining<0?"低于目标":data.weight.remaining===0?"目标体重":"距目标";
 }
-function dash(v,suffix="") { return v === null || v === undefined ? "—" : String(v)+suffix; }
-function fmt(v,unit) { return isNum(v)?v.toFixed(1)+" "+unit:"—"; }
-const top=widget.addStack();top.layoutHorizontally();top.centerAlignContent();
-line(top,"减脂保肌",small?12:14,true);
-top.addSpacer();
-line(top,!data?"未同步":stale?"待更新":"已同步",10,false,stale?new Color("#b77936"):mutedColor);
-widget.addSpacer(small?13:17);
-if (!data) {
-  line(widget,"请从网页同步",small?13:18,true);
-  widget.addSpacer(5);
-  line(widget,"进度 → 数据安全 → iOS 小组件",10,false,mutedColor);
-  widget.addSpacer();
-} else if (small) {
-  line(widget,"距离目标体重",11,false,mutedColor);
-  widget.addSpacer(5);
-  const status = data.weight.remaining === null ? "—" :
-    data.weight.remaining > 0 ? fmt(data.weight.remaining,"kg") :
-    data.weight.remaining < 0 ? "低于 "+fmt(Math.abs(data.weight.remaining),"kg") : "已达标";
-  line(widget,status,21,true);
-  widget.addSpacer();
-  const progress = data.training.actual ? "已记录自主训练" : data.training.kind === "strength" ?
-    (data.training.done === null || data.training.total === null ? "训练 —" : "训练 "+data.training.done+"/"+data.training.total) :
-    data.training.kind === "cardio" ? "有氧安排" : "恢复日";
-  line(widget,progress,11,false,mutedColor);
-} else {
-  const main=widget.addStack();main.layoutHorizontally();main.spacing=12;
-  const left=main.addStack();left.layoutVertically();left.spacing=5;
-  line(left,"今日训练",11,false,mutedColor);
-  const trainValue=data.training.kind==="strength"
-    ? (data.training.actual?"已记录自主训练":data.training.done===null||data.training.total===null?"尚无完成记录":data.training.done+" / "+data.training.total+" 动作")
-    : data.training.kind==="cardio"?"有氧训练日":"恢复日";
-  line(left,trainValue,19,true);
-  line(left,data.training.title.slice(0,30)||"—",10,false,mutedColor);
-  main.addSpacer();
-  const right=main.addStack();right.layoutVertically();right.spacing=5;
-  line(right,"体重距目标",11,false,mutedColor);
-  const diff=data.weight.remaining;
-  const gap=diff===null?"—":diff>0?fmt(diff,"kg"):diff<0?"低于 "+fmt(Math.abs(diff),"kg"):"已达标";
-  line(right,gap,19,true);
-  line(right,"最近 "+fmt(data.weight.latest,"kg")+" · 目标 "+fmt(data.weight.goal,"kg"),10,false,mutedColor);
-  widget.addSpacer(13);
-  const bottom=widget.addStack();bottom.layoutHorizontally();bottom.spacing=12;
-  const a=bottom.addStack();a.layoutVertically();a.spacing=4;
-  line(a,"已摄入 / 今日目标",10,false,mutedColor);
-  line(a,dash(data.nutrition.kcal)+" / "+dash(data.nutrition.kcalGoal)+" kcal",15,true);
-  bottom.addSpacer();
-  const b=bottom.addStack();b.layoutVertically();b.spacing=4;
-  line(b,"蛋白质",10,false,mutedColor);
-  line(b,data.nutrition.protein===null?"未确认":dash(data.nutrition.protein)+" / "+dash(data.nutrition.proteinGoal)+" g",15,true);
+function gapText(){
+ if(!data||data.weight.remaining===null)return "—";
+ return data.weight.remaining===0?"已达标":fmt(Math.abs(data.weight.remaining),"kg");
 }
-widget.addSpacer(6);
-line(widget,data?"更新于 "+new Date(data.syncedAt).toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})+(stale?" · 请再次同步":""):"点击小组件打开应用",9,false,mutedColor);
+function trainingText(){
+ if(!data)return "—";
+ const t=data.training;
+ if(t.kind==="strength"){
+  if(t.actual)return "已记录";
+  return t.done===null||t.total===null?"—":t.done+"/"+t.total;
+ }
+ return t.kind==="cardio"?"有氧日":"恢复日";
+}
+function latestInfo(){
+ if(!data)return "尚无体重记录";
+ return "当前 "+fmt(data.weight.latest,"kg")+" · 目标 "+fmt(data.weight.goal,"kg");
+}
+function recordedKcal(){
+ if(!data||data.nutrition.kcal===null)return "未记录";
+ return num(data.nutrition.kcal)+" / "+num(data.nutrition.kcalGoal)+" kcal";
+}
+function recordedProtein(){
+ if(!data||data.nutrition.protein===null)return "未确认";
+ return num(data.nutrition.protein)+" / "+num(data.nutrition.proteinGoal)+" g";
+}
+function dateText(d){
+ return new Date(d).toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+const head=widget.addStack();head.layoutHorizontally();head.centerAlignContent();
+line(head,"减脂保肌",small?13:15,true);
+head.addSpacer();
+line(head,!data?"未同步":stale?"待更新":"已同步",small?9:10,false,stale?new Color("#977042"):mutedColor);
+widget.addSpacer(small?11:12);
+if(!data){
+ const empty=widget.addStack();empty.layoutVertically();empty.spacing=7;
+ empty.backgroundColor=pale;empty.cornerRadius=13;
+ empty.setPadding(13,12,13,12);
+ line(empty,"还没有同步数据",small?13:16,true);
+ line(empty,"打开网页 → 进度 → 同步小组件",small?10:12,false,mutedColor);
+ widget.addSpacer(12);
+ line(widget,"点击小组件打开应用",small?9:10,false,mutedColor);
+}else{
+ // 主信息全部放到同一灰底模块，减少重复标签和浪费的垂直空间。
+ const panel=widget.addStack();panel.layoutHorizontally();
+ panel.backgroundColor=pale;panel.cornerRadius=small?13:15;
+ panel.setPadding(small?11:14,small?10:15,small?10:13,small?10:15);
+ const left=panel.addStack();left.layoutVertically();left.spacing=small?5:6;
+ line(left,gapLabel(),small?10:11,false,mutedColor);
+ line(left,gapText(),small?19:25,true);
+ if(!small)line(left,latestInfo(),10,false,mutedColor);
+ panel.addSpacer(small?9:22);
+ const right=panel.addStack();right.layoutVertically();right.spacing=small?5:6;
+ line(right,small?"今日训练":"训练进度",small?10:11,false,mutedColor);
+ line(right,trainingText(),small?19:24,true);
+ if(!small)line(right,data.training.title.slice(0,18)||"—",10,false,mutedColor);
+ widget.addSpacer(small?10:12);
+ if(small){
+  const kcal=widget.addStack();kcal.layoutHorizontally();kcal.centerAlignContent();
+  line(kcal,"热量",10,false,mutedColor);
+  kcal.addSpacer();
+  line(kcal,recordedKcal(),11,true);
+ }else{
+  const nutrition=widget.addStack();nutrition.layoutHorizontally();nutrition.centerAlignContent();
+  const kcal=nutrition.addStack();kcal.layoutVertically();kcal.spacing=4;
+  line(kcal,"热量 · kcal",10,false,mutedColor);
+  line(kcal,recordedKcal(),14,true);
+  nutrition.addSpacer(15);
+  const protein=nutrition.addStack();protein.layoutVertically();protein.spacing=4;
+  line(protein,"蛋白质",10,false,mutedColor);
+  line(protein,recordedProtein(),14,true);
+ }
+ widget.addSpacer(small?8:10);
+ // 时间与数据状态明确，但不放单独的宽大底部卡片。
+ line(widget,(stale?"请重新同步 · ":"更新于 ")+dateText(data.syncedAt),small?9:10,false,mutedColor);
+}
 Script.setWidget(widget);
-if (!config.runsInWidget && !isSync) {
- if (small) await widget.presentSmall(); else await widget.presentMedium();
+if(!config.runsInWidget&&!isSync){
+ if(small)await widget.presentSmall();
+ else await widget.presentMedium();
 }
 Script.complete();

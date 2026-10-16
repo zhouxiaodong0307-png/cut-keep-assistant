@@ -53,13 +53,13 @@ const operations=[];
 function stack(){
  return {layoutHorizontally(){},layoutVertically(){},centerAlignContent(){},spacing:0,
   addText(t){operations.push(String(t));return {textColor:null,font:null,lineLimit:0,minimumScaleFactor:0};},
-  addStack:stack,addSpacer(){}};
+  addStack:stack,addSpacer(){},setPadding(){}};
 }
 class ListWidget{
- constructor(){this.url=null;}
+ constructor(){this.url=null;this.verticalSpacers=[];}
  setPadding(){}
  addStack(){return stack();}
- addSpacer(){}
+ addSpacer(n){this.verticalSpacers.push(n);}
  addText(t){operations.push(String(t));return {textColor:null,font:null,lineLimit:0,minimumScaleFactor:0};}
  async presentMedium(){}
  async presentSmall(){}
@@ -92,7 +92,19 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  mock.config.runsInWidget=true;mock.config.widgetFamily='small';mock.args.queryParameters={};
  await launcher(...Object.values(mock));
  assert(operations.includes('7.2 kg'));
- assert(operations.some(x=>x.includes('训练 2/3')));
+ assert(operations.includes('2/3'));
+ assert(operations.includes('热量'));
+ assert(operations.some(x=>x.includes('650 / 2100 kcal')));
+ assert(currentWidget.verticalSpacers.length>=2&&currentWidget.verticalSpacers.every(x=>Number.isFinite(x)&&x>0),'V87 small widget must not use flexible vertical spacers creating blank area');
+ operations.length=0;
+ mock.config.widgetFamily='medium';
+ await launcher(...Object.values(mock));
+ assert(operations.includes('训练进度')&&operations.includes('2/3'));
+ assert(operations.includes('热量 · kcal'));
+ assert(operations.includes('蛋白质'));
+ assert(operations.some(x=>x.includes('45 / 150 g')));
+ assert(currentWidget.verticalSpacers.every(x=>Number.isFinite(x)&&x>0),'V87 medium layout must not use flexible vertical spacers');
+ mock.config.widgetFamily='small';
  operations.length=0;
  clipboard=JSON.stringify({...snap,syncedAt:'2000-01-01T00:00:00.000Z',weight:{latest:65,goal:70,remaining:-5}});
  mock.config.runsInWidget=false;mock.args.queryParameters={mode:'sync'};
@@ -105,7 +117,15 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  operations.length=0;
  saved=null;mock.config.runsInWidget=true;mock.config.widgetFamily='medium';mock.args.queryParameters={};
  await launcher(...Object.values(mock));
- assert(operations.includes('请从网页同步'));
+ assert(operations.includes('还没有同步数据'));
+ // V87: assert old local snapshot schema and import are unchanged and both widget families use the compact 2-column surface.
+ assert(script.includes('const path = fm.joinPath(fm.documentsDirectory(), "cut_keep_widget_v1.json")'));
+ assert(script.includes('panel.backgroundColor=pale;panel.cornerRadius=small?13:15'));
+ assert(script.includes('panel.addSpacer(small?9:22)'));
+ assert(!script.includes('widget.addSpacer()'),'Unbounded vertical spacers waste home-screen widget area');
+ assert(html.includes('widgets/cut-keep-scriptable.js?version=87'));
+ assert(html.includes('复制新版脚本'));
+ assert(html.includes('全选旧代码并粘贴覆盖'));
  // V86: URLScheme must target the actual Scriptable script by name, not just open the app.
  assert(html.includes('id="iosWidgetScriptName"'));
  const linkCode=between('function iosWidgetRunUrl(name){','function saveWeight(){');
@@ -141,5 +161,5 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  // Installed Scriptable V85 script receives mode=sync from queryParameters.
  assert(script.includes('args.queryParameters.mode === "sync"'));
  console.log('PASS: V86 configurable exact installed name, valid scriptable:///run?scriptName= URL, no false sync success, no personal-data query and no records changed');
- console.log('PASS: V85 Scriptable widget: actual records, missing data, weight goal, protein, clipboard import, secure stale/invalid guard, small/medium/no-sync rendering, no network and no history mutation');
+ console.log('PASS: V87 compact Apple-style small/medium 2-column widget, bounded vertical spacing, legacy snapshot import, layout update flow, no network or record mutations');
 })().catch(e=>{console.error(e);process.exitCode=1;});
