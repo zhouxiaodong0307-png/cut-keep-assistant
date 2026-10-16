@@ -32,9 +32,10 @@ function show(){
  if(!enabled)setMessage("安全云同步尚未配置。原有本机记录和小组件照常使用。");
  else if(state==="checking")setMessage("正在核对本机与云端记录，暂不修改任何历史数据…");
  else if(state==="ready")setMessage("已连接云端 · 自动同步中"+(lastSync?" · 最近 "+new Date(lastSync).toLocaleTimeString():""));
- else if(state==="review")setMessage(lastError==="conflict"?"检测到两处设备数据冲突，已暂停自动同步。请先备份并确认采用哪份记录。":
+ else if(state==="review")setMessage(lastError&&lastError!=="conflict"?"同步操作失败："+lastError:lastError==="conflict"?"检测到两处设备数据冲突，已暂停自动同步。请先备份并确认采用哪份记录。":
   revision>0?"云端已有记录，本机也有不同数据；为保护历史记录，需要选择数据来源。":"云端尚无记录，请先从保存真实数据的桌面版上传。");
- else if(state==="auth")setMessage("使用相同账号登录桌面版与浏览器版，先在有真实记录的桌面版上传。");
+ else if(state==="auth")setMessage(lastError?"登录失败："+lastError:"使用相同账号登录桌面版与浏览器版，先在有真实记录的桌面版上传。");
+ else if(state==="pendingVerification")setMessage("注册已提交，请检查邮箱并完成验证，随后返回健身助手登录。不会自动上传或清除本机记录。");
  else if(state==="error")setMessage("连接暂时中断，未覆盖本机数据："+lastError);
 }
 async function request(path,{method="GET",body=null,token=null}={}){
@@ -72,10 +73,7 @@ async function refreshAuth(){
 }
 async function authCall(route,body){
  const data=await request(route,{method:"POST",body});
- if(!data.access_token){
-  setMessage("注册已提交。请先查看邮箱中的确认邮件，再返回这里登录；本机记录不会上传或清除。");
-  return false;
- }
+ if(!data.access_token)return false;
  session={id:data.user.id,email:data.user.email,access:data.access_token,refresh:data.refresh_token,
   expires:Date.now()+(data.expires_in||3600)*1000};
  storeSession();return true;
@@ -165,8 +163,9 @@ async function login(kind){
   const ok=await authCall(kind==="register"?"/auth/v1/signup":"/auth/v1/token?grant_type=password",
    kind==="register"?{email,password,options:{email_redirect_to:location.origin+"/"}}:{email,password});
   if($("fitnessCloudPassword"))$("fitnessCloudPassword").value="";
-  if(ok){state="auth";await connect();}
- }catch(e){state="auth";setMessage("登录失败："+errorMessage(e))}
+  if(ok){lastError="";state="auth";await connect();}
+  else{state="pendingVerification";lastError="";}
+ }catch(e){state="auth";lastError=errorMessage(e)}
  finally{busy=false;show()}
 }
 async function upload(){
