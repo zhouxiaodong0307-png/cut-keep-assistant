@@ -117,7 +117,7 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  operations.length=0;
  saved=null;mock.config.runsInWidget=true;mock.config.widgetFamily='medium';mock.args.queryParameters={};
  await launcher(...Object.values(mock));
- assert(operations.includes('请从网页同步'));
+ assert(operations.includes('还没有同步数据'));
  // V87: assert old local snapshot schema and import are unchanged and both widget families use the compact 2-column surface.
  assert(script.includes('const path = fm.joinPath(fm.documentsDirectory(), "cut_keep_widget_v1.json")'));
  assert(script.includes('panel.backgroundColor=pale;panel.cornerRadius=small?13:15'));
