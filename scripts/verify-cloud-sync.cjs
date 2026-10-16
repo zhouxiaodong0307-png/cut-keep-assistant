@@ -138,7 +138,7 @@ function env(initial={},account='owner@example.com',configured=true){
  assert.equal(rival.status().state,"review","Conflicting device must pause");
  assert.equal(cloud.get("user-1").snapshot.ckWeights,'[{"date":"2026-10-16","weight":77.0}]');
  assert.equal(rival.data.get("ckWeights"),'[{"date":"2026-10-16","weight":76.9}]');
- assert.equal(rival.reload,0);
+ assert.equal(rival.reload,1,"The device previously adopted a remote-only newer revision before making its own edit");
  assert.equal(rival.data.get("ckTrain-2026-10-16"),"1");
  // Sign-out is local and must not clear training data.
  await rival.app.logout();
