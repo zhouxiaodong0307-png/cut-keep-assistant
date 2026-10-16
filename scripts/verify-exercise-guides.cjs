@@ -1425,7 +1425,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  expanded.add('死虫');
  const full=renderer('死虫｜3组 × 每侧10–12次｜自重｜休45秒',3,true);
  if(full.includes('isCompact')||!full.includes('收起死虫详细内容')||
-    !full.includes('自重动作不推算重量')||!full.includes('调整参考'))
+    !full.includes('自重动作不推算重量')||!full.includes('3组 × 每侧10–12次'))
   throw Error('V90 bodyweight manually expanded card lost full details');
  const pending=renderer('中立握高位下拉｜3组 × 8–12次｜推荐重量：30 器械 kg｜休90秒',5,false,'week');
  if(pending.includes('isCompact')||pending.includes('完成反馈'))
