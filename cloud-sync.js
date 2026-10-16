@@ -1,4 +1,4 @@
-/* 健身助手 V91 · optional cloud sync. No writes until verified login and explicit initial pairing.
+/* 健身助手 V92 · optional cloud sync. No writes until verified login and explicit initial pairing.
    Supabase Auth JWT + RLS + atomic revision CAS; each device keeps own local records. */
 (function(){
 "use strict";
@@ -7,7 +7,7 @@ const enabled=typeof cfg.url==="string"&&/^https:\/\/[a-z0-9-]+\.supabase\.co$/.
  typeof cfg.anonKey==="string"&&cfg.anonKey.length>=16;
 const SESSION="fitnessCloudAuth-v1",BASE="fitnessCloudBaseline-v1:",URL=enabled?cfg.url:"",KEY=enabled?cfg.anonKey:"";
 const OMIT=new Set(["ckAppBuild","ckWeeklyReportLogicVersion","ckLastManualBackup","ckLastRestoreAt","ckWidgetScriptName"]);
-let session=null,revision=0,baseline=null,state="disabled",busy=false,alarm=null, lastError="",lastSync=0;
+let session=null,revision=0,baseline=null,state="disabled",busy=false,alarm=null, lastError="",lastErrorCode="",lastSync=0;
 const $=id=>document.getElementById(id);
 function eligible(k){return /^ck[A-Za-z0-9_-]{0,120}$/.test(k)&&!k.startsWith("ckUpgradeBackup-")&&!OMIT.has(k)}
 function snapshot(){
@@ -35,7 +35,8 @@ function show(){
  else if(state==="review")setMessage(lastError&&lastError!=="conflict"?"同步操作失败："+lastError:lastError==="conflict"?"检测到两处设备数据冲突，已暂停自动同步。请先备份并确认采用哪份记录。":
   revision>0?"云端已有记录，本机也有不同数据；为保护历史记录，需要选择数据来源。":"云端尚无记录，请先从保存真实数据的桌面版上传。");
  else if(state==="auth")setMessage(lastError?"登录失败："+lastError:"使用相同账号登录桌面版与浏览器版，先在有真实记录的桌面版上传。");
- else if(state==="pendingVerification")setMessage("注册已提交，请检查邮箱并完成验证，随后返回健身助手登录。不会自动上传或清除本机记录。");
+ else if(state==="pendingVerification")setMessage("注册已提交，确认邮件已申请发送。请检查收件箱及垃圾邮件，验证后返回登录；不要反复点击注册。");
+ else if(state==="resendDone")setMessage("已申请重新发送验证邮件。请稍后检查收件箱和垃圾邮件；频繁发送会受到限制。");
  else if(state==="error")setMessage("连接暂时中断，未覆盖本机数据："+lastError);
 }
 async function request(path,{method="GET",body=null,token=null}={}){
@@ -45,10 +46,20 @@ async function request(path,{method="GET",body=null,token=null}={}){
  const res=await fetch(URL+path,{method,headers,body:body===null?undefined:JSON.stringify(body),cache:"no-store"});
  let parsed=null;try{parsed=await res.json()}catch(_){}
  if(!res.ok){
-  const msg=String(parsed?.message||parsed?.error_description||parsed?.error||parsed?.hint||"网络或授权错误");
-  const e=new Error(msg.slice(0,200));e.code=parsed?.code||"";e.status=res.status;throw e;
+  const code=String(parsed?.code||parsed?.error_code||"");
+  const raw=String(parsed?.message||parsed?.msg||parsed?.error_description||parsed?.error||parsed?.hint||"");
+  const msg=authErrorMessage(code,raw,res.status);
+  const e=new Error(msg.slice(0,200));e.code=code;e.status=res.status;throw e;
  }
  return parsed;
+}
+function authErrorMessage(code,raw,status){
+ if(code==="email_not_confirmed"||/email not confirmed|email not verified/i.test(raw))return "邮箱还没有完成验证，请检查确认邮件（含垃圾邮件），验证后再登录。";
+ if(code==="invalid_credentials"||/invalid login credentials/i.test(raw))return "邮箱或密码不正确。若刚注册，请先完成邮箱验证；不要重复注册。";
+ if(code==="over_email_send_rate_limit"||code==="email_rate_limit_exceeded"||status===429)return "请求过于频繁，邮件发送暂时受限。请等待一段时间，查看之前收到的验证邮件，勿连续重试。";
+ if(code==="email_exists"||/already registered/i.test(raw))return "此邮箱已经注册。请返回登录，或先完成邮件验证。";
+ if(status===401||status===403)return raw||"账号尚未通过验证或授权，请检查邮箱和登录信息。";
+ return raw||("服务器返回 HTTP "+status+"，暂时无法登录，请稍后重试。");
 }
 function storeSession(){try{if(session)localStorage.setItem(SESSION,JSON.stringify(session));else localStorage.removeItem(SESSION)}catch(_){}}
 function loadBaseline(){
@@ -173,13 +184,33 @@ async function login(kind){
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<8)return setMessage("请输入有效邮箱及至少 8 位密码。");
  busy=true;state="checking";show();
  try{
-  const ok=await authCall(kind==="register"?"/auth/v1/signup":"/auth/v1/token?grant_type=password",
-   kind==="register"?{email,password,options:{email_redirect_to:location.origin+"/"}}:{email,password});
+  const signupPath="/auth/v1/signup?redirect_to="+encodeURIComponent(location.origin+"/");
+  const ok=await authCall(kind==="register"?signupPath:"/auth/v1/token?grant_type=password",{email,password});
   if($("fitnessCloudPassword"))$("fitnessCloudPassword").value="";
-  if(ok){lastError="";state="auth";await connect();}
-  else{state="pendingVerification";lastError="";}
- }catch(e){state="auth";lastError=errorMessage(e)}
+  if(ok){lastError="";lastErrorCode="";state="auth";await connect();}
+  else{state="pendingVerification";lastError="";lastErrorCode="";}
+ }catch(e){state="auth";lastError=errorMessage(e);lastErrorCode=String(e.code||"")}
  finally{busy=false;show()}
+}
+/* Only a real click can request resend. Throttle across refreshes/devices locally,
+   and let Supabase's server-side rate limit apply as well. No change to ck* data. */
+async function resendVerification(){
+ if(!enabled||busy)return;
+ const email=String($("fitnessCloudEmail")?.value||"").trim();
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return setMessage("请填写注册时使用的邮箱。");
+ const key="fitnessCloudEmailResendAt";
+ let previous=0;try{previous=Number(localStorage.getItem(key)||0)}catch(_){}
+ const diff=Date.now()-previous;
+ if(previous&&diff<90000)return setMessage("已发送过验证请求，请等待约 "+Math.ceil((90000-diff)/1000)+" 秒再尝试，优先检查邮件。");
+ busy=true;state="checking";show();
+ try{
+  await request("/auth/v1/resend?redirect_to="+encodeURIComponent(location.origin+"/"),
+   {method:"POST",body:{type:"signup",email}});
+  try{localStorage.setItem(key,String(Date.now()))}catch(_){}
+  state="resendDone";lastError="";lastErrorCode="";
+ }catch(e){
+  state="auth";lastError=errorMessage(e);lastErrorCode=String(e.code||"");
+ }finally{busy=false;show()}
 }
 async function upload(){
  if(!session||busy||state!=="review")return;
@@ -226,7 +257,7 @@ async function initial(){
  alarm=setInterval(()=>{if(state==="ready")void tick();else if(state==="error")void retry()},12000);
  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state==="ready")void tick()});
 }
-window.FitnessCloudSync={login,upload,download,logout,retry,enabled,
+window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,enabled,
  status:()=>({state,revision,lastError,lastSync})};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{void initial()});
 else void initial();
