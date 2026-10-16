@@ -15,7 +15,7 @@ const runSnapshot=new Function('localDate','trainingIndex','currentPlans','planK
  snapshotCode+'return createIosWidgetSnapshot();');
 const ds=()=> '2026-10-16';
 const plan=[[0,'力量训练A','50分钟',['热身｜5分钟','器械推胸｜3组 × 12次','坐姿划船｜3组 × 12次']]];
-const make=(extras={})=>runSnapshot(ds,()=>0,()=>plan,()=> 'strength',()=>null,false,
+const make=(extras={})=>runSnapshot(ds,()=>0,()=>plan,()=> 'strength',()=>extras.actual||null,false,
  extras.done||{'热身':true,'器械推胸':true},
  x=>x.split('｜')[0],
  extras.weights||[{date:'2026-10-15',weight:77.2},{date:'2026-10-12',weight:77.8}],
@@ -38,6 +38,11 @@ assert.equal(make({meals:[]}).nutrition.kcal,null);
 assert.equal(make({meals:[]}).nutrition.protein,null);
 assert.equal(make({weights:[{date:'2026-10-17',weight:72}]}).weight.latest,null);
 assert.equal(make({done:{}}).training.done,0);
+const actualSession=make({actual:{exercises:[{name:'杠铃卧推',sets:3}]}});
+assert.equal(actualSession.training.actual,true);
+assert.equal(actualSession.training.done,null);
+assert.equal(actualSession.training.total,null);
+assert.equal(actualSession.training.title,'已记录自主力量训练');
 assert(!html.includes('localStorage.clear('));
 assert(html.includes('onclick="syncIosWidget()"'));
 assert(html.includes('onclick="copyIosWidgetScript()"'));
