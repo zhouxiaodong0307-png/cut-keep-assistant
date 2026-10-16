@@ -16,7 +16,7 @@ assert(sql.includes('revoke insert,update,delete')&&sql.includes('security defin
 assert(sql.includes('p_expected')&&sql.includes('where user_id=uid and revision=p_expected'));
 assert(!sql.includes('service_role')&&!js.includes('SUPABASE_SERVICE_ROLE_KEY'));
 const cloud=new Map();
-const accounts=new Map([['owner@example.com',{id:'user-1',email:'owner@example.com',password:'safe-password'}]]);
+const accounts=new Map([['owner@example.com',{id:'user-1',email:'owner@example.com',password:'safe-password'}],['unverified@example.com',{id:'user-2',email:'unverified@example.com',password:'safe-password',unverified:true}]]);
 const calls=[];
 let clock=1000;
 const wait=()=>new Promise(r=>setImmediate(r));
@@ -45,7 +45,8 @@ function env(initial={},account='owner@example.com',configured=true){
   if(endpoint.pathname==="/auth/v1/token"){
    if(endpoint.searchParams.get("grant_type")==="password"){
     const user=accounts.get(body.email);
-    if(!user||user.password!==body.password)return response(400,{error:"Invalid login credentials"});
+    if(!user||user.password!==body.password)return response(400,{code:'invalid_credentials',msg:'Invalid login credentials'});
+    if(user.unverified)return response(400,{code:'email_not_confirmed',msg:'Email not confirmed'});
     return response(200,{access_token:"token-"+user.id,refresh_token:"refresh-"+user.id,expires_in:3600,user});
    }
    if(endpoint.searchParams.get("grant_type")==="refresh_token"){
@@ -55,6 +56,7 @@ function env(initial={},account='owner@example.com',configured=true){
    }
   }
   if(endpoint.pathname==="/auth/v1/signup")return response(200,{user:{id:'pending',email:body.email}});
+  if(endpoint.pathname==="/auth/v1/resend")return response(200,{message:"confirmation sent"});
   const token=options.headers?.Authorization||"";
   const userId=token.startsWith("Bearer token-")?token.slice("Bearer token-".length):null;
   if(!userId)return response(401,{error:"Not authenticated"});
@@ -79,7 +81,7 @@ function env(initial={},account='owner@example.com',configured=true){
  const context={window:{FITNESS_CLOUD_CONFIG:configured?{url:"https://test123.supabase.co",anonKey:"sb_publishable_testing_key"}:{}},
   document:doc,localStorage,fetch,console,
   Date:class FakeDate extends Date{static now(){return clock}},
-  structuredClone,location:{reload:()=>reload++},confirm:()=>true,setInterval:()=>-1,
+  structuredClone,location:{origin:'https://cut-keep-assistant.onrender.com',reload:()=>reload++},confirm:()=>true,setInterval:()=>-1,
   createSafetySnapshot:()=>{snapshots++;return"backup-"+snapshots}};
  context.window.window=context.window;
  vm.runInNewContext(js,context,{filename:"cloud-sync.js"});
@@ -101,6 +103,7 @@ function env(initial={},account='owner@example.com',configured=true){
  await wait();
  await register.app.login("register");
  assert.equal(register.status().state,"pendingVerification","Register without a session must request email confirmation, not remain checking");
+ assert(calls.some(x=>x.path==="/auth/v1/signup"),"Signup API request must be issued");
  assert(register.elements.get("fitnessCloudStatus").textContent.includes("验证"));
  assert.equal(cloud.size,0,"Email signup must not upload health records");
  const wrong=env(local);
@@ -108,8 +111,26 @@ function env(initial={},account='owner@example.com',configured=true){
  wrong.elements.get("fitnessCloudPassword").value="wrong-password";
  await wrong.app.login("login");
  assert.equal(wrong.status().state,"auth");
- assert(wrong.elements.get("fitnessCloudStatus").textContent.includes("Invalid login credentials"));
+ assert(wrong.elements.get("fitnessCloudStatus").textContent.includes("邮箱或密码不正确"),"V92 must translate code/msg invalid_credentials");
  assert.equal(wrong.data.get("ckTrain-2026-10-16"),"1");
+
+ const unverified=env(local,"unverified@example.com");
+ await wait();
+ await unverified.app.login("login");
+ assert.equal(unverified.status().state,"auth");
+ assert(unverified.elements.get("fitnessCloudStatus").textContent.includes("邮箱还没有完成验证"),
+  "V92 must show verified-account requirement, not generic network error");
+ assert.equal(unverified.data.get("ckTrain-2026-10-16"),"1");
+ const countBefore=calls.filter(x=>x.path==="/auth/v1/resend").length;
+ await unverified.app.resendVerification();
+ assert.equal(unverified.status().state,"resendDone");
+ assert(unverified.elements.get("fitnessCloudStatus").textContent.includes("已申请重新发送验证邮件"));
+ assert.equal(calls.filter(x=>x.path==="/auth/v1/resend").length,countBefore+1);
+ await unverified.app.resendVerification();
+ assert.equal(calls.filter(x=>x.path==="/auth/v1/resend").length,countBefore+1,
+  "V92 must throttle same-device resend without second network call");
+ assert(unverified.elements.get("fitnessCloudStatus").textContent.includes("请等待约"));
+ assert.equal(unverified.data.get("ckTrain-2026-10-16"),"1","Resend must not affect fitness data");
  const phone=env(local);
  await wait();
  assert.equal(phone.status().state,"auth");
@@ -170,5 +191,5 @@ function env(initial={},account='owner@example.com',configured=true){
  // Sign-out is local and must not clear training data.
  await rival.app.logout();
  assert.equal(rival.data.get("ckTrain-2026-10-16"),"1");
- console.log("PASS: V91 cloud disabled-safe; email verification and login errors visible; auth never uploads; first phone upload; browser restore+backup; CAS conflict pause; logout preserves ck*.");
+ console.log("PASS: V92 distinguishes real Supabase Auth code/msg invalid credentials, email unverified, resend throttling; retains V91 conflict and rollback guards.");
 })().catch(e=>{console.error(e);process.exitCode=1});
