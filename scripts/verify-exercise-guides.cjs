@@ -198,19 +198,19 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  }
  const rowSrc=sect('function exerciseHtml(a,i,interactive=false,scope="today"){','function completeAllExercises(){').slice(0,-'function completeAllExercises(){'.length);
  const row=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
-  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml',
+  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml','expandedCompletedExercises','partialWorkRow',
   rowSrc+'return exerciseHtml;')(
   {'杠铃卧推':true},{'杠铃卧推':{level:'good',next:45,key:'bench'}},'',()=> 'bench',()=>false,
-  {'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'' );
+  {'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'',new Set(),()=>true );
  const done=row('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
- if(!done.includes('exerciseRow isDone')||!done.includes('已完成 ✓')||
-   !done.includes('45 kg')||!done.includes('完成反馈')||!done.includes('合适')||
-   !done.includes('effortBtn active')||done.includes('finishedCompact'))
-  throw Error('Completed work set must retain original full V45 card and feedback');
+ if(!done.includes('exerciseRow isDone isCompact')||!done.includes('已完成 ✓')||
+   !done.includes('训练反馈 · 合适')||!done.includes('下次参考 45 kg')||
+   done.includes('effortBtn active')||done.includes('正式组 ·'))
+  throw Error('V90 completed work must be compact, retain feedback and truthful next weight');
  const active=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise','exerciseAffectedByPain','exerciseGuides',
-  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml',
+  'guideSvg','loadReferenceEditorHtml','exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume','trainingReferenceEditorHtml','expandedCompletedExercises','partialWorkRow',
   rowSrc+'return exerciseHtml;')(
-  {},{},'',()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'' )
+  {},{},'',()=> 'bench',()=>false,{'杠铃卧推':{pose:'bench'}},()=>'',()=>'',()=>'',()=>'',{bench:{unit:'kg'}},()=>({text:''}),()=>({sets:3,min:6,max:8,unit:'次'}),()=>'',new Set(),()=>true )
   ('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,true);
  if(active.includes('exerciseRow isDone')||!active.includes('>完成</button>')||
    active.includes('完成反馈'))throw Error('Unfinished training card changed');
@@ -231,7 +231,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
   if(!html.includes('function '+fn+'('))throw Error('Core screen or training handler missing '+fn);
  }
  if(html.includes('localStorage.clear('))throw Error('Never clear user history');
- console.log('PASS: V45 completed UI restored, feedback retained, no unintended card redesign, four screens and training handlers.');
+ console.log('PASS: V90 compact completion, retained feedback, unchanged unfinished & weekly guide scopes.');
 }
 
 /* Cross-module invariant: manual load edits win over undo/recovery replay; pain status cannot claim full progression. */
@@ -1193,9 +1193,9 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
 /* V80 live-call integration checks */
 {
  const links=[
-  'freezeStartedExercisePlan(idx,list);if(!exerciseDone[name])',
+  'freezeStartedExercisePlan(idx,list);',
   'plans[idx][3]=[...frozen.rows];',
-  'savePartialWorkout(currentPlans()[trainingIndex()][3],trainingIndex(),exerciseDone);renderTraining()',
+  'savePartialWorkout(currentPlans()[trainingIndex()][3],trainingIndex(),exerciseDone);',
   'advance=trainDone||!!readActualWorkout()||meaningfulPartialWorkout()',
   'actual=readActualWorkout(),partial=readPartialWorkout(),index=trainingIndex()',
   'actualStrength=!!actual||hasExtraStrength||!!partial',
@@ -1379,4 +1379,117 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  }
  if(html.includes('localStorage.clear('))throw Error('V84 must not clear historical training');
  console.log('PASS: V84 Home-width training cards across 320/375/390/430/440/441/768/1024px; nested gutters reduced; history kept');
+}
+
+
+/* V90 regression: cross-day adaptive movements, bodyweight effort,
+   compact completion, undo and historical records remain reversible. */
+{
+ const code=sect('function loadKeyForExercise(name,planIdx=trainingIndex()){','const painLabels=').slice(0,-'const painLabels='.length);
+ const plans=Array.from({length:7},(_,i)=>[String(i),'day','',[]]);
+ const legacy=Array.from({length:7},(_,i)=>[String(i),'day','',[]]);
+ plans[0][3]=['器械推胸｜3组 × 6–12次｜推荐重量：@chestpress','坐姿划船｜3组 × 8–12次｜推荐重量：@rowMachine','死虫｜2组 × 每侧10–12次｜自重'];
+ plans[2][3]=['坐姿划船｜3组 × 8–12次｜推荐重量：@rowB','中立握高位下拉｜3组 × 8–12次｜推荐重量：@pulldown'];
+ plans[4][3]=['中立握高位下拉｜3组 × 8–12次｜推荐重量：@pulldown'];
+ const loads={chestpress:{unit:'器械 kg'},rowMachine:{unit:'器械 kg'},rowB:{unit:'器械 kg'},pulldown:{unit:'器械 kg'}};
+ const getKey=new Function('planTemplates','LEGACY_V47_PLAN_TEMPLATES','coachLoads','trainingIndex',
+  code+'return loadKeyForExercise;')(plans,legacy,loads,()=>0);
+ if(getKey('中立握高位下拉',0)!=='pulldown'||getKey('器械推胸',0)!=='chestpress'||
+    getKey('坐姿划船',0)!=='rowMachine'||getKey('坐姿划船',2)!=='rowB'||
+    getKey('死虫',0)!==null||getKey('平板支撑',0)!==null)
+  throw Error('V90 day-adjusted load lookup or bodyweight classification failed');
+ const src=sect('function exerciseHtml(a,i,interactive=false,scope="today"){','function completeAllExercises(){').slice(0,-'function completeAllExercises(){'.length);
+ const done={'中立握高位下拉':true,'死虫':true,'平板支撑':true};
+ const effort={'中立握高位下拉':{level:'hard',next:30,key:'pulldown'}};
+ const expanded=new Set();
+ const guides={'中立握高位下拉':{pose:'pulldown'},'死虫':{pose:'deadbug'},'平板支撑':{pose:'plank'}};
+ const renderer=new Function('exerciseDone','exerciseFeedback','openExerciseGuide','loadKeyForExercise',
+  'exerciseAffectedByPain','exerciseGuides','guideSvg','loadReferenceEditorHtml',
+  'exerciseGuideHtml','compoundWarmupHint','coachLoads','recoveryRule','parseExerciseVolume',
+  'trainingReferenceEditorHtml','expandedCompletedExercises','partialWorkRow',
+  src+'return exerciseHtml;')(done,effort,'',getKey,()=>false,guides,()=>'',()=>'',()=>'',()=>'',loads,()=>({text:''}),
+   ()=>({sets:3,min:8,max:12,unit:'次'}),()=>'',expanded,name=>name!=='热身');
+ const pulldown=renderer('中立握高位下拉｜3组 × 8–12次｜推荐重量：30 器械 kg｜休90秒',5,true);
+ if(!pulldown.includes('isCompact')||!pulldown.includes('训练反馈 · 吃力')||
+    !pulldown.includes('下次参考 30 器械 kg')||pulldown.includes('调整参考')||
+    !pulldown.includes('toggleCompletedExerciseDetails'))
+  throw Error('V90 moved pulldown did not show compact saved feedback');
+ const bw=renderer('死虫｜3组 × 每侧10–12次｜自重｜休45秒',3,true);
+ const plank=renderer('平板支撑｜3组 × 30–45秒｜自重｜休45秒',4,true);
+ for(const r of [bw,plank]){
+  if(!r.includes('isCompact')||!r.includes('完成反馈（选填）')||
+     !r.includes('轻松')||!r.includes('合适')||
+     !r.includes('吃力')||!r.includes('未完成')||r.includes('kg'))
+   throw Error('V90 completed core action lost optional feedback or got fake kg');
+ }
+ expanded.add('死虫');
+ const full=renderer('死虫｜3组 × 每侧10–12次｜自重｜休45秒',3,true);
+ if(full.includes('isCompact')||!full.includes('收起死虫详细内容')||
+    !full.includes('自重动作不推算重量')||!full.includes('3组 × 每侧10–12次'))
+  throw Error('V90 bodyweight manually expanded card lost full details');
+ const pending=renderer('中立握高位下拉｜3组 × 8–12次｜推荐重量：30 器械 kg｜休90秒',5,false,'week');
+ if(pending.includes('isCompact')||pending.includes('完成反馈'))
+  throw Error('V90 history/weekly plan incorrectly compacted');
+ // Qualitative feedback must remain actionable without inventing weight, while
+ // loaded movements continue saving their known per-exercise next reference.
+ const fbSource=sect('function setExerciseFeedback(name,level){','function recalcFeedbackForRecovery(){').slice(0,-'function recalcFeedbackForRecovery(){'.length);
+ const keys=new Map([['ckWeights','[{"date":"2026-10-16","weight":77.2}]'],['ckMeals-2026-10-16','[]']]);
+ const savedFeedback={};const overrides={},outcomes=[],partial=[],refresh=[];
+ const store={setItem:(k,v)=>keys.set(k,String(v)),getItem:k=>keys.has(k)?keys.get(k):null};
+ const setFb=new Function('exerciseDone','partialWorkRow','loadKeyForExercise','coachLoads',
+   'feedbackNextWeight','validCoachWeight','sessionLoads','workingWeight',
+   'exerciseFeedback','exerciseFeedbackKey','localStorage','loadOverrides',
+   'recordTrainingVolumeOutcome','savePartialWorkout','currentPlans',
+   'trainingIndex','expandedCompletedExercises','renderTraining',
+   fbSource+'return setExerciseFeedback;')(done,n=>n!=='热身',getKey,loads,(_n,_l)=>30,()=>false,{pulldown:30},()=>30,
+   savedFeedback,'ckExerciseFeedback-2026-10-16',store,overrides,
+   (...args)=>outcomes.push(args),(...args)=>partial.push(args),()=>plans,()=>0,expanded,()=>refresh.push(true));
+ setFb('死虫','good');
+ if(savedFeedback['死虫']?.level!=='good'||savedFeedback['死虫'].key!==null||
+    savedFeedback['死虫'].next!==null||outcomes[0][2]!==null||
+    Object.keys(overrides).length||expanded.has('死虫'))
+  throw Error('V90 core feedback invented load or did not collapse');
+ setFb('中立握高位下拉','hard');
+ if(savedFeedback['中立握高位下拉']?.key!=='pulldown'||
+    overrides.pulldown!==30||outcomes[1][2]!=='pulldown')
+  throw Error('V90 adjusted weighted exercise feedback missing');
+ setFb('平板支撑','light');
+ if(savedFeedback['平板支撑']?.key!==null||outcomes.length!==3||
+    partial.length!==3||refresh.length!==3)
+  throw Error('V90 bodyweight feedback not persisted');
+ setFb('热身','good');
+ if(outcomes.length!==3||keys.get('ckWeights')!=='[{"date":"2026-10-16","weight":77.2}]'||
+    keys.get('ckMeals-2026-10-16')!=='[]')
+  throw Error('V90 warmup feedback incorrectly added or unrelated history changed');
+ // Simulated real load-volume recorder: null key always records null weight.
+ const volumeSrc=sect('function recordTrainingVolumeOutcome(name,level,key,nextWeight){','function undoTrainingVolumeOutcome(').slice(0,-'function undoTrainingVolumeOutcome('.length);
+ if(!volumeSrc.includes('weight:key&&coachLoads[key]?')||!volumeSrc.includes(':null,'))
+  throw Error('V90 core history would invent weight instead of null');
+ const toggles=sect('const expandedCompletedExercises=new Set();','function benchWarmupHint(){').slice(0,-'function benchWarmupHint(){'.length);
+ const state={'器械推胸':false,'死虫':true},runtimeMemory=new Map([['ckMeals-2026-10-16','[]'],['ckTrainingVolumeHistory','[{"historical":true}]']]),changes=[];
+ const run=new Function('planKind','trainingIndex','currentPlans','freezeStartedExercisePlan',
+  'exerciseDone','exerciseName','snapshotCompletedExerciseVolume','exerciseFeedback',
+  'rollbackExerciseFeedback','exerciseFeedbackKey','localStorage','undoTrainingVolumeOutcome',
+  'exerciseDoneKey','trainKey','savePartialWorkout','renderTraining','refreshNutritionGuidance',
+  toggles+'return {toggleExerciseDone,toggleCompletedExerciseDetails,expandedCompletedExercises};')(
+   ()=> 'strength',()=>0,()=>[[0,'A','',[
+    '器械推胸｜3组 × 6–12次','死虫｜2组 × 每侧10–12次']]],
+   ()=>{},state,n=>n.split('｜')[0],()=>changes.push('snap'),{},
+   ()=>{},'ckExerciseFeedback-2026-10-16',
+   {setItem:(k,v)=>runtimeMemory.set(k,String(v)),getItem:k=>runtimeMemory.get(k)},
+   ()=>changes.push('undo'),'ckExerciseDone-2026-10-16','ckTrain-2026-10-16',
+   ()=>changes.push('partial'),()=>changes.push('render'),()=>changes.push('nutrition'));
+ run.toggleExerciseDone('器械推胸');
+ if(!state['器械推胸']||run.expandedCompletedExercises.has('器械推胸')||
+    runtimeMemory.get('ckTrain-2026-10-16')!=='1'||!changes.includes('snap'))
+  throw Error('V90 tap complete did not persist work / collapse');
+ run.toggleCompletedExerciseDetails('器械推胸');
+ if(!run.expandedCompletedExercises.has('器械推胸'))
+  throw Error('V90 user cannot reopen completed action');
+ run.toggleExerciseDone('器械推胸');
+ if(state['器械推胸']||run.expandedCompletedExercises.has('器械推胸')||
+    runtimeMemory.get('ckTrain-2026-10-16')!=='0'||!changes.includes('undo')||
+    runtimeMemory.get('ckTrainingVolumeHistory')!=='[{"historical":true}]')
+  throw Error('V90 undo did not restore pending state while retaining unrelated history');
+ console.log('PASS: V90 carried-over weighted feedback, bodyweight qualitative outcomes, no fake kilograms, compact/expand/undo and history isolation');
 }
