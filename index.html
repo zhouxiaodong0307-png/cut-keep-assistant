@@ -2342,13 +2342,13 @@ function createIosWidgetSnapshot(){
  const idx=trainingIndex(),plans=currentPlans(),plan=plans[idx],kind=planKind(idx);
  const actual=readActualWorkout(),list=Array.isArray(plan?.[3])?plan[3]:[];
  const total=kind==="strength"?list.length:null;
- const completed=kind==="strength"?(actual?total:trainDone?total:list.reduce((n,row)=>n+Number(!!exerciseDone[exerciseName(row)]),0)):null;
+ const completed=kind==="strength"?(actual?null:trainDone?total:list.reduce((n,row)=>n+Number(!!exerciseDone[exerciseName(row)]),0)):null;
  const historic=[...weights].filter(x=>x&&typeof x.date==="string"&&x.date<=ds&&Number.isFinite(x.weight)&&x.weight>=30&&x.weight<=250).sort((a,b)=>b.date.localeCompare(a.date));
  const current=historic.length?historic[0].weight:null,goal=readGoalWeight();
  const remain=current===null||goal===null?null:Math.round((current-goal)*10)/10;
  const summary=summarizeMeals(meals,target),hasMeals=summary.count>0;
  return {app:"cut-keep-widget",version:1,date:ds,syncedAt:new Date().toISOString(),
-  training:{kind,title:String(plan?.[1]||"今日安排"),done:completed,total},
+  training:{kind,title:actual?"已记录自主力量训练":String(plan?.[1]||"今日安排"),done:completed,total:actual?null:total,actual:!!actual},
   weight:{latest:current,goal,remaining:remain},
   nutrition:{kcal:hasMeals?Math.round(summary.k):null,kcalGoal:Math.round(target),
    protein:hasMeals&&!summary.social?Math.round(summary.p):null,proteinGoal:Math.round(pt)}};
