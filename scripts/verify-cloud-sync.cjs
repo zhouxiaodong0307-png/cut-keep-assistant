@@ -7,7 +7,10 @@ const sql=fs.readFileSync(path.join(root,"supabase/migrations/20261016_fitness_c
 new vm.Script(js,{filename:"cloud-sync.js"});
 assert(html.includes('id="fitnessCloudPanel"')&&html.includes('onclick="FitnessCloudSync.upload()"'));
 assert(html.includes('<script defer src="./cloud-sync.js"></script>'));
-assert(config.includes('url:""')&&config.includes('anonKey:""'));
+assert(config.includes('url:"https://ampixosqbgqbsckmrhog.supabase.co"')&&
+ config.includes('anonKey:"sb_publishable_')&&
+ !config.includes('service_role')&&
+ !config.includes('secret_'));
 assert(sql.includes('enable row level security')&&sql.includes('(select auth.uid()) = user_id'));
 assert(sql.includes('revoke insert,update,delete')&&sql.includes('security definer')&&sql.includes('fitness_sync_save'));
 assert(sql.includes('p_expected')&&sql.includes('where user_id=uid and revision=p_expected'));
