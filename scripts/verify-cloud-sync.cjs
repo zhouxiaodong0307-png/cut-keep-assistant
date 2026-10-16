@@ -97,6 +97,19 @@ function env(initial={},account='owner@example.com',configured=true){
  assert.equal(off.app.enabled,false);
  assert.equal(off.status().state,"disabled");
  assert.equal(off.data.get("ckTrain-2026-10-16"),"1");
+ const register=env(local);
+ await wait();
+ await register.app.login("register");
+ assert.equal(register.status().state,"pendingVerification","Register without a session must request email confirmation, not remain checking");
+ assert(register.elements.get("fitnessCloudStatus").textContent.includes("验证"));
+ assert.equal(cloud.size,0,"Email signup must not upload health records");
+ const wrong=env(local);
+ await wait();
+ wrong.elements.get("fitnessCloudPassword").value="wrong-password";
+ await wrong.app.login("login");
+ assert.equal(wrong.status().state,"auth");
+ assert(wrong.elements.get("fitnessCloudStatus").textContent.includes("Invalid login credentials"));
+ assert.equal(wrong.data.get("ckTrain-2026-10-16"),"1");
  const phone=env(local);
  await wait();
  assert.equal(phone.status().state,"auth");
@@ -146,5 +159,5 @@ function env(initial={},account='owner@example.com',configured=true){
  // Sign-out is local and must not clear training data.
  await rival.app.logout();
  assert.equal(rival.data.get("ckTrain-2026-10-16"),"1");
- console.log("PASS: V91 cloud disabled-safe; login doesn't upload; first phone upload; browser restore+backup; future CAS; concurrent-conflict pause; logout preserves ck*.");
+ console.log("PASS: V91 cloud disabled-safe; email verification and login errors visible; auth never uploads; first phone upload; browser restore+backup; CAS conflict pause; logout preserves ck*.");
 })().catch(e=>{console.error(e);process.exitCode=1});
