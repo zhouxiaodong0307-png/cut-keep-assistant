@@ -202,6 +202,13 @@ async function pairWidget(){
  busy=true;
  try{
   if(!await refreshAuth())throw Error("云端登录已失效");
+  const remote=await readCloud();
+  if(!remote||!equal(remote.snapshot||{},snapshot()))
+   throw Error("本机还有未同步记录。请等待云端同步完成后再次连接，小组件不会读取不完整的数据");
+  // Guarantee the widget has a real, current summary even if the previous
+  // account login was completed using an older version of the app.
+  if(summaryIdentity(remote.widget_summary)!==summaryIdentity(widgetSummary()))
+   await touchWidget(widgetSummary(),Number(remote.revision));
   // A refresh token is never copied to Scriptable; pair generates its own
   // read-only credential on the server and immediately invalidates the old one.
   const token=await request("/rest/v1/rpc/fitness_widget_pair",{method:"POST",body:{},token:session.access});
