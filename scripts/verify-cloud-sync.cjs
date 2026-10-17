@@ -105,8 +105,8 @@ function env(initial={},account='owner@example.com',configured=true){
    snapshot:()=>Object.fromEntries([...data].filter(([k])=>k.startsWith("ck")&&!k.startsWith("ckUpgradeBackup-"))),
    status:()=>context.window.FitnessCloudSync.status()};
 }
-(function messagesSafe(v){return Array.isArray(v)?v:[]}
-async()=>{
+function messagesSafe(v){return Array.isArray(v)?v:[]}
+(async()=>{
  const local={ckWeights:'[{"date":"2026-10-16","weight":77.2}]',
    'ckMeals-2026-10-16':'[{"kcal":1100}]','ckExerciseDone-2026-10-16':'{"热身":true,"器械推胸":true}',
    'ckTrain-2026-10-16':'1',ckGoalWeight:'70.0',ckWidgetScriptName:'脂保肌小组件'};
