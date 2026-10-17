@@ -1,8 +1,11 @@
-// 健身助手 · V88 小组件
+// 健身助手 · V94 云端自动更新小组件
 // 需要 Scriptable（iPhone / iPad）。仅在设备本地保存和显示网页中主动同步的数据。
 // 保留手机中已有的 Scriptable 脚本名称；网页“同步小组件”的名称与其一致即可。
 const fm = FileManager.local();
 const path = fm.joinPath(fm.documentsDirectory(), "cut_keep_widget_v1.json");
+const cloudPath = fm.joinPath(fm.documentsDirectory(), "cut_keep_widget_cloud_v1.json");
+const supabaseURL = "https://ampixosqbgqbsckmrhog.supabase.co";
+const publishableKey = "sb_publishable_IlVC6d5G7aZUaXxNr9wqNQ_RKmlkA5U";
 const appURL = "https://cut-keep-assistant.onrender.com/";
 // 普通网页链接无法保证在 iOS 启动已安装的主屏幕网页应用。
 // 可选：在 Scriptable 小组件的 Parameter 输入「快捷指令:健身助手」。
@@ -13,6 +16,7 @@ function widgetLaunchUrl(parameter){
  return m?("shortcuts://run-shortcut?name="+encodeURIComponent(m[1].trim())):appURL;
 }
 const isSync = args.queryParameters && args.queryParameters.mode === "sync";
+const isPair = args.queryParameters && args.queryParameters.mode === "pair";
 const textColor = new Color("#1c1c1e");
 const mutedColor = new Color("#83838b");
 const pale = new Color("#f6f6f9");
@@ -62,8 +66,62 @@ if (isSync) {
     Pasteboard.copyString(""); // 同步完成后不将健康摘要长时间留在剪贴板
     await notice("同步成功", "已保存当前真实记录。iOS 会在系统允许的时间刷新小组件；如需立即查看，可在 Scriptable 中预览。");
   } catch (e) {
-    await notice("同步未完成", String(e.message || e) + "\n请先在减脂保肌助手中点击「同步小组件」，然后再运行此脚本。");
+    await notice("同步未完成", String(e.message || e) + "\n请回到健身助手检查当前记录，然后重试。");
   }
+}
+/* V94: token is a read-only, revocable random capability (NOT the user's
+   Supabase password or full Auth JWT), stored only in Scriptable local files.
+   Scriptable accesses a tiny, server-validated summary, never the ck* archive. */
+let cloudToken=null,cloudOk=false,cloudError="";
+try{
+ if(fm.fileExists(cloudPath)){
+  const saved=JSON.parse(fm.readString(cloudPath));
+  if(saved&&/^[0-9a-f]{64}$/.test(saved.token))cloudToken=saved.token;
+ }
+}catch(_){}
+if(isPair){
+ try{
+  const token=String(Pasteboard.pasteString()||"").trim();
+  if(!/^[0-9a-f]{64}$/.test(token))throw Error("剪贴板没有有效配对码。请从健身助手点击「连接自动更新」。");
+  // Test the credential BEFORE replacing any existing working device pairing.
+  async function verifyToken(t){
+   const req=new Request(supabaseURL+"/rest/v1/rpc/fitness_widget_read");
+   req.method="POST";
+   req.headers={"apikey":publishableKey,"Content-Type":"application/json"};
+   req.body=JSON.stringify({p_token:t});
+   req.timeoutInterval=15;
+   const body=await req.loadJSON();
+   if(req.response && req.response.statusCode>=400)throw Error("云端拒绝此配对码");
+   const summary=Array.isArray(body)?body[0]?.widget_summary:null;
+   if(!validSnapshot(summary))throw Error("云端尚未同步小组件摘要，请先保持健身助手联网并检查云同步状态");
+   return summary;
+  }
+  const fresh=await verifyToken(token);
+  fm.writeString(cloudPath,JSON.stringify({token,pairedAt:new Date().toISOString()}));
+  cloudToken=token;data=fresh;cloudOk=true;fm.writeString(path,JSON.stringify(fresh));
+  Pasteboard.copyString("");
+  await notice("自动更新已开启","小组件已连接健身助手云端。之后 iOS 会在系统允许的时间自动读取最新数据，无需每天手动同步。");
+ }catch(e){
+  cloudError=String(e.message||e);
+  await notice("配对未完成",cloudError+"\n原来的小组件数据和授权保持不变。");
+ }
+}
+if(cloudToken&&!cloudOk){
+ try{
+  const request=new Request(supabaseURL+"/rest/v1/rpc/fitness_widget_read");
+  request.method="POST";request.headers={"apikey":publishableKey,"Content-Type":"application/json"};
+  request.body=JSON.stringify({p_token:cloudToken});
+  request.timeoutInterval=15;
+  const response=await request.loadJSON();
+  if(request.response&&request.response.statusCode>=400)throw Error("云端授权已失效，需重新连接");
+  const fresh=Array.isArray(response)?response[0]?.widget_summary:null;
+  if(!validSnapshot(fresh))throw Error("云端返回摘要无效");
+  if(!data||Date.parse(fresh.syncedAt)>=Date.parse(data.syncedAt)){
+   data=fresh;
+   fm.writeString(path,JSON.stringify(fresh));
+  }
+  cloudOk=true;
+ }catch(e){cloudError=String(e.message||e)} // Offline: retain last verified local snapshot.
 }
 const stale = !!data && (data.date !== dateLocal(new Date()) || Date.now()-Date.parse(data.syncedAt) > 36*3600000);
 // V88 · 不插入弹性纵向留白；主指标区域使用弹性横向间隔撑满卡片。
@@ -72,7 +130,7 @@ const small = family === "small";
 const widget = new ListWidget();
 widget.backgroundColor = white;
 widget.url = widgetLaunchUrl(args.widgetParameter);
-widget.refreshAfterDate = new Date(Date.now()+45*60*1000);
+widget.refreshAfterDate = new Date(Date.now()+20*60*1000); // iOS may delay this request; not guaranteed realtime
 widget.setPadding(small?13:16,small?13:17,small?12:15,small?13:17);
 function line(parent,value,size,bold=false,color=textColor){
  const item=parent.addText(String(value));
@@ -119,7 +177,8 @@ function dateText(d){
 const head=widget.addStack();head.layoutHorizontally();head.centerAlignContent();
 line(head,"健身助手",small?13:15,true);
 head.addSpacer();
-line(head,!data?"未同步":stale?"待更新":"已同步",small?9:10,false,stale?new Color("#977042"):mutedColor);
+const statusText=cloudToken?(stale?"待更新":cloudOk?"云端已更新":cloudError?"网络待同步":"自动更新"):!data?"未同步":stale?"待更新":"已同步";
+line(head,statusText,small?9:10,false,stale||!!cloudError?new Color("#977042"):mutedColor);
 widget.addSpacer(small?11:12);
 if(!data){
  const empty=widget.addStack();empty.layoutVertically();empty.spacing=7;
@@ -161,7 +220,7 @@ if(!data){
  }
  widget.addSpacer(small?8:10);
  // 时间与数据状态明确，但不放单独的宽大底部卡片。
- line(widget,(stale?"待更新 · ":"更新 ")+dateText(data.syncedAt),small?9:10,false,mutedColor);
+ line(widget,(stale?"待更新 · ":cloudToken?"云端 ": "更新 ")+dateText(data.syncedAt),small?9:10,false,mutedColor);
 }
 Script.setWidget(widget);
 if(!config.runsInWidget&&!isSync){

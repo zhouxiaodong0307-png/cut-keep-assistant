@@ -7,6 +7,7 @@ on:
       - assets/**
       - scripts/verify-exercise-guides.cjs
       - scripts/verify-ios-widget.cjs
+      - scripts/verify-widget-cloud.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -21,6 +22,7 @@ on:
       - assets/**
       - scripts/verify-exercise-guides.cjs
       - scripts/verify-ios-widget.cjs
+      - scripts/verify-widget-cloud.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -41,6 +43,8 @@ jobs:
         run: node scripts/verify-exercise-guides.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
+      - name: Validate automatic widget cloud pairing, offline caching and new calories
+        run: node scripts/verify-widget-cloud.cjs
       - name: Validate private account cloud sync and multi-device conflict prevention
         run: node scripts/verify-cloud-sync.cjs
       - name: Validate persistent Safari sessions through widget relaunch and network interruption

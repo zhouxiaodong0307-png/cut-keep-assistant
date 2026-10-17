@@ -47,7 +47,8 @@ assert(!html.includes('localStorage.clear('));
 assert(html.includes('onclick="syncIosWidget()"'));
 assert(html.includes('onclick="copyIosWidgetScript()"'));
 assert(html.includes('scriptable:///run?scriptName='));
-assert(!script.includes('new Request('));
+assert(script.includes('new Request(supabaseURL+"/rest/v1/rpc/fitness_widget_read")'));
+assert(!script.includes('fitness_sync_snapshots?select='),'Widget must never fetch private ck* archive');
 assert(!script.includes('fetch('));
 const operations=[];
 function stack(){
@@ -149,18 +150,19 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  mock.args.widgetParameter='';
  await launcher(...Object.values(mock));
  assert.equal(currentWidget.url,'https://cut-keep-assistant.onrender.com/');
- assert(html.includes('脚本名称已自动记住'));
+ assert(html.includes('连接自动更新'));
+assert(html.includes('撤销读取授权'));
 
- assert(html.includes('widgets/cut-keep-scriptable.js?version=88'));
- assert(html.includes('>更新脚本</button>'));
- assert(html.includes('全选旧代码、粘贴覆盖并保存'));
- // V89: The visible iOS widget control must be just TWO buttons in one row.
+ assert(html.includes('widgets/cut-keep-scriptable.js?version=94'));
+ assert(html.includes('>① 更新脚本</button>'));
+ assert(html.includes('全选旧代码并粘贴覆盖保存'));
+ // V94: Two primary actions and two compact fallback/security links.
  const uiStart=html.indexOf('<details class="iosWidgetHelp">');
  const uiEnd=html.indexOf('</details>',uiStart);
  if(uiStart<0||uiEnd<0)throw Error('V89 widget details not found');
  const card=html.slice(uiStart,uiEnd);
- assert.equal((card.match(/<button\b/g)||[]).length,2,'V89 must show only two buttons');
- assert(card.includes('>更新脚本</button>')&&card.includes('>同步小组件</button>'));
+ assert.equal((card.match(/<button\b/g)||[]).length,4,'V94 should have exactly two primary actions plus manual/revoke');
+ assert(card.includes('>① 更新脚本</button>')&&card.includes('>② 连接自动更新</button>')&&card.includes('手动同步（备用）'));
  assert(!card.includes('id="iosWidgetScriptName"'));
  assert(!card.includes('class="iosWidgetNameLine"'));
  assert(!card.includes('class="iosWidgetContent"'),'V89 must remove redundant setup prose');

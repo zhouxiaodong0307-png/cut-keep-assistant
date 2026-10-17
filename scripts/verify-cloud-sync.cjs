@@ -6,7 +6,7 @@ const config=fs.readFileSync(path.join(root,"cloud-config.js"),"utf8");
 const sql=fs.readFileSync(path.join(root,"supabase/migrations/20261016_fitness_cloud_snapshots.sql"),"utf8");
 new vm.Script(js,{filename:"cloud-sync.js"});
 assert(html.includes('id="fitnessCloudPanel"')&&html.includes('onclick="FitnessCloudSync.upload()"'));
-assert(html.includes('<script defer src="./cloud-sync.js?v=93"></script>'));
+assert(html.includes('<script defer src="./cloud-sync.js?v=94"></script>'));
 assert(config.includes('url:"https://ampixosqbgqbsckmrhog.supabase.co"')&&
  config.includes('anonKey:"sb_publishable_')&&
  !config.includes('service_role')&&
@@ -37,6 +37,10 @@ function env(initial={},account='owner@example.com',configured=true){
   setItem:(k,v)=>{if(k===failKey&&!failed){failed=true;throw Error('simulated quota error')}data.set(k,String(v))},
   removeItem:k=>data.delete(k)
  };
+ const widgetSummary=()=>({app:"cut-keep-widget",version:1,date:"2026-10-17",syncedAt:"2026-10-17T13:00:00.000Z",
+  weight:{latest:76.3,goal:70,remaining:6.3},
+  training:{kind:"cardio",title:"Zone 2 骑车",done:null,total:null},
+  nutrition:{kcal:1550,kcalGoal:2250,protein:35,proteinGoal:155}});
  const fetch=async(url,options={})=>{
   const endpoint=new URL(url),method=options.method||"GET";
   let body=options.body?JSON.parse(options.body):null;
@@ -70,15 +74,26 @@ function env(initial={},account='owner@example.com',configured=true){
    const d=body.p_snapshot;
    if(!d||Object.keys(d).some(k=>!/^ck[A-Za-z0-9_-]{0,120}$/.test(k)||k.startsWith("ckUpgradeBackup-")))
     return response(400,{error:"INVALID_RECORD"});
-   cloud.set(userId,{snapshot:{...d},revision:expected+1,updated_at:new Date().toISOString()});
+   cloud.set(userId,{snapshot:{...d},revision:expected+1,updated_at:new Date().toISOString(),widget_summary:body.p_widget_summary});
    return response(200,[{new_revision:expected+1,saved_at:new Date().toISOString()}]);
   }
+  if(endpoint.pathname==="/rest/v1/rpc/fitness_widget_touch"){
+   const row=cloud.get(userId);
+   if(!row||row.revision!==body.p_expected)return response(409,{message:"SYNC_CONFLICT",code:"P0001"});
+   row.widget_summary=body.p_widget_summary;
+   return response(200,true);
+  }
+  if(endpoint.pathname==="/rest/v1/rpc/fitness_widget_pair"){
+   if(!cloud.has(userId))return response(400,{message:"CLOUD_NOT_PAIRED"});
+   return response(200,"c".repeat(64));
+  }
+  if(endpoint.pathname==="/rest/v1/rpc/fitness_widget_revoke")return response(200,true);
   return response(404,{error:"Not found"});
  };
  function response(status,value){return{ok:status>=200&&status<300,status,json:async()=>value}}
  const doc={readyState:"complete",visibilityState:"visible",getElementById:id=>elements.get(id)||null,
  addEventListener:()=>{}};
- const context={window:{FITNESS_CLOUD_CONFIG:configured?{url:"https://test123.supabase.co",anonKey:"sb_publishable_testing_key"}:{}},
+ const context={window:{FITNESS_CLOUD_CONFIG:configured?{url:"https://test123.supabase.co",anonKey:"sb_publishable_testing_key"}:{},createIosWidgetSnapshot:widgetSummary,iosWidgetStatus:v=>messages.push(v)},navigator:{clipboard:{writeText:async v=>messages.push("copy:"+v)}},
   document:doc,localStorage,fetch,console,
   Date:class FakeDate extends Date{static now(){return clock}},
   structuredClone,location:{origin:'https://cut-keep-assistant.onrender.com',reload:()=>reload++},confirm:()=>true,setInterval:()=>-1,
@@ -90,6 +105,7 @@ function env(initial={},account='owner@example.com',configured=true){
    snapshot:()=>Object.fromEntries([...data].filter(([k])=>k.startsWith("ck")&&!k.startsWith("ckUpgradeBackup-"))),
    status:()=>context.window.FitnessCloudSync.status()};
 }
+function messagesSafe(v){return Array.isArray(v)?v:[]}
 (async()=>{
  const local={ckWeights:'[{"date":"2026-10-16","weight":77.2}]',
    'ckMeals-2026-10-16':'[{"kcal":1100}]','ckExerciseDone-2026-10-16':'{"热身":true,"器械推胸":true}',
@@ -142,6 +158,10 @@ function env(initial={},account='owner@example.com',configured=true){
  assert.equal(cloud.get("user-1").revision,1);
  assert.equal(cloud.get("user-1").snapshot["ckTrain-2026-10-16"],"1");
  assert(!Object.hasOwn(cloud.get("user-1").snapshot,"ckWidgetScriptName"));
+ assert.equal(cloud.get("user-1").widget_summary.nutrition.kcal,1550,"Cloud archive write must publish current widget calories");
+ await phone.app.pairWidget();
+ assert(messagesSafe(phone.messages).some(x=>x.includes("copy:")),"Pair must produce only a read token");
+ assert.equal(cloud.get("user-1").widget_summary.training.title,"Zone 2 骑车");
  assert(!Object.hasOwn(cloud.get("user-1").snapshot,"fitnessCloudAuth-v1"));
  assert(phone.snapshots>=1,"Upload must take safety snapshot first");
  const failedRestore=env({'ckMeals-2026-10-16':'[{"kcal":40}]'});
@@ -191,5 +211,5 @@ function env(initial={},account='owner@example.com',configured=true){
  // Sign-out is local and must not clear training data.
  await rival.app.logout();
  assert.equal(rival.data.get("ckTrain-2026-10-16"),"1");
- console.log("PASS: V92 distinguishes real Supabase Auth code/msg invalid credentials, email unverified, resend throttling; retains V91 conflict and rollback guards.");
+ console.log("PASS: V94 cloud archive and read-only widget summary published atomically, secure pairing, V91 conflict and restore protections remain.");
 })().catch(e=>{console.error(e);process.exitCode=1});

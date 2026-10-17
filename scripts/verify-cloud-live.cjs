@@ -17,7 +17,12 @@ async function check(method,path,body){
 (async()=>{
  const read=await check("GET","/rest/v1/fitness_sync_snapshots?select=user_id,snapshot,revision&limit=1");
  const write=await check("POST","/rest/v1/rpc/fitness_sync_save",{p_snapshot:{ckTest:"unauthenticated-should-reject"},p_expected:0});
+ // A random-looking but *unissued* token must never expose private data.
+ const unauthWidget=await check("POST","/rest/v1/rpc/fitness_widget_read",{p_token:"f".repeat(64)});
+ const unauthPair=await check("POST","/rest/v1/rpc/fitness_widget_pair",{});
+ const unauthTouch=await check("POST","/rest/v1/rpc/fitness_widget_touch",{p_expected:1,p_widget_summary:{app:"cut-keep-widget"}});
+ const unauthRevoke=await check("POST","/rest/v1/rpc/fitness_widget_revoke",{});
  const info=await fetch(base+"/auth/v1/settings",{headers:{apikey:publicKey}});
  assert(info.ok,"Dedicated Auth API unavailable ("+info.status+")");
- console.log("PASS: real fitness Supabase live anonymous access denied for reads ("+read+") and writes ("+write+"); Auth API available; no test health records created.");
+ console.log("PASS: V94 real Supabase anonymous full archive read/write blocked; widget wrong-token read ("+unauthWidget+"), pair ("+unauthPair+"), touch ("+unauthTouch+"), revoke ("+unauthRevoke+") also blocked; no user data modified.");
 })().catch(e=>{console.error(e);process.exitCode=1});
