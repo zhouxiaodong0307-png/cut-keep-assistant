@@ -1,4 +1,4 @@
-/* 健身助手 V92 · optional cloud sync. No writes until verified login and explicit initial pairing.
+/* 健身助手 V93 · resilient login persistence and offline-safe refresh. No writes until verified login and explicit initial pairing.
    Supabase Auth JWT + RLS + atomic revision CAS; each device keeps own local records. */
 (function(){
 "use strict";
@@ -8,6 +8,63 @@ const enabled=typeof cfg.url==="string"&&/^https:\/\/[a-z0-9-]+\.supabase\.co$/.
 const SESSION="fitnessCloudAuth-v1",BASE="fitnessCloudBaseline-v1:",URL=enabled?cfg.url:"",KEY=enabled?cfg.anonKey:"";
 const OMIT=new Set(["ckAppBuild","ckWeeklyReportLogicVersion","ckLastManualBackup","ckLastRestoreAt","ckWidgetScriptName"]);
 let session=null,revision=0,baseline=null,state="disabled",busy=false,alarm=null, lastError="",lastErrorCode="",lastSync=0;
+let refreshFlight=null,persistenceWarn=false;
+const AUTH_CACHE_DB="fitnessCloudSessionBackup",AUTH_CACHE_STORE="auth";
+function validSession(v){
+ return !!(v&&typeof v==="object"&&typeof v.id==="string"&&typeof v.access==="string"&&
+  typeof v.refresh==="string"&&Number.isFinite(v.expires)&&v.expires>0);
+}
+/* IndexedDB is a same-origin fallback if Safari accepts sign-in but fails to
+   retain its localStorage record. Both stores are local to each browser context:
+   neither crosses private/isolated Scriptable sessions. */
+function sessionIdb(op,value){
+ return new Promise(resolve=>{
+  try{
+   const engine=window.indexedDB;
+   if(!engine)return resolve(op==="read"?null:false);
+   const request=engine.open(AUTH_CACHE_DB,1);
+   request.onupgradeneeded=()=>{try{const db=request.result;if(!db.objectStoreNames.contains(AUTH_CACHE_STORE))db.createObjectStore(AUTH_CACHE_STORE)}catch(_){}};
+   request.onerror=()=>resolve(op==="read"?null:false);
+   request.onsuccess=()=>{
+    const db=request.result;
+    try{
+     const tx=db.transaction(AUTH_CACHE_STORE,op==="read"?"readonly":"readwrite");
+     const store=tx.objectStore(AUTH_CACHE_STORE);
+     const action=op==="read"?store.get("current"):op==="remove"?store.delete("current"):store.put(value,"current");
+     action.onsuccess=()=>{if(op==="read"){db.close();resolve(validSession(action.result)?action.result:null)}};
+     action.onerror=()=>{db.close();resolve(op==="read"?null:false)};
+     if(op!=="read"){
+      tx.oncomplete=()=>{db.close();resolve(true)};
+      tx.onerror=()=>{db.close();resolve(false)};
+      tx.onabort=()=>{db.close();resolve(false)};
+     }
+    }catch(_){db.close();resolve(op==="read"?null:false)}
+   };
+  }catch(_){resolve(op==="read"?null:false)}
+ });
+}
+async function storeSession(){
+ let localOk=false;
+ try{
+  if(session){localStorage.setItem(SESSION,JSON.stringify(session));localOk=validSession(JSON.parse(localStorage.getItem(SESSION)||"null"))}
+  else{localStorage.removeItem(SESSION);localOk=localStorage.getItem(SESSION)===null}
+ }catch(_){}
+ const backupOk=await sessionIdb(session?"write":"remove",session);
+ if(session)persistenceWarn=!(localOk||backupOk);
+ else persistenceWarn=false;
+ return localOk||backupOk;
+}
+async function readSavedSession(){
+ let local=null;
+ try{local=JSON.parse(localStorage.getItem(SESSION)||"null")}catch(_){}
+ if(validSession(local))return local;
+ const backup=await sessionIdb("read");
+ if(validSession(backup)){
+  try{localStorage.setItem(SESSION,JSON.stringify(backup))}catch(_){}
+  return backup;
+ }
+ return null;
+}
 const $=id=>document.getElementById(id);
 function eligible(k){return /^ck[A-Za-z0-9_-]{0,120}$/.test(k)&&!k.startsWith("ckUpgradeBackup-")&&!OMIT.has(k)}
 function snapshot(){
@@ -31,7 +88,8 @@ function show(){
  if($("fitnessCloudRefresh"))$("fitnessCloudRefresh").hidden=!link;
  if(!enabled)setMessage("安全云同步尚未配置。原有本机记录和小组件照常使用。");
  else if(state==="checking")setMessage("正在核对本机与云端记录，暂不修改任何历史数据…");
- else if(state==="ready")setMessage("已连接云端 · 自动同步中"+(lastSync?" · 最近 "+new Date(lastSync).toLocaleTimeString():""));
+ else if(state==="ready")setMessage("已连接云端 · 自动同步中"+(lastSync?" · 最近 "+new Date(lastSync).toLocaleTimeString():"")+
+ (persistenceWarn?" · 当前浏览器无法可靠保存登录，请用普通 Safari 打开本站检查隐私浏览模式。":""));
  else if(state==="review")setMessage(lastError&&lastError!=="conflict"?"同步操作失败："+lastError:lastError==="conflict"?"检测到两处设备数据冲突，已暂停自动同步。请先备份并确认采用哪份记录。":
   revision>0?"云端已有记录，本机也有不同数据；为保护历史记录，需要选择数据来源。":"云端尚无记录，请先从保存真实数据的桌面版上传。");
  else if(state==="auth")setMessage(lastError?"登录失败："+lastError:"使用相同账号登录桌面版与浏览器版，先在有真实记录的桌面版上传。");
@@ -61,7 +119,6 @@ function authErrorMessage(code,raw,status){
  if(status===401||status===403)return raw||"账号尚未通过验证或授权，请检查邮箱和登录信息。";
  return raw||("服务器返回 HTTP "+status+"，暂时无法登录，请稍后重试。");
 }
-function storeSession(){try{if(session)localStorage.setItem(SESSION,JSON.stringify(session));else localStorage.removeItem(SESSION)}catch(_){}}
 function loadBaseline(){
  const x=(()=>{try{return JSON.parse(localStorage.getItem(BASE+session.id)||"null")}catch(_){return null}})();
  if(!x||!Number.isInteger(x.revision)||x.revision<=0||!x.data||typeof x.data!=="object")return null;
@@ -71,23 +128,54 @@ function saveBaseline(rev,data){
  revision=rev;baseline=structuredClone(data);
  try{localStorage.setItem(BASE+session.id,JSON.stringify({revision:rev,data:baseline}))}catch(_){}
 }
+function invalidRefresh(e){
+ const c=String(e?.code||"").toLowerCase(),msg=String(e?.message||"").toLowerCase();
+ return ["refresh_token_not_found","invalid_refresh_token","invalid_grant","session_not_found","session_expired"].includes(c)||
+  ((e?.status===400||e?.status===401)&&/invalid refresh token|refresh token not found|refresh token already used|session not found/.test(msg));
+}
 async function refreshAuth(){
  if(!session)return false;
  if(session.expires>Date.now()+60000)return true;
- try{
-  const data=await request("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:{refresh_token:session.refresh}});
-  if(!data.access_token||!data.refresh_token)throw Error("会话已过期");
-  session={id:data.user.id,email:data.user.email,access:data.access_token,refresh:data.refresh_token,
-   expires:Date.now()+(data.expires_in||3600)*1000};
-  storeSession();return true;
- }catch(e){session=null;storeSession();state="auth";lastError=errorMessage(e);show();return false}
+ if(refreshFlight)return refreshFlight;
+ const current=session;
+ refreshFlight=(async()=>{
+  try{
+   const data=await request("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:{refresh_token:current.refresh}});
+   if(!data.access_token||!data.refresh_token)throw Error("云端没有返回有效的续期凭据");
+   // Keep previously verified account identity if refresh response omits user.
+   session={id:data.user?.id||current.id,email:data.user?.email||current.email,
+    access:data.access_token,refresh:data.refresh_token,
+    expires:Date.now()+(data.expires_in||3600)*1000};
+   await storeSession();lastError="";
+   return true;
+  }catch(e){
+   // Another tab may have rotated the refresh token while this one was suspended.
+   const newer=await readSavedSession();
+   if(newer&&newer.refresh!==current.refresh&&newer.id===current.id){
+    session=newer;return true;
+   }
+   if(invalidRefresh(e)){
+    session=null;
+    await storeSession();
+    state="auth";lastError="登录会话已失效，请重新登录一次。";show();
+   }else{
+    // Temporary VPN/network failure is NOT a logout. Retry automatically when
+    // connection returns; the last valid refresh token stays on-device.
+    state="error";
+    lastError="网络暂时不可用，已保留登录状态，恢复网络后将自动重试："+errorMessage(e);
+    show();
+   }
+   return false;
+  }
+ })();
+ try{return await refreshFlight}finally{refreshFlight=null}
 }
 async function authCall(route,body){
  const data=await request(route,{method:"POST",body});
  if(!data.access_token)return false;
  session={id:data.user.id,email:data.user.email,access:data.access_token,refresh:data.refresh_token,
   expires:Date.now()+(data.expires_in||3600)*1000};
- storeSession();return true;
+ await storeSession();return true;
 }
 async function readCloud(){
  if(!await refreshAuth())throw Error("登录已过期，请重新登录");
@@ -240,7 +328,7 @@ async function download(){
 async function logout(){
  if(!session)return;
  if(!confirm("退出此设备的云同步账号？本机记录将完整保留。"))return;
- session=null;storeSession();state="auth";revision=0;baseline=null;show();
+ session=null;await storeSession();state="auth";revision=0;baseline=null;show();
 }
 async function retry(){
  if(!session||busy)return;try{await connect()}catch(e){lastError=errorMessage(e);state="error";show()}
@@ -248,7 +336,7 @@ async function retry(){
 async function initial(){
  if(!enabled){state="disabled";show();return}
  state="auth";
- const saved=(()=>{try{return JSON.parse(localStorage.getItem(SESSION)||"null")}catch(_){return null}})();
+ const saved=await readSavedSession();
  if(saved?.access&&saved?.refresh&&saved?.id){
   session=saved;
   try{await connect()}catch(e){lastError=errorMessage(e);state="error"}
@@ -258,7 +346,7 @@ async function initial(){
  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state==="ready")void tick()});
 }
 window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,enabled,
- status:()=>({state,revision,lastError,lastSync})};
+ status:()=>({state,revision,lastError,lastSync,persistenceWarn,hasSession:!!session})};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{void initial()});
 else void initial();
 })();
