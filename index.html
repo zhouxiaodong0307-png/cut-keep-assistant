@@ -571,6 +571,8 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 #view-progress .iosWidgetActions button{border:1px solid #dedee3;background:#f6f6f9;color:#1c1c1e;border-radius:10px;min-height:40px;padding:0 7px;font-size:12px;font-weight:700;white-space:nowrap}
 #view-progress .iosWidgetActions button:last-child{background:#242426;color:#fff;border-color:#242426}
 #view-progress #iosWidgetSyncStatus{font-size:11px;color:#777780;line-height:1.5}
+#view-progress .iosWidgetSecondary{display:flex;justify-content:center;gap:16px;align-items:center;flex-wrap:wrap;margin:3px 0 7px}
+#view-progress .iosWidgetSecondary button{background:none;border:0;padding:6px 0;min-height:30px;color:#686871;font-size:11px;cursor:pointer}
 /* V91: account & cloud controls are compact; health details stay on-device until opted in. */
 #view-progress .fitnessCloudPanel{margin-top:11px;padding-top:11px;border-top:1px solid #e5e5ea}
 #view-progress .fitnessCloudPanel>summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:700;font-size:13px;color:#48484e;list-style:none;min-height:34px}
@@ -666,11 +668,14 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 <div id="fitnessCloudChoices" hidden><p>发现本机与云端数据不同。请先导出上方完整备份，谨慎选择正确数据来源。</p>
 <div class="fitnessCloudButtons"><button id="fitnessCloudUpload" type="button" onclick="FitnessCloudSync.upload()">保留本机并上传</button><button id="fitnessCloudDownload" type="button" onclick="FitnessCloudSync.download()">恢复云端到本机</button></div></div>
 <div id="fitnessCloudStatus" aria-live="polite">正在检查云端配置…</div></div></details>
-<details class="iosWidgetHelp"><summary>iPhone 桌面小组件</summary><div class="iosWidgetActions"><button type="button" onclick="copyIosWidgetScript()">更新脚本</button><button type="button" onclick="syncIosWidget()">同步小组件</button></div><div id="iosWidgetSyncStatus" aria-live="polite">脚本名称已自动记住；数据需手动同步，点击小组件默认打开浏览器。</div></details></section></section>
+<details class="iosWidgetHelp"><summary>iPhone 桌面小组件</summary>
+<div class="iosWidgetActions"><button type="button" onclick="copyIosWidgetScript()">① 更新脚本</button><button type="button" onclick="FitnessCloudSync.pairWidget()">② 连接自动更新</button></div>
+<div class="iosWidgetSecondary"><button type="button" onclick="syncIosWidget()">手动同步（备用）</button><button type="button" onclick="FitnessCloudSync.revokeWidget()">撤销读取授权</button></div>
+<div id="iosWidgetSyncStatus" aria-live="polite">只需一次：先更新 Scriptable 原脚本，再用已登录的云端账号连接自动更新。此后小组件按 iOS 允许的刷新时机直接读取云端摘要，通常不必再手动同步；不是实时推送。</div></details></section></section>
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8.5 16 2.2 2 4.8-4.5"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3v6.5a3 3 0 0 0 6 0V3M6.5 3v18"/><path d="M19 21V4.5c0-1.6-1.2-2-2.4-.6-2 1.8-2.3 6.3-2.3 9.1H19"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M9 10h6M15 10h0M18 6.5v11M21 9v6M6 12h12"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V9M19 20V4"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261017-resilient-widget-login-93",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261017-automatic-widget-cloud-94",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -2535,12 +2540,12 @@ function createIosWidgetSnapshot(){
 function iosWidgetStatus(text){const el=document.getElementById("iosWidgetSyncStatus");if(el)el.textContent=text}
 async function copyIosWidgetScript(){
  try{
-  const rsp=await fetch("./widgets/cut-keep-scriptable.js?version=88",{cache:"no-store"});
+  const rsp=await fetch("./widgets/cut-keep-scriptable.js?version=94",{cache:"no-store"});
   if(!rsp.ok)throw Error("脚本加载失败");
   const script=await rsp.text();
   if(!script.includes("cut_keep_widget_v1.json")||!script.includes("Pasteboard.pasteString"))throw Error("脚本内容校验失败");
   await navigator.clipboard.writeText(script);
-  iosWidgetStatus("脚本已复制。进入 Scriptable 原脚本，全选旧代码、粘贴覆盖并保存；无需改名或重新添加小组件。");
+  iosWidgetStatus("V94 自动更新脚本已复制。请在 Scriptable 原脚本全选旧代码并粘贴覆盖保存，再回来点击「② 连接自动更新」；无需重建小组件。");
  }catch(e){iosWidgetStatus("复制失败。可打开本站 /widgets/cut-keep-scriptable.js 查看并复制脚本；请确认 Safari 已允许访问剪贴板。")}
 }
 function iosWidgetRunUrl(name){
@@ -2657,4 +2662,4 @@ function renderWeeklyReport(){if(!window.weeklyReportBox)return;archiveWeeklyRep
 function saveTargets(){const k=+targetKcalInput.value,p=+targetProteinInput.value;if(k<1200||k>5000||p<40||p>300)return alert("请输入合理的目标");target=k;pt=p;localStorage.setItem("ckTargetKcal",k);localStorage.setItem("ckTargetProtein",p);render();alert("目标已更新")}
 
 targetKcalInput.value=target;targetProteinInput.value=pt;render();
-</script><script src="./cloud-config.js"></script><script defer src="./cloud-sync.js?v=93"></script></body></html>
+</script><script src="./cloud-config.js"></script><script defer src="./cloud-sync.js?v=94"></script></body></html>
