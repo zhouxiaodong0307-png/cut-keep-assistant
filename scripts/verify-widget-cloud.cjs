@@ -17,8 +17,8 @@ const makeSnapshot=(k=cloudKcal)=>({app:"cut-keep-widget",version:1,date:day,syn
  nutrition:{kcal:k,kcalGoal:2250,protein:35,proteinGoal:155}});
 function node(){return{backgroundColor:null,cornerRadius:0,spacing:0,layoutHorizontally(){},layoutVertically(){},
  centerAlignContent(){},setPadding(){},addSpacer(){},addStack:node,addText(s){events.push(String(s));return{font:null,textColor:null,lineLimit:0,minimumScaleFactor:0}}}}
-class ListWidget extends node{
- constructor(){super();this.url=null}
+class ListWidget{
+ constructor(){Object.assign(this,node());this.url=null}
  async presentSmall(){}
  async presentMedium(){}
 }
