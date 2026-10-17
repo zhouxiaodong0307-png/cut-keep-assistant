@@ -47,7 +47,8 @@ assert(!html.includes('localStorage.clear('));
 assert(html.includes('onclick="syncIosWidget()"'));
 assert(html.includes('onclick="copyIosWidgetScript()"'));
 assert(html.includes('scriptable:///run?scriptName='));
-assert(!script.includes('new Request('));
+assert(script.includes('new Request(supabaseURL+"/rest/v1/rpc/fitness_widget_read")'));
+assert(!script.includes('fitness_sync_snapshots?select='),'Widget must never fetch private ck* archive');
 assert(!script.includes('fetch('));
 const operations=[];
 function stack(){
@@ -149,9 +150,10 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  mock.args.widgetParameter='';
  await launcher(...Object.values(mock));
  assert.equal(currentWidget.url,'https://cut-keep-assistant.onrender.com/');
- assert(html.includes('脚本名称已自动记住'));
+ assert(html.includes('连接自动更新'));
+assert(html.includes('撤销读取授权'));
 
- assert(html.includes('widgets/cut-keep-scriptable.js?version=88'));
+ assert(html.includes('widgets/cut-keep-scriptable.js?version=94'));
  assert(html.includes('>更新脚本</button>'));
  assert(html.includes('全选旧代码、粘贴覆盖并保存'));
  // V89: The visible iOS widget control must be just TWO buttons in one row.
