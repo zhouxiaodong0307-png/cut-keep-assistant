@@ -11,6 +11,7 @@ on:
       - cloud-config.js
       - supabase/**
       - scripts/verify-cloud-sync.cjs
+      - scripts/verify-cloud-session.cjs
       - scripts/verify-cloud-live.cjs
       - widgets/**
       - .github/workflows/verify-exercise-guides.yml
@@ -24,6 +25,7 @@ on:
       - cloud-config.js
       - supabase/**
       - scripts/verify-cloud-sync.cjs
+      - scripts/verify-cloud-session.cjs
       - scripts/verify-cloud-live.cjs
       - widgets/**
       - .github/workflows/verify-exercise-guides.yml
@@ -41,5 +43,7 @@ jobs:
         run: node scripts/verify-ios-widget.cjs
       - name: Validate private account cloud sync and multi-device conflict prevention
         run: node scripts/verify-cloud-sync.cjs
+      - name: Validate persistent Safari sessions through widget relaunch and network interruption
+        run: node scripts/verify-cloud-session.cjs
       - name: Verify real backend rejects anonymous health-data access
         run: node scripts/verify-cloud-live.cjs
