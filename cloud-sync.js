@@ -1,4 +1,4 @@
-/* 健身助手 V93 · resilient login persistence and offline-safe refresh. No writes until verified login and explicit initial pairing.
+/* 健身助手 V94 · secure read-only cloud widget auto-refresh and persistent login. No writes until verified login and explicit initial pairing.
    Supabase Auth JWT + RLS + atomic revision CAS; each device keeps own local records. */
 (function(){
 "use strict";
@@ -73,6 +73,8 @@ function snapshot(){
  }return out;
 }
 function canonical(v){return JSON.stringify(Object.keys(v||{}).sort().map(k=>[k,v[k]]))}
+function widgetSummary(){if(typeof window.createIosWidgetSnapshot!=="function")throw Error("新版小组件摘要模块未加载，请刷新健身助手");return window.createIosWidgetSnapshot()}
+function summaryIdentity(s){if(!s||typeof s!=="object")return "";const copy={...s};delete copy.syncedAt;return JSON.stringify(copy)}
 function equal(a,b){return canonical(a)===canonical(b)}
 function count(v){return Object.keys(v||{}).length}
 function setMessage(message){const node=$("fitnessCloudStatus");if(node)node.textContent=message}
@@ -179,16 +181,48 @@ async function authCall(route,body){
 }
 async function readCloud(){
  if(!await refreshAuth())throw Error("登录已过期，请重新登录");
- const rows=await request("/rest/v1/fitness_sync_snapshots?select=snapshot,revision,updated_at&limit=1",{
+ const rows=await request("/rest/v1/fitness_sync_snapshots?select=snapshot,revision,updated_at,widget_summary&limit=1",{
   token:session.access});
  return Array.isArray(rows)&&rows[0]?rows[0]:null;
 }
 async function writeCloud(data,expected){
  if(!await refreshAuth())throw Error("登录已过期");
  const r=await request("/rest/v1/rpc/fitness_sync_save",{method:"POST",token:session.access,
-  body:{p_snapshot:data,p_expected:expected}});
+  body:{p_snapshot:data,p_expected:expected,p_widget_summary:widgetSummary()}});
  if(!Array.isArray(r)||!r[0]?.new_revision)throw Error("云端未返回保存版本");
  return Number(r[0].new_revision);
+}
+async function touchWidget(summary,expected){
+ if(!await refreshAuth())throw Error("登录已过期");
+ return await request("/rest/v1/rpc/fitness_widget_touch",{method:"POST",token:session.access,
+  body:{p_widget_summary:summary,p_expected:expected}});
+}
+async function pairWidget(){
+ if(!enabled||busy||!session||state!=="ready")return window.iosWidgetStatus?.("请先登录云端账号并完成首次数据同步，再连接小组件。");
+ busy=true;
+ try{
+  if(!await refreshAuth())throw Error("云端登录已失效");
+  // A refresh token is never copied to Scriptable; pair generates its own
+  // read-only credential on the server and immediately invalidates the old one.
+  const token=await request("/rest/v1/rpc/fitness_widget_pair",{method:"POST",body:{},token:session.access});
+  if(typeof token!=="string"||!/^[0-9a-f]{64}$/.test(token))throw Error("云端未返回有效的小组件授权");
+  await navigator.clipboard.writeText(token);
+  const name=typeof configuredIosWidgetScriptName==="function"?configuredIosWidgetScriptName():"减脂保肌小组件";
+  window.iosWidgetStatus?.("一次性配对凭证已复制，正在打开 Scriptable 导入。配对成功后无需每天手动同步。");
+  location.href="scriptable:///run?scriptName="+encodeURIComponent(name)+"&mode=pair";
+ }catch(e){window.iosWidgetStatus?.("连接失败："+errorMessage(e)+"。原有数据未修改。")}
+ finally{busy=false}
+}
+async function revokeWidget(){
+ if(!session||busy)return;
+ if(!confirm("确定撤销小组件云端读取权限？桌面仍会显示最后一次缓存，直到重新配对。"))return;
+ busy=true;
+ try{
+  if(!await refreshAuth())throw Error("登录已失效");
+  await request("/rest/v1/rpc/fitness_widget_revoke",{method:"POST",body:{},token:session.access});
+  window.iosWidgetStatus?.("已撤销小组件读取权限。手机上的历史记录与云端数据均未删除。");
+ }catch(e){window.iosWidgetStatus?.("撤销失败："+errorMessage(e))}
+ finally{busy=false}
 }
 function safety(){
  if(typeof createSafetySnapshot!=="function")throw Error("安全快照不可用，已取消操作");
@@ -230,7 +264,7 @@ async function connect(){
  }else{
   revision=Number(remote.revision);
   const cloud=remote.snapshot||{};
-  if(equal(cloud,local)){saveBaseline(revision,local);state="ready";lastSync=Date.now()}
+  if(equal(cloud,local)){saveBaseline(revision,local);state="ready";lastSync=Date.now();await tick(true)}
   else if(saved&&saved.revision===revision&&equal(saved.data,cloud)){
    // Previously paired device has only local edits, safe to CAS upload.
    baseline=cloud;state="ready";await tick(true);return;
@@ -260,6 +294,10 @@ async function tick(force=false){
   if(localChanged){
    const newRev=await writeCloud(local,rev);
    saveBaseline(newRev,local);
+  }else if(remote && summaryIdentity(remote.widget_summary)!==summaryIdentity(widgetSummary())){
+   // No changed ck* records? Refresh display data on new days/plan changes
+   // without incrementing the archive revision or overwriting another device.
+   await touchWidget(widgetSummary(),rev);
   }
   revision=revision||rev;lastSync=Date.now();state="ready";show();
  }catch(e){lastError=errorMessage(e);state=(e.code==="P0001"||lastError.includes("SYNC_CONFLICT"))?"review":"error";show()}
@@ -345,7 +383,7 @@ async function initial(){
  alarm=setInterval(()=>{if(state==="ready")void tick();else if(state==="error")void retry()},12000);
  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state==="ready")void tick()});
 }
-window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,enabled,
+window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,pairWidget,revokeWidget,enabled,
  status:()=>({state,revision,lastError,lastSync,persistenceWarn,hasSession:!!session})};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{void initial()});
 else void initial();
