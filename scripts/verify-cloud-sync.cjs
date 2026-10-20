@@ -6,7 +6,7 @@ const config=fs.readFileSync(path.join(root,"cloud-config.js"),"utf8");
 const sql=fs.readFileSync(path.join(root,"supabase/migrations/20261016_fitness_cloud_snapshots.sql"),"utf8");
 new vm.Script(js,{filename:"cloud-sync.js"});
 assert(html.includes('id="fitnessCloudPanel"')&&html.includes('onclick="FitnessCloudSync.upload()"'));
-assert(html.includes('<script defer src="./cloud-sync.js?v=94"></script>'));
+assert(html.includes('<script defer src="./cloud-sync.js?v=95"></script>'));
 assert(config.includes('url:"https://ampixosqbgqbsckmrhog.supabase.co"')&&
  config.includes('anonKey:"sb_publishable_')&&
  !config.includes('service_role')&&
@@ -87,6 +87,10 @@ function env(initial={},account='owner@example.com',configured=true){
    if(!cloud.has(userId))return response(400,{message:"CLOUD_NOT_PAIRED"});
    return response(200,"c".repeat(64));
   }
+  if(endpoint.pathname==="/rest/v1/rpc/fitness_widget_status"){
+   const row=cloud.get(userId);
+   return response(200,row?[{paired:true,last_widget_read_at:null,widget_updated_at:row.updated_at,widget_summary_date:"2026-10-17"}]:[]);
+  }
   if(endpoint.pathname==="/rest/v1/rpc/fitness_widget_revoke")return response(200,true);
   return response(404,{error:"Not found"});
  };
@@ -162,6 +166,8 @@ function messagesSafe(v){return Array.isArray(v)?v:[]}
  await phone.app.pairWidget();
  assert(messagesSafe(phone.messages).some(x=>x.includes("copy:")),"Pair must produce only a read token");
  assert.equal(cloud.get("user-1").widget_summary.training.title,"Zone 2 骑车");
+ await phone.app.checkWidgetFeed();
+ assert(messagesSafe(phone.messages).some(x=>x.includes("从未读取")),"V95 must distinguish cloud updated from Scriptable never fetched");
  assert(!Object.hasOwn(cloud.get("user-1").snapshot,"fitnessCloudAuth-v1"));
  assert(phone.snapshots>=1,"Upload must take safety snapshot first");
  const failedRestore=env({'ckMeals-2026-10-16':'[{"kcal":40}]'});
@@ -175,16 +181,14 @@ function messagesSafe(v){return Array.isArray(v)?v:[]}
   "A mid-restore write failure must preserve the original calories");
  assert.equal(failedRestore.data.get("ckWeights"),undefined,"A failed restore must not leave partial weight history");
  assert(failedRestore.snapshots>=1,"Restore failure must preserve a safety snapshot");
- const browser=env({ckAppBuild:"V90"});
+ const browser=env({ckAppBuild:"V90",ckTrainingStartDate:"2026-10-16",ckWeeklyReports:"[]",ckTrainingCursorIndex:"0",ckTrainingCursorDate:"2026-10-16", "ckTrainPlanIndex-2026-10-16":"0"});
  await wait();
  await browser.app.login("login");
- assert.equal(browser.status().state,"review");
- assert.equal(browser.data.get("ckTrain-2026-10-16"),undefined);
- await browser.app.download();
- assert.equal(browser.reload,1);
+ assert.equal(browser.reload,1,"V95 fresh Safari must restore authoritative cloud after login without manual downloads");
+ assert.equal(browser.status().state,"ready");
  assert.equal(browser.data.get("ckTrain-2026-10-16"),"1");
  assert.equal(browser.data.get("ckMeals-2026-10-16"),'[{"kcal":1100}]');
- assert(browser.snapshots>=1,"Restore must backup original device before importing");
+ assert(browser.snapshots>=1,"Automatic recovery must back up original device before importing");
  const snapshotAfter=browser.snapshot();
  assert(!Object.hasOwn(snapshotAfter,"ckWidgetScriptName"));
  const next=env(Object.fromEntries(browser.data));
@@ -211,5 +215,5 @@ function messagesSafe(v){return Array.isArray(v)?v:[]}
  // Sign-out is local and must not clear training data.
  await rival.app.logout();
  assert.equal(rival.data.get("ckTrain-2026-10-16"),"1");
- console.log("PASS: V94 cloud archive and read-only widget summary published atomically, secure pairing, V91 conflict and restore protections remain.");
+ console.log("PASS: V95 empty Safari auto-recovers real cloud with safety snapshot, real-record conflict still protected, server-side widget read diagnostic distinguishes stale home widget.");
 })().catch(e=>{console.error(e);process.exitCode=1});
