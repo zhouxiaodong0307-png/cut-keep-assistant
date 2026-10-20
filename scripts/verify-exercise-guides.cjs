@@ -13,7 +13,7 @@ const images={
 const expectedDays=[
  ['杠铃深蹲','器械推胸','坐姿划船','杠铃罗马尼亚硬拉','死虫','平板支撑'],
  [],['保加利亚分腿蹲','中立握高位下拉','坐姿划船','俯卧腿弯举','绳索面拉','Pallof Press 抗旋转'],
- [],['杠铃卧推','上斜哑铃卧推','平板哑铃飞鸟','中立握高位下拉','杠铃罗马尼亚硬拉','Pallof Press 抗旋转'],[],[]
+ [],['杠铃卧推','上斜哑铃卧推','器械推胸','平板哑铃飞鸟'],[],[]
 ];
 for(const [asset,min] of [['assets/anatomy-guides.webp',100000],['assets/anatomy-thumbnails.webp',10000]]){
  const f=path.join(root,asset);
@@ -299,13 +299,13 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const old=new Function(legacy.replace('const LEGACY_V47_PLAN_TEMPLATES=','const p=')+'return p;')();
  const count=p=>p[3].filter(r=>!r.startsWith('热身')).reduce((sum,x)=>sum+(+x.match(/(\d+)组/)?.[1]||0),0);
  const strengthDays=[0,2,4],normal=strengthDays.map(i=>count(program[i])),historical=strengthDays.map(i=>count(old[i]));
- if(JSON.stringify(normal)!==JSON.stringify([16,16,15]))throw Error('Experienced strength days should be balanced at 16/16/15 nominal sets; got '+normal);
+ if(JSON.stringify(normal)!==JSON.stringify([16,16,10]))throw Error('Chest-only priority: experienced strength days expected 16/16/10 nominal sets; got '+normal);
  if(JSON.stringify(historical)!==JSON.stringify([13,12,5]))throw Error('V47 safety reference corrupted');
  for(let i of strengthDays){
    const actions=program[i][3].filter(r=>/推荐重量|自重/.test(r));
-   if(actions.length<6||actions.some(x=>/\b1组/.test(x)))throw Error('Normal week has a single-set or skeletal strength day '+i);
+   if(actions.length<(i===4?4:6)||actions.some(x=>/\b1组/.test(x)))throw Error('Normal week has a single-set or skeletal strength day '+i);
  }
- if(program[4][1]!=='全身力量 C（胸部主导）')throw Error('C must retain a chest-focus while training the full body');
+ if(program[4][1]!=='胸部专项训练'||program[4][3].some(x=>/下拉|划船|硬拉|深蹲|Pallof|死虫|平板支撑|面拉/.test(x)))throw Error('Day5 must exclusively train chest and retain specialist label');
  const initial=sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
  const make=fn=>new Function('recovery','phaseWeek','stepGoalRange','coachLoads','coachWeight','localDate','localStorage','exerciseDone','trainingIndex','integratedTrainingDecision','rideAffectsLowerBody',
    initial+'return resolveExercise;')({state:fn.state},()=>fn.week,()=> '6500–7500',
@@ -327,11 +327,11 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    return {p:fn(),kv};
  };
  const existing=mk(true),fresh=mk(false),forced=mk(false,'v47');
- if(count(existing.p[4])!==5||count(fresh.p[4])!==15||count(forced.p[4])!==5)throw Error('Existing training progress not frozen while new sessions upgrade');
+ if(count(existing.p[4])!==5||count(fresh.p[4])!==10||count(forced.p[4])!==5)throw Error('Existing training progress not frozen while new sessions upgrade');
  if(existing.kv.get('ckStrengthPlanRevision-2026-10-10')!=='v47'||fresh.kv.get('ckStrengthPlanRevision-2026-10-10')!=='v48')throw Error('Plan revision marker incorrect');
  if(existing.kv.get('ckTrain-2026-10-09')!=='1')throw Error('Historical training changed during volume upgrade');
  if(!html.includes('.exerciseRow.isDone{opacity:.58}')||html.includes('finishedCompact')||html.includes('trainingFlowGuideHtml'))throw Error('Authorized V47 layout must remain unchanged');
- console.log('PASS: 3 trained strength days 16/16/15 sets, full-body C, week4/8/12 deload, day-scoped recovery and in-progress old-session protection');
+ console.log('PASS: chest-only 10 working sets on Day5, 16/16 remaining strength days, week4/8/12 deload, V47 active workout untouched');
 }
 
 /* V49: optional sets/reps and outcome-aware prescription must persist, never
@@ -1129,23 +1129,29 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(pending.length!==2||actions.assessPartialMakeup(pending,[],'cardio','normal',{}).accepted.length)
   throw Error('V80 cardio day must not be forced to complete missed strength actions');
  day='2026-10-18';
- const plan=()=>Array.from({length:7},(_,i)=>['训练日','原计划','50分钟',i===4?['热身｜5分钟','杠铃卧推｜3组 × 8–10次','上斜哑铃卧推｜3组 × 8–10次','中立握高位下拉｜3组 × 8–10次','杠铃罗马尼亚硬拉｜2组 × 8–10次','Pallof Press 抗旋转｜2组 × 10–12次']:[]]);
- const p1=plan();unknownSleep=true;
- if(actions.planPartialMakeup(p1,4).accepted.length)throw Error('V80 unknown sleep must not auto-add exercises');
+ const plan=()=>Array.from({length:7},(_,i)=>['训练日','原计划','50分钟',i===4?
+  ['热身｜胸部专项热身','杠铃卧推｜3组 × 8–10次','上斜哑铃卧推｜3组 × 8–10次','器械推胸｜2组 × 8–12次','平板哑铃飞鸟｜2组 × 10–15次']:
+  i===0?['热身｜5分钟','器械推胸｜3组 × 6–12次','中立握高位下拉｜3组 × 8–10次','杠铃罗马尼亚硬拉｜2组 × 8–10次','Pallof Press 抗旋转｜2组 × 10–12次']:[]]);
+ const chestOnly=plan(),chestCount=chestOnly[4][3].length;
  unknownSleep=false;
- const p2=plan(),chosen=actions.planPartialMakeup(p2,4).accepted;
- if(chosen.length!==1||chosen[0].name!=='死虫'||p2[4][3].filter(x=>x.startsWith('杠铃罗马尼亚硬拉')).length!==1)
-  throw Error('V80 should add at most one safe unique accessory; no duplicate hard legs');
+ if(actions.planPartialMakeup(chestOnly,4).accepted.length||chestOnly[4][3].length!==chestCount)
+  throw Error('V96 chest-only day must never append back/legs/core incomplete makeup');
+ const p1=plan();unknownSleep=true;
+ if(actions.planPartialMakeup(p1,0).accepted.length)throw Error('V80 unknown sleep must not auto-add other-day exercises');
+ unknownSleep=false;
+ const p2=plan(),chosen=actions.planPartialMakeup(p2,0).accepted;
+ if(chosen.length!==1||chosen[0].name!=='死虫'||p2[0][3].filter(x=>x.startsWith('杠铃罗马尼亚硬拉')).length!==1)
+  throw Error('V80 non-chest strength day must add only one safe unique optional accessory');
  started=true;
- const p3=plan(),frozen=actions.planPartialMakeup(p3,4).accepted;
- if(frozen.length!==1||!p3[4][3].some(x=>x.startsWith('死虫')))throw Error('V80 planned top-up disappeared after first action');
+ const p3=plan(),frozen=actions.planPartialMakeup(p3,0).accepted;
+ if(frozen.length!==1||!p3[0][3].some(x=>x.startsWith('死虫')))throw Error('V80 non-chest planned top-up disappeared after first action');
  memory.set('ckExerciseDone-2026-10-18',JSON.stringify({'死虫':true}));
  pending=actions.partialPendingCandidates();
  if(pending.some(x=>x.name==='死虫'))throw Error('V80 completed top-up remained a new training debt');
  const afterDone=plan();
- if(!actions.planPartialMakeup(afterDone,4).accepted.some(x=>x.name==='死虫')||
-   !afterDone[4][3].some(x=>x.startsWith('死虫')))
-  throw Error('V80 completed optional top-up vanished from active workout');
+ if(!actions.planPartialMakeup(afterDone,0).accepted.some(x=>x.name==='死虫')||
+   !afterDone[0][3].some(x=>x.startsWith('死虫')))
+  throw Error('V80 completed optional top-up vanished from active NON-CHEST workout');
  if(saved.completed.some(x=>x.weight!==null||x.feedback!==null))
   throw Error('V80 unconfirmed weight or effort was fabricated');
  day='2026-10-19';started=false;

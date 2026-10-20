@@ -675,7 +675,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8.5 16 2.2 2 4.8-4.5"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3v6.5a3 3 0 0 0 6 0V3M6.5 3v18"/><path d="M19 21V4.5c0-1.6-1.2-2-2.4-.6-2 1.8-2.3 6.3-2.3 9.1H19"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M9 10h6M15 10h0M18 6.5v11M21 9v6M6 12h12"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V9M19 20V4"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261020-cloud-consistency-widget-95",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261020-chest-specialist-day-96",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -772,14 +772,12 @@ const planTemplates=[
 "可选轻松步行｜20–40分钟",
 "优先睡眠与恢复"
 ]],
-["训练日5","全身力量 C（胸部主导）","50–65分钟",[
-"热身｜5分钟 + 杠铃卧推递增热身（正式组另算）",
+["训练日5","胸部专项训练","45–60分钟",[
+"热身｜5分钟肩关节轻活动 + 杠铃卧推逐级热身（不算正式组）",
 "杠铃卧推｜3组 × 6–8次｜推荐重量：@bench｜休2–3分钟",
 "上斜哑铃卧推｜3组 × 8–12次｜推荐重量：@incline｜休90秒–2分钟",
-"平板哑铃飞鸟｜2组 × 10–15次｜推荐重量：@fly｜休60–90秒",
-"中立握高位下拉｜3组 × 8–12次｜推荐重量：@pulldown｜休90秒–2分钟",
-"杠铃罗马尼亚硬拉｜2组 × 8–10次｜推荐重量：@rdlA｜休2–3分钟",
-"Pallof Press 抗旋转｜2组 × 每侧10–12次｜推荐重量：@pallof｜休45–60秒"
+"器械推胸｜2组 × 8–12次｜推荐重量：@chestpress｜休90秒–2分钟",
+"平板哑铃飞鸟｜2组 × 10–15次｜推荐重量：@fly｜休60–90秒"
 ]],
 ["训练日6","Zone 2 骑车","50–60分钟",[
 "热身｜5分钟轻松骑",
@@ -1186,6 +1184,10 @@ function assessPartialMakeup(candidates,plan,kind,mode,lastLoads){
 function planPartialMakeup(plans,index,ds=localDate()){
  if(ds!==localDate()||![0,2,4].includes(index)||!plans[index])return {accepted:[],held:[]};
  const candidates=partialPendingCandidates(ds);if(!candidates.length)return {accepted:[],held:[]};
+ // Chest is the user's priority. Never inject unfinished back/leg/core work,
+ // or even an unrequested chest top-up, into the protected chest session.
+ // Pending facts remain in the historical partial record for other days.
+ if(index===4)return {accepted:[],held:candidates.map(item=>({...item,why:"胸部专项训练日不安排额外补练，以保证胸部训练质量"}))};
  const decision=dailyTrainingDecision(ds,index),recent={};
  for(const x of candidates)if(x.muscle&&!Object.prototype.hasOwnProperty.call(recent,x.muscle))
   recent[x.muscle]=actualRecentMuscleLoad(ds,x.muscle)[0]?.gap??99;
@@ -1417,6 +1419,14 @@ function currentPlans(){
  if(typeof planPartialMakeup==="function")planPartialMakeup(plans,idx,localDate());
  const frozen=typeof readStartedExercisePlan==="function"?readStartedExercisePlan():null,choiceNow=typeof readDayAdjustment==="function"?readDayAdjustment()?.choice:null;
  if(frozen&&frozen.index===idx&&!["hold","rest","next-strength","defer","walk","original"].includes(choiceNow))plans[idx][3]=[...frozen.rows];
+ // Chest specialist day must never silently become a full-body day again,
+ // even if a later adaptive rule is extended to insert additional movements.
+ // Preserve any frozen, already-started session unchanged; completed actions
+ // and their evidence remain in the historical exercise records.
+ if(idx===4&&!(frozen&&frozen.index===idx)){
+  const chestRows=new Set(["热身","杠铃卧推","上斜哑铃卧推","器械推胸","平板哑铃飞鸟"]);
+  plans[idx][3]=plans[idx][3].filter(row=>chestRows.has(row.split("｜")[0]));
+ }
  return plans;
 }
 /* V76: Scheduled strength slots respond to real muscle loads recorded within seven days.
