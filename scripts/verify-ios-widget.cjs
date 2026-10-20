@@ -151,9 +151,10 @@ const launcher=new AsyncFunction(...Object.keys(mock),script);
  await launcher(...Object.values(mock));
  assert.equal(currentWidget.url,'https://cut-keep-assistant.onrender.com/');
  assert(html.includes('连接自动更新'));
-assert(html.includes('撤销读取授权'));
+assert(html.includes('检测实际同步'));
+assert(html.includes('撤销授权'));
 
- assert(html.includes('widgets/cut-keep-scriptable.js?version=94'));
+ assert(html.includes('widgets/cut-keep-scriptable.js?version=95'));
  assert(html.includes('>① 更新脚本</button>'));
  assert(html.includes('全选旧代码并粘贴覆盖保存'));
  // V94: Two primary actions and two compact fallback/security links.
@@ -161,7 +162,7 @@ assert(html.includes('撤销读取授权'));
  const uiEnd=html.indexOf('</details>',uiStart);
  if(uiStart<0||uiEnd<0)throw Error('V89 widget details not found');
  const card=html.slice(uiStart,uiEnd);
- assert.equal((card.match(/<button\b/g)||[]).length,4,'V94 should have exactly two primary actions plus manual/revoke');
+ assert.equal((card.match(/<button\b/g)||[]).length,5,'V95 must have two main actions and three compact controls: manual, diagnose, revoke');
  assert(card.includes('>① 更新脚本</button>')&&card.includes('>② 连接自动更新</button>')&&card.includes('手动同步（备用）'));
  assert(!card.includes('id="iosWidgetScriptName"'));
  assert(!card.includes('class="iosWidgetNameLine"'));
