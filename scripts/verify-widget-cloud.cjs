@@ -67,7 +67,7 @@ const launch=()=>run(...Object.keys(device).filter(k=>k!=="lastWidget").map(k=>d
  events.length=0;await launch();
  assert(requestCount>requestsAfterPair);
  assert.equal(JSON.parse(store.get("/device/cut_keep_widget_v1.json")).nutrition.kcal,1750);
- assert(events.some(x=>x.includes("1800 / 2250 kcal")));
+ assert(events.some(x=>x.includes("1750 / 2250 kcal")));
  assert(events.includes("云端已更新")||events.includes("待更新"));
  // A manual legacy import can have a newer client timestamp but OLD values.
  // The authenticated cloud summary must always take precedence.
@@ -81,7 +81,7 @@ const launch=()=>run(...Object.keys(device).filter(k=>k!=="lastWidget").map(k=>d
  backendOnline=false;events.length=0;await launch();
  assert(requestCount===used+1,"widget attempts backend fetch at each system-triggered refresh");
  assert.equal(JSON.parse(store.get("/device/cut_keep_widget_v1.json")).nutrition.kcal,1800,"offline must preserve last verified cloud snapshot");
- assert(events.some(x=>x.includes("1750 / 2250 kcal")));
+ assert(events.some(x=>x.includes("1800 / 2250 kcal")));
  assert(events.includes("网络待同步")||events.includes("待更新"));
  backendOnline=true;
  const previous=store.get("/device/cut_keep_widget_cloud_v1.json");
