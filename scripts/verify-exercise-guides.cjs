@@ -13,7 +13,7 @@ const images={
 const expectedDays=[
  ['杠铃深蹲','器械推胸','坐姿划船','杠铃罗马尼亚硬拉','死虫','平板支撑'],
  [],['保加利亚分腿蹲','中立握高位下拉','坐姿划船','俯卧腿弯举','绳索面拉','Pallof Press 抗旋转'],
- [],['杠铃卧推','上斜哑铃卧推','平板哑铃飞鸟','中立握高位下拉','杠铃罗马尼亚硬拉','Pallof Press 抗旋转'],[],[]
+ [],['杠铃卧推','上斜哑铃卧推','器械推胸','平板哑铃飞鸟'],[],[]
 ];
 for(const [asset,min] of [['assets/anatomy-guides.webp',100000],['assets/anatomy-thumbnails.webp',10000]]){
  const f=path.join(root,asset);
@@ -299,13 +299,13 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const old=new Function(legacy.replace('const LEGACY_V47_PLAN_TEMPLATES=','const p=')+'return p;')();
  const count=p=>p[3].filter(r=>!r.startsWith('热身')).reduce((sum,x)=>sum+(+x.match(/(\d+)组/)?.[1]||0),0);
  const strengthDays=[0,2,4],normal=strengthDays.map(i=>count(program[i])),historical=strengthDays.map(i=>count(old[i]));
- if(JSON.stringify(normal)!==JSON.stringify([16,16,15]))throw Error('Experienced strength days should be balanced at 16/16/15 nominal sets; got '+normal);
+ if(JSON.stringify(normal)!==JSON.stringify([16,16,10]))throw Error('Chest-only priority: experienced strength days expected 16/16/10 nominal sets; got '+normal);
  if(JSON.stringify(historical)!==JSON.stringify([13,12,5]))throw Error('V47 safety reference corrupted');
  for(let i of strengthDays){
    const actions=program[i][3].filter(r=>/推荐重量|自重/.test(r));
-   if(actions.length<6||actions.some(x=>/\b1组/.test(x)))throw Error('Normal week has a single-set or skeletal strength day '+i);
+   if(actions.length<(i===4?4:6)||actions.some(x=>/\b1组/.test(x)))throw Error('Normal week has a single-set or skeletal strength day '+i);
  }
- if(program[4][1]!=='全身力量 C（胸部主导）')throw Error('C must retain a chest-focus while training the full body');
+ if(program[4][1]!=='胸部专项训练'||program[4][3].some(x=>/下拉|划船|硬拉|深蹲|Pallof|死虫|平板支撑|面拉/.test(x)))throw Error('Day5 must exclusively train chest and retain specialist label');
  const initial=sect('const VOLUME_HISTORY_KEY=','function weightTrendRule(').slice(0,-'function weightTrendRule('.length);
  const make=fn=>new Function('recovery','phaseWeek','stepGoalRange','coachLoads','coachWeight','localDate','localStorage','exerciseDone','trainingIndex','integratedTrainingDecision','rideAffectsLowerBody',
    initial+'return resolveExercise;')({state:fn.state},()=>fn.week,()=> '6500–7500',
@@ -327,11 +327,11 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
    return {p:fn(),kv};
  };
  const existing=mk(true),fresh=mk(false),forced=mk(false,'v47');
- if(count(existing.p[4])!==5||count(fresh.p[4])!==15||count(forced.p[4])!==5)throw Error('Existing training progress not frozen while new sessions upgrade');
+ if(count(existing.p[4])!==5||count(fresh.p[4])!==10||count(forced.p[4])!==5)throw Error('Existing training progress not frozen while new sessions upgrade');
  if(existing.kv.get('ckStrengthPlanRevision-2026-10-10')!=='v47'||fresh.kv.get('ckStrengthPlanRevision-2026-10-10')!=='v48')throw Error('Plan revision marker incorrect');
  if(existing.kv.get('ckTrain-2026-10-09')!=='1')throw Error('Historical training changed during volume upgrade');
  if(!html.includes('.exerciseRow.isDone{opacity:.58}')||html.includes('finishedCompact')||html.includes('trainingFlowGuideHtml'))throw Error('Authorized V47 layout must remain unchanged');
- console.log('PASS: 3 trained strength days 16/16/15 sets, full-body C, week4/8/12 deload, day-scoped recovery and in-progress old-session protection');
+ console.log('PASS: chest-only 10 working sets on Day5, 16/16 remaining strength days, week4/8/12 deload, V47 active workout untouched');
 }
 
 /* V49: optional sets/reps and outcome-aware prescription must persist, never
