@@ -1129,23 +1129,29 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(pending.length!==2||actions.assessPartialMakeup(pending,[],'cardio','normal',{}).accepted.length)
   throw Error('V80 cardio day must not be forced to complete missed strength actions');
  day='2026-10-18';
- const plan=()=>Array.from({length:7},(_,i)=>['训练日','原计划','50分钟',i===4?['热身｜5分钟','杠铃卧推｜3组 × 8–10次','上斜哑铃卧推｜3组 × 8–10次','中立握高位下拉｜3组 × 8–10次','杠铃罗马尼亚硬拉｜2组 × 8–10次','Pallof Press 抗旋转｜2组 × 10–12次']:[]]);
- const p1=plan();unknownSleep=true;
- if(actions.planPartialMakeup(p1,4).accepted.length)throw Error('V80 unknown sleep must not auto-add exercises');
+ const plan=()=>Array.from({length:7},(_,i)=>['训练日','原计划','50分钟',i===4?
+  ['热身｜胸部专项热身','杠铃卧推｜3组 × 8–10次','上斜哑铃卧推｜3组 × 8–10次','器械推胸｜2组 × 8–12次','平板哑铃飞鸟｜2组 × 10–15次']:
+  i===0?['热身｜5分钟','器械推胸｜3组 × 6–12次','中立握高位下拉｜3组 × 8–10次','杠铃罗马尼亚硬拉｜2组 × 8–10次','Pallof Press 抗旋转｜2组 × 10–12次']:[]]);
+ const chestOnly=plan(),chestCount=chestOnly[4][3].length;
  unknownSleep=false;
- const p2=plan(),chosen=actions.planPartialMakeup(p2,4).accepted;
- if(chosen.length!==1||chosen[0].name!=='死虫'||p2[4][3].filter(x=>x.startsWith('杠铃罗马尼亚硬拉')).length!==1)
-  throw Error('V80 should add at most one safe unique accessory; no duplicate hard legs');
+ if(actions.planPartialMakeup(chestOnly,4).accepted.length||chestOnly[4][3].length!==chestCount)
+  throw Error('V96 chest-only day must never append back/legs/core incomplete makeup');
+ const p1=plan();unknownSleep=true;
+ if(actions.planPartialMakeup(p1,0).accepted.length)throw Error('V80 unknown sleep must not auto-add other-day exercises');
+ unknownSleep=false;
+ const p2=plan(),chosen=actions.planPartialMakeup(p2,0).accepted;
+ if(chosen.length!==1||chosen[0].name!=='死虫'||p2[0][3].filter(x=>x.startsWith('杠铃罗马尼亚硬拉')).length!==1)
+  throw Error('V80 non-chest strength day must add only one safe unique optional accessory');
  started=true;
- const p3=plan(),frozen=actions.planPartialMakeup(p3,4).accepted;
- if(frozen.length!==1||!p3[4][3].some(x=>x.startsWith('死虫')))throw Error('V80 planned top-up disappeared after first action');
+ const p3=plan(),frozen=actions.planPartialMakeup(p3,0).accepted;
+ if(frozen.length!==1||!p3[0][3].some(x=>x.startsWith('死虫')))throw Error('V80 non-chest planned top-up disappeared after first action');
  memory.set('ckExerciseDone-2026-10-18',JSON.stringify({'死虫':true}));
  pending=actions.partialPendingCandidates();
  if(pending.some(x=>x.name==='死虫'))throw Error('V80 completed top-up remained a new training debt');
  const afterDone=plan();
- if(!actions.planPartialMakeup(afterDone,4).accepted.some(x=>x.name==='死虫')||
-   !afterDone[4][3].some(x=>x.startsWith('死虫')))
-  throw Error('V80 completed optional top-up vanished from active workout');
+ if(!actions.planPartialMakeup(afterDone,0).accepted.some(x=>x.name==='死虫')||
+   !afterDone[0][3].some(x=>x.startsWith('死虫')))
+  throw Error('V80 completed optional top-up vanished from active NON-CHEST workout');
  if(saved.completed.some(x=>x.weight!==null||x.feedback!==null))
   throw Error('V80 unconfirmed weight or effort was fabricated');
  day='2026-10-19';started=false;
