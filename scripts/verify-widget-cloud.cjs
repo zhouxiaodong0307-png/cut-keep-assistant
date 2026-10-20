@@ -69,12 +69,20 @@ const launch=()=>run(...Object.keys(device).filter(k=>k!=="lastWidget").map(k=>d
  assert.equal(JSON.parse(store.get("/device/cut_keep_widget_v1.json")).nutrition.kcal,1750);
  assert(events.some(x=>x.includes("1750 / 2250 kcal")));
  assert(events.includes("云端已更新")||events.includes("待更新"));
+ // A manual legacy import can have a newer client timestamp but OLD values.
+ // The authenticated cloud summary must always take precedence.
+ const newerTimestamp=new Date(Date.now()+3600000).toISOString();
+ store.set("/device/cut_keep_widget_v1.json",JSON.stringify({...makeSnapshot(900),syncedAt:newerTimestamp}));
+ cloudKcal=1800;
+ events.length=0;await launch();
+ assert.equal(JSON.parse(store.get("/device/cut_keep_widget_v1.json")).nutrition.kcal,1800,
+  "V95 must not keep newer-timestamp legacy manual stale calories instead of verified cloud");
  const used=requestCount;
  backendOnline=false;events.length=0;await launch();
  assert(requestCount===used+1,"widget attempts backend fetch at each system-triggered refresh");
- assert.equal(JSON.parse(store.get("/device/cut_keep_widget_v1.json")).nutrition.kcal,1750,"offline must preserve last real snapshot");
- assert(events.some(x=>x.includes("1750 / 2250 kcal")));
- assert(events.includes("网络待同步")||events.includes("待更新"));
+ assert.equal(JSON.parse(store.get("/device/cut_keep_widget_v1.json")).nutrition.kcal,1800,"offline must preserve last verified cloud snapshot");
+ assert(events.some(x=>x.includes("1800 / 2250 kcal")));
+ assert(events.includes("读取失败")||events.includes("待更新"),"Offline widget should report a real fetch error");
  backendOnline=true;
  const previous=store.get("/device/cut_keep_widget_cloud_v1.json");
  clipboard="f".repeat(64);device.args.queryParameters={mode:"pair"};device.config.runsInWidget=false;
