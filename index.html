@@ -1419,6 +1419,14 @@ function currentPlans(){
  if(typeof planPartialMakeup==="function")planPartialMakeup(plans,idx,localDate());
  const frozen=typeof readStartedExercisePlan==="function"?readStartedExercisePlan():null,choiceNow=typeof readDayAdjustment==="function"?readDayAdjustment()?.choice:null;
  if(frozen&&frozen.index===idx&&!["hold","rest","next-strength","defer","walk","original"].includes(choiceNow))plans[idx][3]=[...frozen.rows];
+ // Chest specialist day must never silently become a full-body day again,
+ // even if a later adaptive rule is extended to insert additional movements.
+ // Preserve any frozen, already-started session unchanged; completed actions
+ // and their evidence remain in the historical exercise records.
+ if(idx===4&&!(frozen&&frozen.index===idx)){
+  const chestRows=new Set(["热身","杠铃卧推","上斜哑铃卧推","器械推胸","平板哑铃飞鸟"]);
+  plans[idx][3]=plans[idx][3].filter(row=>chestRows.has(row.split("｜")[0]));
+ }
  return plans;
 }
 /* V76: Scheduled strength slots respond to real muscle loads recorded within seven days.
