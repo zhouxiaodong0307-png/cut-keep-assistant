@@ -1,4 +1,4 @@
-// 健身助手 · V94 云端自动更新小组件
+// 健身助手 · V95 云端优先读取
 // 需要 Scriptable（iPhone / iPad）。仅在设备本地保存和显示网页中主动同步的数据。
 // 保留手机中已有的 Scriptable 脚本名称；网页“同步小组件”的名称与其一致即可。
 const fm = FileManager.local();
@@ -116,10 +116,11 @@ if(cloudToken&&!cloudOk){
   if(request.response&&request.response.statusCode>=400)throw Error("云端授权已失效，需重新连接");
   const fresh=Array.isArray(response)?response[0]?.widget_summary:null;
   if(!validSnapshot(fresh))throw Error("云端返回摘要无效");
-  if(!data||Date.parse(fresh.syncedAt)>=Date.parse(data.syncedAt)){
-   data=fresh;
-   fm.writeString(path,JSON.stringify(fresh));
-  }
+  // Server read is authoritative. A prior MANUAL snapshot may have a newer
+  // client-generated syncedAt but contain older weight/kcal data; never let it
+  // block the authenticated read-only cloud summary.
+  data=fresh;
+  fm.writeString(path,JSON.stringify(fresh));
   cloudOk=true;
  }catch(e){cloudError=String(e.message||e)} // Offline: retain last verified local snapshot.
 }
@@ -177,7 +178,7 @@ function dateText(d){
 const head=widget.addStack();head.layoutHorizontally();head.centerAlignContent();
 line(head,"健身助手",small?13:15,true);
 head.addSpacer();
-const statusText=cloudToken?(stale?"待更新":cloudOk?"云端已更新":cloudError?"网络待同步":"自动更新"):!data?"未同步":stale?"待更新":"已同步";
+const statusText=cloudToken?(cloudOk?(stale?"云端待更新":"云端已更新"):cloudError?"读取失败":stale?"待更新":"自动更新"):!data?"未同步":stale?"待更新":"已同步";
 line(head,statusText,small?9:10,false,stale||!!cloudError?new Color("#977042"):mutedColor);
 widget.addSpacer(small?11:12);
 if(!data){
