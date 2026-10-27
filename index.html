@@ -675,7 +675,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8.5 16 2.2 2 4.8-4.5"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3v6.5a3 3 0 0 0 6 0V3M6.5 3v18"/><path d="M19 21V4.5c0-1.6-1.2-2-2.4-.6-2 1.8-2.3 6.3-2.3 9.1H19"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M9 10h6M15 10h0M18 6.5v11M21 9v6M6 12h12"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V9M19 20V4"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261020-chest-specialist-day-96",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261027-scientific-volume-floor-97",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -1318,18 +1318,26 @@ function adaptiveVolumeReference(row,dayIndex,isToday=true){
  if(validExerciseVolume(frozen))return {sets:+frozen.sets,min:+frozen.min,max:+frozen.max,unit:frozen.unit,locked:true};
  const refs=readTrainingVolumeJson(VOLUME_REFERENCE_KEY,{}),manual=refs[id];
  let v=validExerciseVolume(manual)&&manual.unit===spec.unit?{...spec,sets:+manual.sets,min:+manual.min,max:+manual.max}:{...spec};
- const referenceSets=v.sets;
- if(!validExerciseVolume(manual)){
+ const referenceSets=v.sets,hasManual=validExerciseVolume(manual)&&manual.unit===spec.unit;
+ if(!hasManual){
   const recent=lastVolumeResponses(id);
   if(recent[0]?.feedback==="fail"){
-   v.sets=Math.max(1,v.sets-1);
+   // An unfinished set is an effort/load signal, not scientific evidence to
+   // automatically remove one more working set across all future sessions.
+   // Keep prescribed volume; adjust reachable repetitions instead.
    v.max=Math.max(v.min,v.max-1);
   }else if(recent.length>=2&&recent.every(x=>x.feedback==="hard")){
    v.max=Math.max(v.min,v.max-1);
   }
  }
- const deload=(phaseWeek()-1)%4===3,poorToday=isToday&&recovery.state==="poor",rideStrain=isToday&&integratedTrainingDecision().reduceLower&&rideAffectsLowerBody(name);
- if(deload||poorToday||rideStrain)v.sets=Math.min(v.sets,Math.max(1,referenceSets-1));
+ const deload=(phaseWeek()-1)%4===3,poorToday=isToday&&recovery.state==="poor",
+  rideStrain=isToday&&integratedTrainingDecision().reduceLower&&rideAffectsLowerBody(name);
+ if(!hasManual&&(deload||poorToday||rideStrain)){
+  // Multiple automatic recovery signals count as ONE reduction, never
+  // cumulative: 3→2; a standard 2-set movement stays at 2. Explicit manual
+  // prescriptions are honored even when they deliberately specify 1 set.
+  v.sets=Math.max(Math.min(2,referenceSets),referenceSets-1);
+ }
  return v;
 }
 function applyExerciseVolumeToRow(row,v){
@@ -1426,6 +1434,20 @@ function currentPlans(){
  if(idx===4&&!(frozen&&frozen.index===idx)){
   const chestRows=new Set(["热身","杠铃卧推","上斜哑铃卧推","器械推胸","平板哑铃飞鸟"]);
   plans[idx][3]=plans[idx][3].filter(row=>chestRows.has(row.split("｜")[0]));
+ }
+ // Repair any pre-V97 one-set AUTO-reduced rows still held in today's frozen
+ // in-progress plan, but NEVER rewrite finished exercises, known manual
+ // 1-set decisions, repetitions, weights, snapshots or historical evidence.
+ // If recovery is serious enough to need a full rest, preserve the hold plan.
+ if([0,2,4].includes(idx)&&!trainDone){
+  const manual=readTrainingVolumeJson(VOLUME_REFERENCE_KEY,{});
+  plans[idx][3]=plans[idx][3].map(row=>{
+   const name=row.split("｜")[0],v=parseExerciseVolume(row),id=exerciseVolumeId(idx,name);
+   if(!v||v.sets>=2||exerciseDone[name]||validExerciseVolume(manual[id]))return row;
+   const original=(planTemplates[idx]?.[3]||[]).find(x=>x.split("｜")[0]===name);
+   if((parseExerciseVolume(original)?.sets||0)<2)return row;
+   return applyExerciseVolumeToRow(row,{...v,sets:2});
+  });
  }
  return plans;
 }
@@ -1599,12 +1621,18 @@ function applyDailyReadinessToPlans(plans,idx,ds=localDate()){
  if(strength&&check.mode==="reduce"){
   const manual=readTrainingVolumeJson(VOLUME_REFERENCE_KEY,{});
   plan[3]=plan[3].map(row=>{
-   const key=row.split("｜")[0],v=parseExerciseVolume(row),id=exerciseVolumeId(idx,key);
-   if(!v||!v.sets||v.sets<=1||validExerciseVolume(manual[id]))return row;
-   return applyExerciseVolumeToRow(row,{...v,sets:v.sets-1});
+   const name=row.split("｜")[0],v=parseExerciseVolume(row),id=exerciseVolumeId(idx,name);
+   if(!v||validExerciseVolume(manual[id]))return row;
+   const baseRow=(planTemplates[idx]?.[3]||[]).find(x=>x.split("｜")[0]===name);
+   const original=parseExerciseVolume(baseRow);
+   // If this set count was already reduced for week-4 deload, poor recovery,
+   // riding or user feedback, do NOT apply a second or third set deduction.
+   const normal=original?.sets||v.sets;
+   const lower=Math.max(Math.min(2,normal),normal-1);
+   return v.sets>lower?applyExerciseVolumeToRow(row,{...v,sets:lower}):row;
   });
   plan[1]+=" · 恢复减量";
-  plan[2]+=" · 工作组保守调整、不自动加重";
+  plan[2]+=" · 每动作保留有效训练量，不重复扣减工作组";
  }
  if(cardio&&(check.mode!=="normal")){
   const body=plan[3].findIndex(x=>x.startsWith("主体｜"));
