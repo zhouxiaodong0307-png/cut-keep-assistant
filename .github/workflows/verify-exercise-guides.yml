@@ -7,6 +7,7 @@ on:
       - assets/**
       - scripts/verify-exercise-guides.cjs
       - scripts/verify-chest-only-day.cjs
+      - scripts/verify-scientific-volume.cjs
       - scripts/verify-ios-widget.cjs
       - scripts/verify-widget-cloud.cjs
       - cloud-sync.js
@@ -23,6 +24,7 @@ on:
       - assets/**
       - scripts/verify-exercise-guides.cjs
       - scripts/verify-chest-only-day.cjs
+      - scripts/verify-scientific-volume.cjs
       - scripts/verify-ios-widget.cjs
       - scripts/verify-widget-cloud.cjs
       - cloud-sync.js
@@ -45,6 +47,8 @@ jobs:
         run: node scripts/verify-exercise-guides.cjs
       - name: Ensure chest-only specialist day and no unrelated makeup actions
         run: node scripts/verify-chest-only-day.cjs
+      - name: Validate evidence-based minimum working sets and deduplicated fatigue adjustments
+        run: node scripts/verify-scientific-volume.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
       - name: Validate automatic widget cloud pairing, offline caching and new calories
