@@ -372,13 +372,13 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(!r.includes('3组 × 6–7次'))throw Error('Two hard completions should lower the next upper-rep boundary; '+r);
  h=make([{id:'4|杠铃卧推',date:'2026-10-09',feedback:'fail'}]);
  r=h.api.resolveExercise(h.spec,true,4);
- if(!r.includes('2组 × 6–7次'))throw Error('Failed effort must reduce next sets and rep ceiling: '+r);
+ if(!r.includes('3组 × 6–7次'))throw Error('Failed effort must adjust rep target without silently deleting effective working sets: '+r);
  h=make([{id:'4|杠铃卧推',date:'2026-10-09',feedback:'light'}]);
  if(!h.api.resolveExercise(h.spec,true,4).includes('3组 × 6–8次'))throw Error('Light effort already increases weight, should not double-increase volume');
  h=make(last,{'4|杠铃卧推':{sets:4,min:8,max:10,unit:'次'}});
  if(!h.api.resolveExercise(h.spec,true,4).includes('4组 × 8–10次'))throw Error('Manual reference must win over hard feedback');
  h=make(last,{'4|杠铃卧推':{sets:4,min:8,max:10,unit:'次'}},false,'poor');
- if(!h.api.resolveExercise(h.spec,true,4).includes('3组 × 8–10次'))throw Error('Poor recovery should temporarily reduce one working set while retaining manual baseline');
+ if(!h.api.resolveExercise(h.spec,true,4).includes('4组 × 8–10次'))throw Error('Explicit manual volume has precedence over automatic poor-recovery deductions');
  h=make([],{},false,'ok',4);
  if(!h.api.resolveExercise(h.spec,true,4).includes('2组 × 6–8次'))throw Error('Week 4/8/12 must deload the active plan');
  h=make([],{},false,'poor',4);
