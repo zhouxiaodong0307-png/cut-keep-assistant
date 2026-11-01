@@ -13,14 +13,14 @@ const adaptive=(opts={})=>make(parse,(idx,name)=>idx+"|"+name,{},opts.done||{},(
 let checks=0;
 for(const idx of [0,2,4]){
  const base=plans[idx][3].map(row=>({row,v:parse(row)})).filter(o=>o.v);
- assert.equal(base.reduce((n,x)=>n+x.v.sets,0),({0:16,2:16,4:10})[idx]);
+ assert.equal(base.reduce((n,x)=>n+x.v.sets,0),({0:17,2:16,4:10})[idx]);
  for(const opts of [{},{week:4},{week:8,poor:true},{week:12,poor:true,ride:true,fail:true},{poor:true},{ride:true},{fail:true}]){
   const adapt=adaptive(opts);
   for(const {row,v} of base){
    const next=adapt(row,idx,true);checks++;
    assert(next.sets>=2,"auto reduced to "+next.sets+": "+row);
    assert(next.sets<=v.sets,"unexpected volume increase");
-   assert(next.sets>=(v.sets===3?2:v.sets),"multiple reductions stacked");
+   assert(next.sets>=(v.sets>=3?v.sets-1:v.sets),"multiple reductions stacked");
   }
  }
 }
@@ -54,5 +54,27 @@ assert.equal(kept[1].sets,1,"finished bench snapshot must not change");
 assert.equal(kept[2].sets,1,"finished incline snapshot must not change");
 assert.equal(kept[3].sets,2,"pending one-set machine press should be corrected");
 assert.equal(kept[4].sets,1,"manual one-set fly must remain as intentionally set");
+// V98: past auto reductions can be frozen on any forthcoming strength card;
+ // never leave those at one working set, but preserve intentional manual ones.
+const forthcoming=plans.map(p=>[p[0],p[1],p[2],p[3].map(row=>{
+ const v=parse(row);return v?apply(row,{...v,sets:1}):row;
+})]);
+const beforeUpcoming=JSON.parse(JSON.stringify(forthcoming));
+const futureManual={"0|坐姿划船":{sets:1,min:8,max:12,unit:"次"}};
+const fixed=repair(1,false,forthcoming,()=>futureManual,"ckTrainingVolumeReferences",parse,(idx,name)=>idx+"|"+name,{},valid,plans,apply);
+for(const idx of [0,2,4])for(const row of fixed[idx][3]){
+ const v=parse(row),name=row.split("｜")[0];if(!v)continue;
+ checks++;
+ assert.equal(v.sets,(idx===0&&name==="坐姿划船")?1:2,"future auto one-set card was not repaired or manual setting changed: "+row);
+}
+assert.equal(parse(beforeUpcoming[2][3].find(x=>x.startsWith("中立握高位下拉｜"))).sets,1,"fixture must really simulate a stale preview");
+// Historical completed session is immutable even if auto repair is needed elsewhere.
+const finished=repair(4,true,plans.map(p=>[p[0],p[1],p[2],[...p[3]]]),()=>({}),"ckTrainingVolumeReferences",parse,
+ (idx,name)=>idx+"|"+name,{},valid,plans,apply);
+assert.equal(finished[4][3].join("\n"),plans[4][3].join("\n"));
+const actualAdjust=seg("function adjustPlanForActualWorkout(plans,idx,ds){","function dayAdjustmentKey(");
+assert(actualAdjust.includes("volume.sets<=2"),"real-load recovery may still reduce two sets to one");
+assert(actualAdjust.includes("Math.max(2,volume.sets-1)"),"real-load reduction lacks floor");
+assert.equal(parse(plans[0][3].find(x=>x.startsWith("坐姿划船｜"))).sets,4,"back thickness needs 4 direct sets on Day1");
 assert(!html.includes("localStorage.clear("));
 console.log("PASS V97: "+checks+" simulations covering all strength days, deload/recovery/ride/failure, manual priority, active/completed evidence isolation.");
