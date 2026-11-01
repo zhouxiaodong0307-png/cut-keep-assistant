@@ -1030,7 +1030,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  const base={sleep:7.9,priorSleep:8,feeling:'ok',pain:'',activities:[],muscleNames:{legs:'腿部'}};
  const cases=[
   ['rest with no activity',{},'normal'],
-  ['insufficient sleep',{sleep:6.2},'reduce'],
+  ['isolated mildly short sleep (training remains available)',{sleep:6.2},'normal'],
   ['intense legs plus 5.8h sleep',{sleep:5.8,activities:[{gap:1,type:'strength',muscle:'legs',sets:10,minutes:60,rpe:8}]},'recover'],
   ['brief intense unclassified extra',{activities:[{gap:1,type:'other',minutes:20,rpe:9}]},'reduce'],
   ['recovery after long hard ride',{activities:[{gap:1,type:'ride',minutes:75,rpe:7}]},'reduce'],
