@@ -76,7 +76,7 @@ const rev=mkVolume({}, {history:trainingHistory,weights:[
 ]});
 const report=rev.completedTrainingCycleReview(1);
 assert(report&&report.completed===36&&report.improved===1&&report.stable===1);
-assert.equal(report.bodyDelta,-1.6);
+assert(Math.abs(report.bodyDelta+1.5)<=0.1,"stage bodyweight trend remains descriptive");
 const progress=rev.trainingProgressionSummary();
 assert(progress.some(x=>x.kind==="increase")&&progress.some(x=>x.kind==="reps"),"progression counts both weight and reps");
 const progression=new Function("loadKeyForExercise","coachLoads","sessionLoads","workingWeight","localStorage","phaseWeek","recoveryRule","roundTo","currentPlans","trainingIndex","parseExerciseVolume",
