@@ -2631,7 +2631,7 @@ if(window.dailyDecisionWhy){
  dailyDecisionWhy.hidden=!meaningful;
  dailyDecisionWhy.textContent=meaningful?(decision.missed?"今天已记录未训练（"+MISSED_TRAINING_REASONS[decision.missed.reason]+"）。原计划顺延到下一次，不记为完成，也不会额外加课。 ":"")+decision.title+"。"+decision.reason:"";
 }
-trainingAdjustment.textContent="";trainingAdjustment.hidden=true;todayPlanDetails.className="planDetails todayPlan "+planKind(d);todayExerciseList.innerHTML=actual?actualWorkoutSummaryHtml(actual):strengthHeldToday()?'<div class="restDayCard"><h3>今天恢复 · 原力量训练顺延</h3><p>今天不计作力量训练完成，明天仍保留当前训练日。恢复原安排后可以继续完成原动作。</p></div>':kind==="cardio"?cardioDayHtml(p[3]):kind==="rest"?restDayHtml(p[3]):renderExerciseList(p[3],true);renderExtraActivity();renderTrainingSummaryForExtra();weekRealLoadContext.textContent=weeklyRealTrainingContext();renderHistoricalActivityEditor();weekPlan.innerHTML=plans.map((x,i)=>`<details class="planDetails ${planKind(i)}"><summary><span class="planSummaryMain"><b>${x[0]} · ${i===d&&actual?x[1]+" → 实际"+actualSessionTitle(actual)+"力量":x[1]}${i===d?'<span class="todayBadge">当前</span>':''}</b><small>${x[2]}${deload&&planKind(i)==="strength"?" · 减量周":""}</small></span><span class="chev">⌄</span></summary><div class="planBody">${i===d&&actual?actualWorkoutSummaryHtml(actual):renderExerciseList(x[3],false,"week-"+i)}</div></details>`).join("");renderDayAdjustmentPanel();renderPartialTrainingReview(todayList);renderActualWorkoutHistory();renderTrainingAdaptation();}
+trainingAdjustment.textContent="";trainingAdjustment.hidden=true;todayPlanDetails.className="planDetails todayPlan "+planKind(d);todayExerciseList.innerHTML=actual?actualWorkoutSummaryHtml(actual):strengthHeldToday()?'<div class="restDayCard"><h3>今天恢复 · 原力量训练顺延</h3><p>今天不计作力量训练完成，明天仍保留当前训练日。恢复原安排后可以继续完成原动作。</p></div>':kind==="cardio"?cardioDayHtml(p[3]):kind==="rest"?restDayHtml(p[3]):renderExerciseList(p[3],true);renderExtraActivity();renderTrainingSummaryForExtra();weekRealLoadContext.textContent=weeklyRealTrainingContext();renderHistoricalActivityEditor();weekPlan.innerHTML=plans.map((x,i)=>`<details class="planDetails ${planKind(i)}"><summary><span class="planSummaryMain"><b>${x[0]} · ${i===d&&actual?x[1]+" → 实际"+actualSessionTitle(actual)+"力量":x[1]}${i===d?'<span class="todayBadge">当前</span>':''}</b><small>${x[2]}${deload&&planKind(i)==="strength"?" · 减量周":""}</small></span><span class="chev">⌄</span></summary><div class="planBody">${i===d&&actual?actualWorkoutSummaryHtml(actual):renderExerciseList(x[3],false,"week-"+i)}</div></details>`).join("");renderDayAdjustmentPanel();renderPartialTrainingReview(todayList);renderActualWorkoutHistory();if(typeof renderTrainingAdaptation==="function")renderTrainingAdaptation();}
 function toggleTodayTraining(){if(planKind(trainingIndex())!=="strength")return;trainDone=!trainDone;localStorage.setItem(trainKey,trainDone?"1":"0");const list=currentPlans()[trainingIndex()][3];list.forEach(x=>exerciseDone[exerciseName(x)]=trainDone);localStorage.setItem(exerciseDoneKey,JSON.stringify(exerciseDone));renderTraining();refreshNutritionGuidance()}
 /* V85: Scriptable cannot read Safari/PWA localStorage. Export only a small factual
    on-device snapshot on explicit user action; no server storage or silent upload. */
@@ -2771,6 +2771,141 @@ function weeklyReportData(weekNo,partial=true,cycle=trainingCycleState().cycle){
  for(const a of defaults){if(actions.length>=3)break;if(!actions.includes(a))actions.push(a)}
  return {cycle:win.cycle,week:weekNo,start,end:last,complete:win.complete,calendarDays,foodDays:food.length,socialDays,socialKcal,socialExcess,strengthDone,cardioDone,done,planned:5,avgK:ak,avgP:ap,avgSteps:avgS,stepDays:sw.length,macroDays:macroDays.length,avgSleep,sleepDays:sleepVals.length,avgWater,waterDays:waterVals.length,weightChange:wc,weightPace7:pace7,poorDays,painDays,focus,reason,actions:actions.slice(0,3)}
 }
+/* V99: use only performed, identified work sets. Do not promote a scheduled
+   exercise, unchecked card, or generic unclassified leg activity into stimulus. */
+const MUSCLE_VOLUME_BUCKETS=[
+ {key:"chest",label:"胸部",range:"约8–14组"},
+ {key:"upperChest",label:"上胸专项",range:"每周期至少2次刺激可考虑"},
+ {key:"back",label:"背部",range:"约8–14组"},
+ {key:"backThickness",label:"背部厚度",range:"划船直接组"},
+ {key:"quads",label:"股四头肌",range:"约6–12组"},
+ {key:"hams",label:"腘绳肌",range:"约6–12组"},
+ {key:"lateral",label:"肩部侧束",range:"看是否需要补充"}
+];
+function classifiedMuscles(name,muscle=""){
+ const n=String(name||""),found=[];
+ if(/上斜.*卧推/.test(n)){found.push("upperChest","chest")}
+ else if(/卧推|飞鸟|推胸|俯卧撑/.test(n))found.push("chest");
+ else if(muscle==="chest"&&!n)found.push("chest");
+ if(/划船|下拉|引体/.test(n)){found.push("back");if(/划船/.test(n))found.push("backThickness")}
+ else if(muscle==="back"&&!n)found.push("back");
+ if(/深蹲|分腿蹲|腿举|腿屈伸|箭步蹲/.test(n))found.push("quads");
+ if(/腿弯举|罗马尼亚硬拉/.test(n))found.push("hams");
+ if(/侧平举/.test(n))found.push("lateral");
+ return [...new Set(found)];
+}
+function trainingStimulusCounts(){
+ const keys=MUSCLE_VOLUME_BUCKETS.map(x=>x.key),blank=()=>Object.fromEntries(keys.map(k=>[k,0])),planned=blank(),confirmed=blank();
+ const references=readTrainingVolumeJson(VOLUME_REFERENCE_KEY,{});
+ for(const index of [0,2,4])for(const row of planTemplates[index][3]){
+  const name=row.split("｜")[0],v=parseExerciseVolume(row);if(!v)continue;
+  const id=exerciseVolumeId(index,name),manual=references[id],sets=validExerciseVolume(manual)&&manual.unit===v.unit?+manual.sets:v.sets;
+  for(const group of classifiedMuscles(name))planned[group]+=sets;
+ }
+ let entries=0,unclassifiedLegSets=0,undetailedDays=0;
+ const today=localDate();
+ for(let gap=0;gap<7;gap++){
+  const date=shiftDate(today,-gap),work=readActualWorkout(date),detail=readTrainingVolumeJson(partialWorkoutKey(date),null),records=[];
+  if(work){
+   for(const item of work.exercises)if(item&&Number.isInteger(+item.sets)&&+item.sets>=1&&+item.sets<=8)
+    records.push({name:item.name||"",muscle:item.muscle||"",sets:+item.sets});
+  }else if(detail&&Array.isArray(detail.completed)){
+   const unique=new Set();
+   for(const item of detail.completed){
+    if(!item||typeof item.name!=="string"||unique.has(item.name))continue;
+    unique.add(item.name);
+    const num=Number(item.sets);
+    if(Number.isInteger(num)&&num>=1&&num<=8)records.push({name:item.name,muscle:item.muscle||"",sets:num});
+   }
+  }
+  if(!records.length){
+   const extras=typeof completedExtraActivity==="function"?completedExtraActivity(date):[];
+   for(const item of extras)if(item?.type==="strength"&&Number.isInteger(+item.sets)&&+item.sets>=1&&+item.sets<=40)
+    records.push({name:"",muscle:item.muscle||"",sets:+item.sets});
+  }
+  if(!records.length&&localStorage.getItem("ckTrain-"+date)==="1"&&[0,2,4].includes(trainingIndexForDate(date)))undetailedDays++;
+  for(const item of records){
+   entries++;
+   const groups=classifiedMuscles(item.name,item.muscle);
+   if(item.muscle==="legs"&&!groups.some(g=>g==="quads"||g==="hams"))unclassifiedLegSets+=item.sets;
+   for(const group of groups)confirmed[group]+=item.sets;
+  }
+ }
+ return {planned,confirmed,entries,unclassifiedLegSets,undetailedDays};
+}
+function completedTrainingCycleReview(cycle){
+ const sessions=strengthSessionDates(),startIndex=(cycle-1)*STRENGTH_SESSIONS_PER_STAGE,block=sessions.slice(startIndex,startIndex+STRENGTH_SESSIONS_PER_STAGE);
+ if(!Number.isInteger(cycle)||cycle<1||block.length<STRENGTH_SESSIONS_PER_STAGE)return null;
+ const first=block[0],last=block[block.length-1],byId={};
+ for(const r of volumeTrainingHistory()){
+  if(!r||r.date<first||r.date>last||typeof r.id!=="string"||!Number.isFinite(+r.weight)||+r.weight<=0)continue;
+  (byId[r.id]||(byId[r.id]=[])).push(r);
+ }
+ let improved=0,stable=0,declined=0,comparable=0;
+ for(const series of Object.values(byId)){
+  series.sort((a,b)=>a.date.localeCompare(b.date));
+  const unique=[...new Map(series.map(x=>[x.date,x])).values()];
+  if(unique.length<2)continue;
+  const a=Number(unique[0].weight),b=Number(unique[unique.length-1].weight);
+  comparable++;if(b>a)improved++;else if(b<a)declined++;else stable++;
+ }
+ const firstWeight=weights.filter(x=>x.date>=first&&x.date<=shiftDate(first,6)).map(x=>+x.weight).filter(Number.isFinite);
+ const lastWeight=weights.filter(x=>x.date>=shiftDate(last,-6)&&x.date<=last).map(x=>+x.weight).filter(Number.isFinite);
+ const avg=x=>x.reduce((a,b)=>a+b,0)/x.length;
+ const bodyDelta=firstWeight.length>=2&&lastWeight.length>=2?Math.round((avg(lastWeight)-avg(firstWeight))*10)/10:null;
+ return {cycle,start:first,end:last,completed:block.length,comparable,improved,stable,declined,bodyDelta};
+}
+function trainingProgressionSummary(){
+ const all=volumeTrainingHistory().filter(x=>x&&typeof x.id==="string"&&Number.isFinite(+x.weight)&&+x.weight>0),
+ byId={};
+ for(const r of all)(byId[r.id]||(byId[r.id]=[])).push(r);
+ const outcomes=[];
+ for(const [id,series] of Object.entries(byId)){
+  series.sort((a,b)=>a.date.localeCompare(b.date));
+  const last=series[series.length-1],prev=series.slice(0,-1).reverse().find(x=>x.date!==last.date);
+  if(!prev)continue;
+  const a=+prev.weight,b=+last.weight,ar=+prev.lastReps,br=+last.lastReps;
+  if(b>a)outcomes.push({id,text:"负重提高 "+(Math.round((b-a)*10)/10)+" kg",kind:"increase",date:last.date});
+  else if(b===a&&Number.isInteger(ar)&&Number.isInteger(br)&&ar>0&&br>ar)
+   outcomes.push({id,text:"同重量末组多做 "+(br-ar)+" 次",kind:"reps",date:last.date});
+  else outcomes.push({id,text:"维持当前重量，继续积累质量",kind:"hold",date:last.date});
+ }
+ return outcomes.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+}
+function renderTrainingAdaptation(){
+ if(typeof document==="undefined")return;
+ const target=document.getElementById("muscleVolumeDashboard");
+ if(target){
+  const stats=trainingStimulusCounts();
+  const items=MUSCLE_VOLUME_BUCKETS.map(row=>{
+   const actual=stats.entries?stats.confirmed[row.key]+"组":"—",planned=stats.planned[row.key];
+   return '<div class="trainingVolumeRow"><b>'+row.label+' · '+actual+'</b><small>近7天已记录 / 常规周参考 '+planned+'组</small></div>';
+  }).join("");
+  const missing=stats.undetailedDays?"；另有"+stats.undetailedDays+"天仅标记完成、缺乏动作组数明细":"";
+  const unknown=stats.unclassifiedLegSets?"；还有"+stats.unclassifiedLegSets+"组腿部训练未区分股四头与腘绳肌":"";
+  const progress=trainingProgressionSummary();
+  target.innerHTML='<div class="trainingAdaptiveHelp">按真实完成动作统计，热身和未做项目不计入。每个肌群的有效组数是参考范围，不等于保证增肌；复合动作可能同时刺激多个肌群。'+(stats.entries?"":"近7天缺少可核实的动作组数。")+missing+unknown+'</div>'+
+   '<div class="trainingVolumeGrid">'+items+'</div>'+
+   '<div class="trainingProgressionNote"><b>渐进超负荷：</b>'+(progress.length?progress.map(x=>x.id.split("|").slice(1).join("|")+"（"+x.text+"）").join("；"):"暂无足够的同动作训练反馈，可在完成动作后补充末组次数。")+
+   '<div>每组保持约1–3次余力；若末组达到上限且动作稳定，可小幅加重。恢复差或减量周不自动加重；连续停滞先看睡眠、饮食和执行，不随机更换全部动作。</div></div>';
+ }
+ const state=trainingCycleState(),lastFinished=state.finishedCycles+(phaseComplete()?1:0),lastReview=lastFinished?completedTrainingCycleReview(lastFinished):null;
+ const milestone=document.getElementById("cycleMilestoneBanner");
+ if(milestone){
+  milestone.hidden=!phaseComplete();
+  milestone.textContent=phaseComplete()?"已完成第"+state.cycle+"阶段36次力量训练，下次训练将自动进入第"+(state.cycle+1)+"阶段。":"";
+ }
+ const assessment=document.getElementById("trainingStageAssessment");
+ if(assessment){
+  if(!lastReview){assessment.textContent="本阶段已完成"+state.inCycle+"/36次力量训练。达到36次后自动生成训练与体重记录对比，并续接下一阶段。";return}
+  const progress=lastReview.comparable?
+   "可比较的"+lastReview.comparable+"个动作：参考负重上升"+lastReview.improved+"、持平"+lastReview.stable+"、下降"+lastReview.declined+"。":
+   "动作重量反馈不足，无法判断本阶段是否提高负重。";
+  const body=lastReview.bodyDelta===null?"体重记录不足，暂无法比较阶段前后均重。":"阶段前后7日窗口均重变化约"+(lastReview.bodyDelta>0?"+":"")+lastReview.bodyDelta+"kg。";
+  assessment.textContent="第"+lastReview.cycle+"阶段评估（"+lastReview.start+"—"+lastReview.end+"）：已完成36次真实力量训练。"+progress+body+" 这是训练负荷与体重记录的对比，不是肌肉增长的直接测量。"+(state.cycle>lastReview.cycle?"当前已自动开始第"+state.cycle+"阶段，第"+state.week+"周；沿用有效核心动作并根据反馈继续递进。":"下一个训练日自动进入新阶段，不重置历史重量。");
+ }
+}
+
 function archiveWeeklyReports(){
  const state=trainingCycleState();
  for(let cycle=1;cycle<=state.cycle;cycle++){
