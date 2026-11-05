@@ -21,7 +21,7 @@ const template=new Function(sect("const planTemplates=","const coachLoads=")+";r
 const names=template[0][3].map(x=>x.split("｜")[0]);
 assert(!names.includes("杠铃罗马尼亚硬拉"),"future Day1 must honor no RDL preference");
 assert(names.includes("俯卧腿弯举"),"future Day1 still needs posterior leg stimulus");
-assert.equal(template[4][3].filter(x=>/卧推|飞鸟|推胸/.test(x)).length,4,"chest day still chest-only");
+assert.equal(template[4][3].filter(x=>x.split("｜")[0]!=="热身"&&/卧推|飞鸟|推胸/.test(x)).length,4,"chest day still chest-only");
 const parse=row=>{const m=String(row||"").match(/(\d+)组\s*×\s*(?:每侧)?(\d+)[–-](\d+)(次|秒)/);return m?{sets:+m[1],min:+m[2],max:+m[3],unit:m[4]}:null};
 const volumeStub={getItem:k=>null,setItem:()=>{}};
 const mkVolume=(oldRows={},extras={},actual={})=>{
