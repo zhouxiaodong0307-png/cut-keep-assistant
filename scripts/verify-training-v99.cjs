@@ -79,9 +79,9 @@ assert(report&&report.completed===36&&report.improved===1&&report.stable===1);
 assert(Math.abs(report.bodyDelta+1.5)<=0.1,"stage bodyweight trend remains descriptive");
 const progress=rev.trainingProgressionSummary();
 assert(progress.some(x=>x.kind==="increase")&&progress.some(x=>x.kind==="reps"),"progression counts both weight and reps");
-const progression=new Function("loadKeyForExercise","coachLoads","sessionLoads","workingWeight","localStorage","phaseWeek","recoveryRule","roundTo","currentPlans","trainingIndex","parseExerciseVolume",
+const progression=new Function("loadKeyForExercise","coachLoads","sessionLoads","validCoachWeight","workingWeight","localStorage","phaseWeek","recoveryRule","roundTo","currentPlans","trainingIndex","parseExerciseVolume",
  sect("function feedbackNextWeight(","function rollbackExerciseFeedback(")+";return feedbackNextWeight;")(
- ()=>"bench",{bench:{base:45,inc:2.5,round:2.5}}, {bench:45},()=>45,volumeStub,()=>1,
+ ()=>"bench",{bench:{base:45,inc:2.5,round:2.5}}, {bench:45},v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))&&Number(v)>0,()=>45,volumeStub,()=>1,
  ()=>({suppressProgress:false}),(n,s)=>Math.round(n/s)*s,
  ()=>{const p=Array.from({length:7},()=>["","","",[]]);p[4][3]=["杠铃卧推｜3组 × 6–8次"];return p},()=>4,parse);
 assert.equal(progression("杠铃卧推","good",8),47.5,"at rep ceiling with reserve earns small load step");
