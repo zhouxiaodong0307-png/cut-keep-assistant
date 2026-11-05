@@ -2609,9 +2609,10 @@ function exerciseHtml(a,i,interactive=false,scope="today"){
  const labels={light:"轻松",good:"合适",hard:"吃力",fail:"未完成"};
  const feedbackChoices='<div class="effortChoices">'+["light","good","hard","fail"].map(k=>'<button class="effortBtn '+(fb&&fb.level===k?"active":"")+'" onclick="event.preventDefault();event.stopPropagation();setExerciseFeedback(\''+escapeName+'\',\''+k+'\')">'+labels[k]+'</button>').join("")+'</div>';
  const nextText=fb&&hasLoad&&Number.isFinite(Number(fb.next))?'<span class="nextLoad">下次参考 '+fb.next+' '+coachLoads[key].unit+'</span>':"";
+ const smallRepEntry=hasLoad?'<label class="lastSetReps">末组次数（选填）<input type="number" inputmode="numeric" min="1" max="40" id="actualLastReps-'+key+'" placeholder="例如 12" value="'+(Number.isInteger(fb?.lastReps)?fb.lastReps:'')+'"></label>':"";
  const compactFeedback=canFeedback?(fb?
   '<div class="compactDoneFeedback"><span>训练反馈 · '+(labels[fb.level]||"已记录")+'</span>'+nextText+'</div>':
-  '<div class="compactFeedbackPending"><span>完成反馈（选填）</span>'+feedbackChoices+'</div>'):"";
+  '<div class="compactFeedbackPending"><span>完成反馈（选填）</span>'+smallRepEntry+feedbackChoices+'</div>'):"";
  if(compactDone){
   return '<div class="exerciseRow isDone isCompact"><div class="exerciseTop"><div class="exerciseNameWrap"><b>'+String(i+1).padStart(2,"0")+' · '+name+'</b>'+detailToggle+'</div>'+button+'</div>'+compactFeedback+'</div>';
  }
@@ -2786,9 +2787,9 @@ function classifiedMuscles(name,muscle=""){
  const n=String(name||""),found=[];
  if(/上斜.*卧推/.test(n)){found.push("upperChest","chest")}
  else if(/卧推|飞鸟|推胸|俯卧撑/.test(n))found.push("chest");
- else if(muscle==="chest"&&!n)found.push("chest");
+ else if(muscle==="chest"&&!found.includes("chest"))found.push("chest");
  if(/划船|下拉|引体/.test(n)){found.push("back");if(/划船/.test(n))found.push("backThickness")}
- else if(muscle==="back"&&!n)found.push("back");
+ else if(muscle==="back"&&!found.includes("back"))found.push("back");
  if(/深蹲|分腿蹲|腿举|腿屈伸|箭步蹲/.test(n))found.push("quads");
  if(/腿弯举|罗马尼亚硬拉/.test(n))found.push("hams");
  if(/侧平举/.test(n))found.push("lateral");
