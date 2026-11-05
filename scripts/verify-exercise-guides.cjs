@@ -11,7 +11,7 @@ const images={
  '上斜哑铃卧推':['incline',6,0],'平板哑铃飞鸟':['fly',6,1]
 };
 const expectedDays=[
- ['杠铃深蹲','器械推胸','坐姿划船','杠铃罗马尼亚硬拉','死虫','平板支撑'],
+ ['杠铃深蹲','器械推胸','坐姿划船','俯卧腿弯举','死虫','平板支撑'],
  [],['保加利亚分腿蹲','中立握高位下拉','坐姿划船','俯卧腿弯举','绳索面拉','Pallof Press 抗旋转'],
  [],['杠铃卧推','上斜哑铃卧推','器械推胸','平板哑铃飞鸟'],[],[]
 ];
@@ -1468,7 +1468,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     keys.get('ckMeals-2026-10-16')!=='[]')
   throw Error('V90 warmup feedback incorrectly added or unrelated history changed');
  // Simulated real load-volume recorder: null key always records null weight.
- const volumeSrc=sect('function recordTrainingVolumeOutcome(name,level,key,nextWeight){','function undoTrainingVolumeOutcome(').slice(0,-'function undoTrainingVolumeOutcome('.length);
+ const volumeSrc=sect('function recordTrainingVolumeOutcome(name,level,key,nextWeight,lastReps=null){','function undoTrainingVolumeOutcome(').slice(0,-'function undoTrainingVolumeOutcome('.length);
  if(!volumeSrc.includes('weight:key&&coachLoads[key]?')||!volumeSrc.includes(':null,'))
   throw Error('V90 core history would invent weight instead of null');
  const toggles=sect('const expandedCompletedExercises=new Set();','function benchWarmupHint(){').slice(0,-'function benchWarmupHint(){'.length);
