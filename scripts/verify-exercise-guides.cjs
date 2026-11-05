@@ -1468,7 +1468,7 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
     keys.get('ckMeals-2026-10-16')!=='[]')
   throw Error('V90 warmup feedback incorrectly added or unrelated history changed');
  // Simulated real load-volume recorder: null key always records null weight.
- const volumeSrc=sect('function recordTrainingVolumeOutcome(name,level,key,nextWeight){','function undoTrainingVolumeOutcome(').slice(0,-'function undoTrainingVolumeOutcome('.length);
+ const volumeSrc=sect('function recordTrainingVolumeOutcome(name,level,key,nextWeight,lastReps=null){','function undoTrainingVolumeOutcome(').slice(0,-'function undoTrainingVolumeOutcome('.length);
  if(!volumeSrc.includes('weight:key&&coachLoads[key]?')||!volumeSrc.includes(':null,'))
   throw Error('V90 core history would invent weight instead of null');
  const toggles=sect('const expandedCompletedExercises=new Set();','function benchWarmupHint(){').slice(0,-'function benchWarmupHint(){'.length);
