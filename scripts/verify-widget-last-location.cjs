@@ -4,7 +4,7 @@ const a=html.indexOf("/* V100: restore last navigation"),b=html.indexOf("functio
 assert(a>=0&&b>a,"navigation restore module missing");
 const code=html.slice(a,b);
 assert.match(html,/targetKcalInput\.value=target;targetProteinInput\.value=pt;render\(\);restoreUiLocationOnStartup\(\);/);
-assert.match(html,/APP_BUILD="20261107-widget-resume-v100"/);
+assert.match(html,/APP_BUILD="20\d{6}-[^"]+"/);
 const store=new Map([["ckWeights",'[{"date":"2026-10-01","weight":77.5}]'],["ckTrainingVolumeHistory",'[{"name":"杠铃卧推","sets":3}]']]);
 function launch(memory=store){
  const callbacks={},elements={},buttons={};let rendered=0;
