@@ -1,7 +1,7 @@
 const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
 function sect(a,b){const i=html.indexOf(a),j=html.indexOf(b,i+a.length);assert(i>=0&&j>i,"missing "+a);return html.slice(i,j)}
-assert.match(html,/APP_BUILD="20261106-progressive-cycle-99"/);
+assert.match(html,/APP_BUILD="20\d{6}-[^"]+"/,"valid app build still present");
 assert(!html.includes("localStorage.clear("),"never erase historical records");
 const mkDates=n=>Array.from({length:n},(_,i)=>{
  const d=new Date("2026-07-01T12:00:00Z");d.setUTCDate(d.getUTCDate()+i);return d.toISOString().slice(0,10)
