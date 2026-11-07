@@ -10,6 +10,7 @@ on:
       - scripts/verify-scientific-volume.cjs
       - scripts/verify-flexible-schedule.cjs
       - scripts/verify-training-v99.cjs
+      - scripts/verify-widget-last-location.cjs
       - scripts/verify-ios-widget.cjs
       - scripts/verify-widget-cloud.cjs
       - cloud-sync.js
@@ -29,6 +30,7 @@ on:
       - scripts/verify-scientific-volume.cjs
       - scripts/verify-flexible-schedule.cjs
       - scripts/verify-training-v99.cjs
+      - scripts/verify-widget-last-location.cjs
       - scripts/verify-ios-widget.cjs
       - scripts/verify-widget-cloud.cjs
       - cloud-sync.js
@@ -57,6 +59,8 @@ jobs:
         run: node scripts/verify-flexible-schedule.cjs
       - name: Validate V99 progressive training stages and real muscle-group volumes
         run: node scripts/verify-training-v99.cjs
+      - name: Validate widget reopen resumes previous tab, scroll and expanded panels
+        run: node scripts/verify-widget-last-location.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
       - name: Validate automatic widget cloud pairing, offline caching and new calories
