@@ -79,5 +79,6 @@ const corrupt=launch(bad);corrupt.app.restoreUiLocationOnStartup();
 assert.equal(corrupt.open(),"today");
 assert.equal(corrupt.window.scrollY,0);
 // Browser does not share standalone WebApp and Safari localStorage; do not invent cross-container guarantees.
-assert(html.includes('https://cut-keep-assistant.onrender.com/'));
+const widgetSource=fs.readFileSync(path.join(__dirname,"../widgets/cut-keep-scriptable.js"),"utf8");
+assert(widgetSource.includes('https://cut-keep-assistant.onrender.com/'),"Scriptable still opens the canonical app site");
 console.log("PASS V100 widget resume: training/diet pages, scroll and expanded cards survive fresh Scriptable launches; manual navigation, invalid state and historical data safe.");
