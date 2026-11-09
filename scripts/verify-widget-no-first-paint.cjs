@@ -5,7 +5,7 @@ const boot=head.match(/<meta name="theme-color"[^>]*><script>([\s\S]*?)<\/script
 assert(boot,"pre-paint bootstrap must run in HEAD before stylesheet and body");
 assert(head.indexOf("widgetResumePending")<head.indexOf("<style>"),"gate must activate before stylesheet");
 assert(head.includes("html.widgetResumePending main.app,html.widgetResumePending nav.nav{visibility:hidden!important}"),"initial homepage must be invisible while restoring");
-assert(html.includes('APP_BUILD="20261107-no-home-flash-v101"'));
+assert(/APP_BUILD="20\d{6}-[^"]+"/.test(html),"release build marker retained");
 const early=new Function("localStorage","document","history","setTimeout",boot[1]);
 function classSet(){
  const set=new Set();return {contains:k=>set.has(k),add:k=>set.add(k),remove:k=>set.delete(k),toggle:(k,on)=>{if(on)set.add(k);else set.delete(k)}};
