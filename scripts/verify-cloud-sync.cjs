@@ -6,7 +6,7 @@ const config=fs.readFileSync(path.join(root,"cloud-config.js"),"utf8");
 const sql=fs.readFileSync(path.join(root,"supabase/migrations/20261016_fitness_cloud_snapshots.sql"),"utf8");
 new vm.Script(js,{filename:"cloud-sync.js"});
 assert(html.includes('id="fitnessCloudPanel"')&&html.includes('onclick="FitnessCloudSync.upload()"'));
-assert(html.includes('<script defer src="./cloud-sync.js?v=95"></script>'));
+assert(html.includes('<script defer src="./cloud-sync.js?v=102"></script>'));
 assert(config.includes('url:"https://ampixosqbgqbsckmrhog.supabase.co"')&&
  config.includes('anonKey:"sb_publishable_')&&
  !config.includes('service_role')&&
@@ -21,12 +21,22 @@ const calls=[];
 let clock=1000;
 const wait=()=>new Promise(r=>setImmediate(r));
 function env(initial={},account='owner@example.com',configured=true){
- const data=new Map(Object.entries(initial)),elements=new Map(),messages=[],logs=[];
+ const data=new Map(Object.entries(initial)),elements=new Map(),messages=[],logs=[],navEvents=[];
  for(const id of ["fitnessCloudStatus","fitnessCloudAuth","fitnessCloudChoices","fitnessCloudIdentity",
   "fitnessCloudEmail","fitnessCloudPassword","fitnessCloudLoginName","fitnessCloudRefresh","fitnessCloudUpload",
   "fitnessCloudDownload"]){
   elements.set(id,{value:"",textContent:"",hidden:false});
  }
+ for(const id of ["cloudSyncNoticeToday","cloudSyncNoticeProgress"]){
+  const title={textContent:""},body={textContent:""};
+  elements.set(id,{hidden:true,title,body,querySelector(sel){
+   if(sel===".cloudSyncAlertText")return this;
+   if(sel==="b")return title;
+   if(sel==="span")return body;
+   return null;
+  }});
+ }
+ elements.set("fitnessCloudPanel",{open:false,scrollIntoView:()=>navEvents.push("scrolled")});
  elements.get("fitnessCloudEmail").value=account;
  elements.get("fitnessCloudPassword").value="safe-password";
  let reload=0,snapshots=0,failKey=null,failed=false;
@@ -96,15 +106,17 @@ function env(initial={},account='owner@example.com',configured=true){
  };
  function response(status,value){return{ok:status>=200&&status<300,status,json:async()=>value}}
  const doc={readyState:"complete",visibilityState:"visible",getElementById:id=>elements.get(id)||null,
+ querySelector:sel=>sel.includes('data-view="progress"')?{dataset:{view:"progress"}}:null,
  addEventListener:()=>{}};
  const context={window:{FITNESS_CLOUD_CONFIG:configured?{url:"https://test123.supabase.co",anonKey:"sb_publishable_testing_key"}:{},createIosWidgetSnapshot:widgetSummary,iosWidgetStatus:v=>messages.push(v)},navigator:{clipboard:{writeText:async v=>messages.push("copy:"+v)}},
-  document:doc,localStorage,fetch,console,
+  document:doc,localStorage,fetch,console,requestAnimationFrame:fn=>fn(),
   Date:class FakeDate extends Date{static now(){return clock}},
   structuredClone,location:{origin:'https://cut-keep-assistant.onrender.com',reload:()=>reload++},confirm:()=>true,setInterval:()=>-1,
   createSafetySnapshot:()=>{snapshots++;return"backup-"+snapshots}};
  context.window.window=context.window;
+ context.window.showView=(name)=>navEvents.push("view:"+name);
  vm.runInNewContext(js,context,{filename:"cloud-sync.js"});
- return {app:context.window.FitnessCloudSync,data,messages,logs,elements,fetch,
+ return {app:context.window.FitnessCloudSync,data,messages,logs,navEvents,elements,fetch,
    failOnce:k=>{failKey=k;failed=false},get reload(){return reload},get snapshots(){return snapshots},
    snapshot:()=>Object.fromEntries([...data].filter(([k])=>k.startsWith("ck")&&!k.startsWith("ckUpgradeBackup-"))),
    status:()=>context.window.FitnessCloudSync.status()};
@@ -154,11 +166,19 @@ function messagesSafe(v){return Array.isArray(v)?v:[]}
  const phone=env(local);
  await wait();
  assert.equal(phone.status().state,"auth");
+ assert.equal(phone.elements.get("cloudSyncNoticeToday").hidden,false,"unsynced local data must show signin attention");
+ assert.match(phone.elements.get("cloudSyncNoticeToday").title.textContent,/未登录云端/);
  await phone.app.login("login");
  assert.equal(phone.status().state,"review");
+ assert.equal(phone.elements.get("cloudSyncNoticeProgress").hidden,false);
+ assert.match(phone.elements.get("cloudSyncNoticeProgress").title.textContent,/尚未上传/);
+ phone.app.openSettings();
+ assert(phone.navEvents.includes("view:progress")&&phone.navEvents.includes("scrolled"),"sync alert should open accessible cloud panel");
+ assert.equal(phone.elements.get("fitnessCloudPanel").open,true);
  assert.equal(cloud.size,0,"Logging in must NOT silently upload private health history");
  await phone.app.upload();
  assert.equal(phone.status().state,"ready");
+ assert.equal(phone.elements.get("cloudSyncNoticeProgress").hidden,true,"successful verified upload hides recovery alert");
  assert.equal(cloud.get("user-1").revision,1);
  assert.equal(cloud.get("user-1").snapshot["ckTrain-2026-10-16"],"1");
  assert(!Object.hasOwn(cloud.get("user-1").snapshot,"ckWidgetScriptName"));
@@ -208,6 +228,10 @@ function messagesSafe(v){return Array.isArray(v)?v:[]}
  assert.equal(cloud.get("user-1").snapshot.ckWeights,'[{"date":"2026-10-16","weight":77.0}]');
  await rival.app.retry();
  assert.equal(rival.status().state,"review","Conflicting device must pause");
+ assert.equal(rival.elements.get("cloudSyncNoticeProgress").hidden,false);
+ assert.match(rival.elements.get("cloudSyncNoticeProgress").title.textContent,/不一致/,"conflict must not be hidden in a collapsed accordion");
+ assert.match(rival.elements.get("cloudSyncNoticeProgress").body.textContent,/云端最近保存/);
+ assert(rival.status().lastRemoteArchiveAt,"client should know when cloud truly saved, not only last checked");
  assert.equal(cloud.get("user-1").snapshot.ckWeights,'[{"date":"2026-10-16","weight":77.0}]');
  assert.equal(rival.data.get("ckWeights"),'[{"date":"2026-10-16","weight":76.9}]');
  assert.equal(rival.reload,1,"The device previously adopted a remote-only newer revision before making its own edit");
