@@ -6,6 +6,13 @@ const config=fs.readFileSync(path.join(root,"cloud-config.js"),"utf8");
 const sql=fs.readFileSync(path.join(root,"supabase/migrations/20261016_fitness_cloud_snapshots.sql"),"utf8");
 new vm.Script(js,{filename:"cloud-sync.js"});
 assert(html.includes('id="fitnessCloudPanel"')&&html.includes('onclick="FitnessCloudSync.upload()"'));
+const entry=html.match(/<div class="progressSyncHead">([\s\S]*?)<\/div>/);
+assert(entry&&/id="alwaysVisibleCloudSync"/.test(entry[1])&&/FitnessCloudSync\.openSettings\(\)/.test(entry[1]),
+ "Cloud Sync must have a permanently visible entry at the Progress title even when status is ready");
+assert(!/\bhidden\b/.test(entry[1]),"Permanent sync entry cannot be hidden by cloud state");
+assert(html.includes('id="fitnessCloudNoticeProgress"')===false,"Do not duplicate old incorrect ID");
+assert(html.includes("progressSyncButton"),"Permanent sync control must use mobile-friendly layout");
+
 assert(html.includes('<script defer src="./cloud-sync.js?v=102"></script>'));
 assert(config.includes('url:"https://ampixosqbgqbsckmrhog.supabase.co"')&&
  config.includes('anonKey:"sb_publishable_')&&
