@@ -10,6 +10,7 @@ const OMIT=new Set(["ckAppBuild","ckWeeklyReportLogicVersion","ckLastManualBacku
 let session=null,revision=0,baseline=null,state="disabled",busy=false,alarm=null, lastError="",lastErrorCode="",lastSync=0;
 let refreshFlight=null,persistenceWarn=false,syncTimer=null,localSyncDeferred=false;
 let widgetProbe=null;
+let lastRemoteArchiveAt=null,lastRemoteWidgetAt=null;
 const DEVICE_META_KEY="fitnessCloudDeviceState-v1";
 function hasMeaningfulLocalRecords(records){
  for(const [key,value] of Object.entries(records||{})){
@@ -119,8 +120,50 @@ function equal(a,b){return canonical(a)===canonical(b)}
 function count(v){return Object.keys(v||{}).length}
 function setMessage(message){const node=$("fitnessCloudStatus");if(node)node.textContent=message}
 function errorMessage(e){return String(e&&e.message||e||"未知错误").slice(0,190)}
+function cloudArchiveLabel(){
+ if(!lastRemoteArchiveAt)return "云端更新时间尚未确认";
+ const d=new Date(lastRemoteArchiveAt);
+ return Number.isNaN(d.getTime())?"云端更新时间尚未确认":"云端最近保存："+d.toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+function syncAttention(){
+ if(state==="review")return {
+  title:"本机与云端数据不一致，自动同步已暂停",
+  body:"小组件仍会读取云端旧记录。"+cloudArchiveLabel()+"。若当前手机数据更新，请先导出完整备份，再选择「保留本机并上传」。"
+ };
+ if(state==="error")return {
+  title:"云端连接异常，更新尚未上传",
+  body:"手机上的记录仍保留。"+cloudArchiveLabel()+"。请检查登录和同步状态，不要用旧云端记录覆盖本机。"
+ };
+ if(state==="auth"&&!session&&hasMeaningfulLocalRecords(snapshot()))return {
+  title:"当前浏览器未登录云端",
+  body:"本机记录不会自动传到小组件。请在进度页登录原账号并核对数据来源。"
+ };
+ return null;
+}
+function renderSyncAttention(){
+ const attention=syncAttention();
+ for(const id of ["cloudSyncNoticeToday","cloudSyncNoticeProgress"]){
+  const el=$(id);if(!el)continue;
+  el.hidden=!attention;
+  if(!attention)continue;
+  const t=el.querySelector(".cloudSyncAlertText");
+  if(!t)continue;
+  const title=t.querySelector("b"),body=t.querySelector("span");
+  if(title)title.textContent=attention.title;
+  if(body)body.textContent=attention.body;
+ }
+}
+function openSettings(){
+ if(typeof window.showView==="function"){
+  const nav=document.querySelector('.nav button[data-view="progress"]');
+  window.showView("progress",nav);
+ }
+ const panel=$("fitnessCloudPanel");
+ if(panel){panel.open=true;requestAnimationFrame(()=>panel.scrollIntoView({behavior:"smooth",block:"center"}))}
+}
 function show(){
  const ready=!!session&&state==="ready";const link=!!session;
+ renderSyncAttention();
  const auth=$("fitnessCloudAuth"),pending=$("fitnessCloudChoices"),info=$("fitnessCloudIdentity");
  if(auth)auth.hidden=link;if(info)info.hidden=!link;
  if($("fitnessCloudLoginName"))$("fitnessCloudLoginName").textContent=session?.email||"";
@@ -130,9 +173,9 @@ function show(){
  if($("fitnessCloudRefresh"))$("fitnessCloudRefresh").hidden=!link;
  if(!enabled)setMessage("安全云同步尚未配置。原有本机记录和小组件照常使用。");
  else if(state==="checking")setMessage("正在核对本机与云端记录，暂不修改任何历史数据…");
- else if(state==="ready")setMessage("已连接云端 · 自动同步中"+(lastSync?" · 最近 "+new Date(lastSync).toLocaleTimeString():"")+
+ else if(state==="ready")setMessage("云端已连接"+(lastSync?" · 最近核对 "+new Date(lastSync).toLocaleTimeString():"")+" · "+cloudArchiveLabel()+
  (persistenceWarn?" · 当前浏览器无法可靠保存登录，请用普通 Safari 打开本站检查隐私浏览模式。":""));
- else if(state==="review")setMessage(lastError&&lastError!=="conflict"?"同步操作失败："+lastError:lastError==="conflict"?"检测到两处设备数据冲突，已暂停自动同步。请先备份并确认采用哪份记录。":
+ else if(state==="review")setMessage(lastError&&lastError!=="conflict"?"同步操作失败："+lastError+"。"+cloudArchiveLabel():lastError==="conflict"?"检测到本机与云端数据不一致，已暂停自动同步。"+cloudArchiveLabel()+"。请先导出完整备份，再确认以本机记录为准上传；小组件只读取云端数据。":
   revision>0?"云端已有记录，本机也有不同数据；为保护历史记录，需要选择数据来源。":"云端尚无记录，请先从保存真实数据的桌面版上传。");
  else if(state==="auth")setMessage(lastError?"登录失败："+lastError:"使用相同账号登录桌面版与浏览器版，先在有真实记录的桌面版上传。");
  else if(state==="pendingVerification")setMessage("注册已提交，确认邮件已申请发送。请检查收件箱及垃圾邮件，验证后返回登录；不要反复点击注册。");
@@ -221,9 +264,12 @@ async function authCall(route,body){
 }
 async function readCloud(){
  if(!await refreshAuth())throw Error("登录已过期，请重新登录");
- const rows=await request("/rest/v1/fitness_sync_snapshots?select=snapshot,revision,updated_at,widget_summary&limit=1",{
+ const rows=await request("/rest/v1/fitness_sync_snapshots?select=snapshot,revision,updated_at,widget_summary,widget_updated_at&limit=1",{
   token:session.access});
- return Array.isArray(rows)&&rows[0]?rows[0]:null;
+ const row=Array.isArray(rows)&&rows[0]?rows[0]:null;
+ lastRemoteArchiveAt=row?.updated_at||null;
+ lastRemoteWidgetAt=row?.widget_updated_at||null;
+ return row;
 }
 async function writeCloud(data,expected){
  if(!await refreshAuth())throw Error("登录已过期");
@@ -345,11 +391,11 @@ async function tick(force=false){
   }
   if(localChanged){
    const newRev=await writeCloud(local,rev);
-   saveBaseline(newRev,local);
+   saveBaseline(newRev,local);lastRemoteArchiveAt=new Date().toISOString();lastRemoteWidgetAt=lastRemoteArchiveAt;
   }else if(remote && summaryIdentity(remote.widget_summary)!==summaryIdentity(widgetSummary())){
    // No changed ck* records? Refresh display data on new days/plan changes
    // without incrementing the archive revision or overwriting another device.
-   await touchWidget(widgetSummary(),rev);
+   await touchWidget(widgetSummary(),rev);lastRemoteWidgetAt=new Date().toISOString();
   }
   revision=revision||rev;lastSync=Date.now();state="ready";show();
   if(!equal(snapshot(),baseline||{}))localSyncDeferred=true;
@@ -402,7 +448,7 @@ async function upload(){
   // Local snapshot always taken before a manual reconciliation.
   safety();
   const newRev=await writeCloud(local,rev);
-  saveBaseline(newRev,local);state="ready";lastError="";lastSync=Date.now();
+  saveBaseline(newRev,local);lastRemoteArchiveAt=new Date().toISOString();lastRemoteWidgetAt=lastRemoteArchiveAt;state="ready";lastError="";lastSync=Date.now();
  }catch(e){lastError=errorMessage(e);state="review"}
  finally{busy=false;show()}
 }
@@ -441,8 +487,8 @@ async function initial(){
  window.addEventListener?.("pagehide",()=>{if(state==="ready")void tick(true)});
  window.addEventListener?.("pageshow",()=>{if(state==="ready")void tick(true)});
 }
-window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,pairWidget,revokeWidget,checkWidgetFeed,scheduleSync,enabled,
- status:()=>({state,revision,lastError,lastSync,persistenceWarn,hasSession:!!session})};
+window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,pairWidget,revokeWidget,checkWidgetFeed,scheduleSync,openSettings,enabled,
+ status:()=>({state,revision,lastError,lastSync,lastRemoteArchiveAt,lastRemoteWidgetAt,persistenceWarn,hasSession:!!session})};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{void initial()});
 else void initial();
 })();
