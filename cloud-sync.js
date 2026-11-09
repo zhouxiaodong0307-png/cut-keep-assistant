@@ -126,7 +126,13 @@ function cloudArchiveLabel(){
  return Number.isNaN(d.getTime())?"云端更新时间尚未确认":"云端最近保存："+d.toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
 }
 function syncAttention(){
- if(state==="review")return {
+ if(state==="review")return !revision?{
+  title:"本机数据尚未上传云端",
+  body:"云端还没有当前账号记录。请先导出本机完整备份，再选择「保留本机并上传」，小组件才会获得最新数据。"
+ }:lastError&&lastError!=="conflict"?{
+  title:"同步操作失败，已保护本机记录",
+  body:lastError+"。"+cloudArchiveLabel()+"。请先核对同步状态，勿用旧云端记录覆盖本机。"
+ }:{
   title:"本机与云端数据不一致，自动同步已暂停",
   body:"小组件仍会读取云端旧记录。"+cloudArchiveLabel()+"。若当前手机数据更新，请先导出完整备份，再选择「保留本机并上传」。"
  };
