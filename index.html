@@ -686,6 +686,19 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 .widgetRefreshNote b{color:#25262b;display:block;font-size:13px;font-weight:700;margin-bottom:3px}
 .widgetRefreshNotice button{flex:0 0 auto;min-height:36px;border-radius:10px;border:1px solid #dbdbe2;background:white;color:#2b2b31;padding:7px 10px;font-size:12px;font-weight:700}
 @media(max-width:360px){.widgetRefreshNotice{gap:6px;padding:9px}.widgetRefreshNotice button{padding:7px 8px;font-size:11px}}
+.retroTrainingDetails{margin:11px 0 4px;border:1px solid #e2e2e8;border-radius:12px;background:#fff;overflow:hidden}
+.retroTrainingDetails>summary{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;cursor:pointer;list-style:none;font-weight:720;color:#34343a;font-size:12px}
+.retroTrainingDetails>summary::-webkit-details-marker{display:none}
+.retroTrainingDetails>summary:after{content:"⌄";font-size:14px;color:#888}
+.retroTrainingDetails[open]>summary:after{transform:rotate(180deg)}
+.retroTrainingBody{padding:11px 12px 13px;border-top:1px solid #ededf0;display:grid;gap:9px}
+.retroTrainingBody p{margin:0;font-size:11px;color:#73737d;line-height:1.6}
+.retroTrainingFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.retroTrainingFields label{display:flex;flex-direction:column;gap:4px;color:#66666f;font-size:11px;min-width:0}
+.retroTrainingFields input,.retroTrainingFields select{width:100%;min-width:0;height:38px;padding:0 8px;background:#f7f7fa;border:1px solid #e2e2e8;border-radius:9px;color:#222;font-size:14px}
+.retroTrainingSave{min-height:40px;border:0;border-radius:10px;background:#232326;color:white;font-size:12px;font-weight:720;padding:9px 12px}
+.retroTrainingStatus{font-size:11px;color:#64646d;line-height:1.55;white-space:pre-wrap}
+.retroTrainingFields[hidden]{display:none!important}
 .progressSyncHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .progressSyncHead .sectionTitle{margin-bottom:0}
 .progressSyncButton{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;padding:9px 13px;min-height:38px;border:1px solid #dedfe5;border-radius:12px;background:#fff;color:#292a30;font-size:13px;font-weight:720;cursor:pointer}
@@ -706,7 +719,17 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 
 <section class="view" id="view-diet"><h2 class="sectionTitle">饮食</h2><section class="card"><h2>今天已记录</h2><div id="mealList" class="list"><div class="muted">还没有记录</div></div></section><section class="card"><h2>今日汇总</h2><div class="summaryGrid"><div class="summaryBox">热量<b id="dietKcal">0</b><small>kcal</small></div><div class="summaryBox">蛋白质<b id="dietProtein">0</b><small>g</small></div><div class="summaryBox">碳水<b id="dietCarbs">0</b><small>g</small></div><div class="summaryBox">脂肪<b id="dietFat">0</b><small>g</small></div></div><div class="sub" id="dietAdvice" style="margin-top:14px"></div><div class="linkCard" id="dietTrainingLink"></div></section><section class="card" id="customFoodCard"><h2>个人食品库</h2><div class="sub">遇到未收录的品牌餐或外卖，手动录一次营养值，以后输入同名食品就直接计算，不再猜。</div><div class="formGrid" style="margin-top:12px"><input id="cfName" placeholder="食品名称"><select id="cfMode"><option value="100g">每100g</option><option value="serving">每份</option></select><input id="cfKcal" inputmode="decimal" type="number" placeholder="热量 kcal"><input id="cfProtein" inputmode="decimal" type="number" placeholder="蛋白质 g"><input id="cfCarbs" inputmode="decimal" type="number" placeholder="碳水 g"><input id="cfFat" inputmode="decimal" type="number" placeholder="脂肪 g"></div><button class="btn dark" style="width:100%;margin-top:12px" onclick="saveCustomFood()">保存到个人食品库</button><div id="customFoodList" class="list"></div></section></section>
 
-<section class="view" id="view-training"><h2 class="sectionTitle">训练</h2><section class="card"><h2>今日训练</h2><div class="trainingOverview" id="trainingOverview"><div><small>今天动作</small><b id="trainingOverviewActions">—</b></div><div><small>预计时长</small><b id="trainingOverviewTime">—</b></div><div><small>当前周</small><b id="trainingOverviewWeek">—</b></div><div><small>阶段状态</small><b id="trainingOverviewState">—</b></div></div><div id="cycleMilestoneBanner" class="cycleMilestoneBanner" hidden></div><details class="planDetails todayPlan" id="todayPlanDetails" ontouchstart="startDaySwipe(event)" ontouchend="endDaySwipe(event,false)"><summary><span>查看今天详细动作</span><span class="chev">⌄</span></summary><div class="planBody" id="todayExerciseList"></div></details><div class="dayAdjustHead" ontouchstart="startDaySwipe(event)" ontouchend="endDaySwipe(event,false)"><div class="dayAdjustIntro"><b>今日训练安排</b><small id="dayAdjustSummary">按实际完成情况灵活调整</small></div><div class="dayAdjustActions"><button type="button" id="dayAdjustRecordBtn" class="dayAdjustToggle primary" onclick="openActualWorkoutEditor()">记录力量</button><button type="button" id="dayAdjustToggleBtn" class="dayAdjustToggle" onclick="toggleDayAdjustment()">调整今日</button></div></div><div id="dayAdjustPanel" class="dayAdjustPanel"></div><div id="dayAdjustExtra" class="dayAdjustExtra" hidden><details class="extraActivityDetails" id="extraActivityDetails"><summary><span id="extraActivitySummaryText">临时活动 · 额外骑车 / 步行</span><span class="chev">⌄</span></summary><div id="extraActivityPanel"></div><div class="extraActivityNextHint" id="extraActivityNextHint"></div></details></div><div class="trainingDecision"><div class="trainingDecisionHead"><b>今日训练建议</b><small id="recoverySummary">一般</small></div><div class="recoveryChoices"><div class="iosRecoverySegments"><button class="recoveryBtn" data-recovery="good" onclick="setRecoveryState('good')">好</button><button class="recoveryBtn" data-recovery="ok" onclick="setRecoveryState('ok')">一般</button><button class="recoveryBtn" data-recovery="poor" onclick="setRecoveryState('poor')">差</button></div><select id="painAreaSelect" class="recoveryBtn" onchange="setPainArea(this.value)"><option value="">异常疼痛：无</option><option value="shoulder">肩部疼痛</option><option value="elbow">肘部疼痛</option><option value="wrist">手腕疼痛</option><option value="lowback">腰部疼痛</option><option value="hip">髋部疼痛</option><option value="knee">膝部疼痛</option><option value="ankle">踝部疼痛</option><option value="other">其他部位疼痛</option></select></div><div class="trainingDecisionGrid"><div><small>恢复</small><b id="decisionRecovery">一般</b></div><div><small>疼痛</small><b id="decisionPain">无</b></div><div><small>加重</small><b id="decisionProgress">允许</b></div><div><small>训练量</small><b id="decisionVolume">正常</b></div></div><div id="dailyDecisionWhy" class="dailyDecisionWhy" aria-live="polite"></div><div class="trainingDecisionText" id="trainingAdjustment">根据恢复、睡眠、疼痛和饮食自动生成今天的训练建议。</div><div class="recoveryNote" id="recoveryNote" style="display:none"></div></div><details class="planDetails trainingHelpDetails"><summary><span>训练周期与重量说明</span><span class="chev">⌄</span></summary><div class="trainingHelpBody"><div class="cycleNote" id="cycleNote"></div><div class="calibNote" id="calibNote">12周减脂保肌阶段。</div><div class="cycleAssessment" id="trainingStageAssessment"></div><div class="coachRule">重量执行规则：我会根据你的计划、恢复状态和每次完成反馈自动安排训练重量。目标保留约2次余力；完成后只需选择感受：轻松=还能做4次以上；合适=还能做约2次；吃力=只剩0–1次但动作完整；未完成=没达到目标或动作明显变形。没有真实工作重量记录的动作仅显示参考起点，不当作已校准重量；必要时可以一次性修正，不用逐组录入。</div></div></details></section><section class="card"><h2>本周训练安排</h2><div class="sub" style="margin-bottom:4px">默认以三次力量、两次 Zone 2、两次恢复为基线，而不是必须逐项补做。你可以记录实际完成的任何力量训练，系统按真实训练部位、组数和RPE调整后续安排；手动重量优先。点训练日查看动作、组数和重量。</div><div id="weekRealLoadContext" class="weekRealLoadContext" aria-live="polite"></div><details class="trainingAdaptiveDetails"><summary>肌群训练量与渐进超负荷</summary><div id="muscleVolumeDashboard" class="trainingAdaptiveBody"></div></details><div id="weekHistoricalActivityEditor"></div><div id="weekPlan" class="iosWeekList"></div></section><section class="card"><h2>训练记录</h2><div id="partialTrainingReview"></div><details class="extraActivityDetails actualHistory" id="actualHistoryDetails"><summary>自主力量训练历史 · 按实际记录</summary><div id="actualHistoryList"></div></details></section><section class="card"><h2>训练原则</h2><div class="sub">目标是减脂保肌，同时根据真实训练表现支持重点肌群增长。每组保留约2次余力，不练到力竭。系统预设动作可选择“轻松 / 合适 / 吃力 / 未完成”；如果当天改练别的训练，请使用“记录我实际练的力量训练”，填写真实动作、工作组、重量与RPE，以便调整后续安排。训练周按实际完成进度推进：每完成3次力量训练进入下一训练周；第4/8/12训练周减量恢复，不因漏练按日历提前切换。每完成36次真实力量训练自动评估并续接下一阶段；不会永久停留在第12周减量。单次动作不必频繁更换，优先提高真实完成次数与工作重量。</div></section></section>
+<section class="view" id="view-training"><h2 class="sectionTitle">训练</h2><section class="card"><h2>今日训练</h2><div class="trainingOverview" id="trainingOverview"><div><small>今天动作</small><b id="trainingOverviewActions">—</b></div><div><small>预计时长</small><b id="trainingOverviewTime">—</b></div><div><small>当前周</small><b id="trainingOverviewWeek">—</b></div><div><small>阶段状态</small><b id="trainingOverviewState">—</b></div></div><div id="cycleMilestoneBanner" class="cycleMilestoneBanner" hidden></div><details class="planDetails todayPlan" id="todayPlanDetails" ontouchstart="startDaySwipe(event)" ontouchend="endDaySwipe(event,false)"><summary><span>查看今天详细动作</span><span class="chev">⌄</span></summary><div class="planBody" id="todayExerciseList"></div></details><div class="dayAdjustHead" ontouchstart="startDaySwipe(event)" ontouchend="endDaySwipe(event,false)"><div class="dayAdjustIntro"><b>今日训练安排</b><small id="dayAdjustSummary">按实际完成情况灵活调整</small></div><div class="dayAdjustActions"><button type="button" id="dayAdjustRecordBtn" class="dayAdjustToggle primary" onclick="openActualWorkoutEditor()">记录力量</button><button type="button" id="dayAdjustToggleBtn" class="dayAdjustToggle" onclick="toggleDayAdjustment()">调整今日</button></div></div><div id="dayAdjustPanel" class="dayAdjustPanel"></div>
+<details id="retroTrainingDetails" class="retroTrainingDetails"><summary>忘记打卡？补记过去训练并校准后续安排</summary>
+<div class="retroTrainingBody"><p>只补记真实完成的训练，不会凭空补动作、组数或重量；最近21天可补记，已经完成的记录不会覆盖。</p>
+<div class="retroTrainingFields">
+<label>实际训练日期<input id="retroTrainingDate" type="date" onchange="updateRetroTrainingForm()"></label>
+<label>实际执行的训练日<select id="retroTrainingIndex" onchange="updateRetroTrainingForm()"><option value="0">训练日1 · 全身力量 A</option><option value="1">训练日2 · Zone 2 骑车</option><option value="2">训练日3 · 腿部 + 背部 B</option><option value="4">训练日5 · 胸部专项</option><option value="5">训练日6 · Zone 2 骑车</option></select></label>
+</div><div id="retroStrengthFields" class="retroTrainingFields"><label>实际完成情况<select id="retroTrainingStatus"><option value="completed">整堂力量训练已完成（未逐项记录）</option><option value="partial">只完成部分训练（不算整堂完成）</option></select></label></div>
+<div id="retroCardioFields" class="retroTrainingFields" hidden><label>实际骑行时间（分钟）<input id="retroRideMinutes" type="number" min="5" max="240" inputmode="numeric" placeholder="例如 45"></label><label>实际强度 RPE<select id="retroRideRpe"><option value="">请选择</option><option value="2">2 · 很轻松</option><option value="3">3 · 轻松</option><option value="4">4 · 适中</option><option value="5">5 · 稍累</option><option value="6">6 · 较累</option><option value="7">7 · 较吃力</option><option value="8">8 · 很吃力</option><option value="9">9 · 接近极限</option><option value="10">10 · 极限</option><option value="1">1 · 极轻松</option></select></label></div>
+<button class="retroTrainingSave" type="button" onclick="saveRetroTraining()">补记训练并修复排程</button>
+<div id="retroTrainingStatusText" class="retroTrainingStatus" aria-live="polite">选择过去实际训练的日期与训练日，再确认保存。</div><button type="button" class="retroTrainingSave" id="retroAlignTodayBtn" hidden onclick="alignRetroTrainingToday()">确认重新对齐今日训练日</button>
+</div></details><div id="dayAdjustExtra" class="dayAdjustExtra" hidden><details class="extraActivityDetails" id="extraActivityDetails"><summary><span id="extraActivitySummaryText">临时活动 · 额外骑车 / 步行</span><span class="chev">⌄</span></summary><div id="extraActivityPanel"></div><div class="extraActivityNextHint" id="extraActivityNextHint"></div></details></div><div class="trainingDecision"><div class="trainingDecisionHead"><b>今日训练建议</b><small id="recoverySummary">一般</small></div><div class="recoveryChoices"><div class="iosRecoverySegments"><button class="recoveryBtn" data-recovery="good" onclick="setRecoveryState('good')">好</button><button class="recoveryBtn" data-recovery="ok" onclick="setRecoveryState('ok')">一般</button><button class="recoveryBtn" data-recovery="poor" onclick="setRecoveryState('poor')">差</button></div><select id="painAreaSelect" class="recoveryBtn" onchange="setPainArea(this.value)"><option value="">异常疼痛：无</option><option value="shoulder">肩部疼痛</option><option value="elbow">肘部疼痛</option><option value="wrist">手腕疼痛</option><option value="lowback">腰部疼痛</option><option value="hip">髋部疼痛</option><option value="knee">膝部疼痛</option><option value="ankle">踝部疼痛</option><option value="other">其他部位疼痛</option></select></div><div class="trainingDecisionGrid"><div><small>恢复</small><b id="decisionRecovery">一般</b></div><div><small>疼痛</small><b id="decisionPain">无</b></div><div><small>加重</small><b id="decisionProgress">允许</b></div><div><small>训练量</small><b id="decisionVolume">正常</b></div></div><div id="dailyDecisionWhy" class="dailyDecisionWhy" aria-live="polite"></div><div class="trainingDecisionText" id="trainingAdjustment">根据恢复、睡眠、疼痛和饮食自动生成今天的训练建议。</div><div class="recoveryNote" id="recoveryNote" style="display:none"></div></div><details class="planDetails trainingHelpDetails"><summary><span>训练周期与重量说明</span><span class="chev">⌄</span></summary><div class="trainingHelpBody"><div class="cycleNote" id="cycleNote"></div><div class="calibNote" id="calibNote">12周减脂保肌阶段。</div><div class="cycleAssessment" id="trainingStageAssessment"></div><div class="coachRule">重量执行规则：我会根据你的计划、恢复状态和每次完成反馈自动安排训练重量。目标保留约2次余力；完成后只需选择感受：轻松=还能做4次以上；合适=还能做约2次；吃力=只剩0–1次但动作完整；未完成=没达到目标或动作明显变形。没有真实工作重量记录的动作仅显示参考起点，不当作已校准重量；必要时可以一次性修正，不用逐组录入。</div></div></details></section><section class="card"><h2>本周训练安排</h2><div class="sub" style="margin-bottom:4px">默认以三次力量、两次 Zone 2、两次恢复为基线，而不是必须逐项补做。你可以记录实际完成的任何力量训练，系统按真实训练部位、组数和RPE调整后续安排；手动重量优先。点训练日查看动作、组数和重量。</div><div id="weekRealLoadContext" class="weekRealLoadContext" aria-live="polite"></div><details class="trainingAdaptiveDetails"><summary>肌群训练量与渐进超负荷</summary><div id="muscleVolumeDashboard" class="trainingAdaptiveBody"></div></details><div id="weekHistoricalActivityEditor"></div><div id="weekPlan" class="iosWeekList"></div></section><section class="card"><h2>训练记录</h2><div id="partialTrainingReview"></div><details class="extraActivityDetails actualHistory" id="actualHistoryDetails"><summary>自主力量训练历史 · 按实际记录</summary><div id="actualHistoryList"></div></details></section><section class="card"><h2>训练原则</h2><div class="sub">目标是减脂保肌，同时根据真实训练表现支持重点肌群增长。每组保留约2次余力，不练到力竭。系统预设动作可选择“轻松 / 合适 / 吃力 / 未完成”；如果当天改练别的训练，请使用“记录我实际练的力量训练”，填写真实动作、工作组、重量与RPE，以便调整后续安排。训练周按实际完成进度推进：每完成3次力量训练进入下一训练周；第4/8/12训练周减量恢复，不因漏练按日历提前切换。每完成36次真实力量训练自动评估并续接下一阶段；不会永久停留在第12周减量。单次动作不必频繁更换，优先提高真实完成次数与工作重量。</div></section></section>
 
 <section class="view" id="view-progress"><div class="progressSyncHead"><h2 class="sectionTitle">进度</h2><button type="button" class="progressSyncButton" id="alwaysVisibleCloudSync" onclick="FitnessCloudSync.openSettings()">云端同步</button></div><div class="cloudSyncAlert" id="cloudSyncNoticeProgress" hidden role="status"><div class="cloudSyncAlertText"><b>云端同步待处理</b><span>正在检查…</span></div><button type="button" onclick="FitnessCloudSync.openSettings()">处理同步</button></div><div id="widgetRefreshNotice" class="widgetRefreshNotice" hidden role="status"><div class="widgetRefreshNote"><b>小组件待刷新</b><span>云端已更新，Scriptable 尚未读取最新内容。</span></div><button type="button" onclick="FitnessCloudSync.openWidgetRefresh()">打开 Scriptable</button></div><section class="card"><div class="recoveryHead"><div><h2 style="margin:0">本周趋势</h2><div class="sub" style="margin-top:3px">把体重、训练、饮食、活动和恢复放在一起看</div></div><small id="trendWeekLabel">第—周</small></div><div class="trendDashboard"><div class="trendMetric"><small>7日平均体重</small><b id="trendWeight">—</b></div><div class="trendMetric"><small>本周训练完成</small><b id="trendTraining">—</b></div><div class="trendMetric"><small>平均热量</small><b id="trendKcal">—</b></div><div class="trendMetric"><small>平均步数</small><b id="trendSteps">—</b></div><div class="trendMetric wide"><div><small>平均睡眠</small><b id="trendSleep">—</b></div><div><small>当前判断</small><b id="trendFocus">—</b></div></div></div><div class="trendHint" id="trendHint">数据积累后自动生成本周判断。</div></section><section class="card"><h2>记录体重</h2><div class="weightOneRow"><label class="weightOneField" for="weightInput"><span>今日体重</span><input id="weightInput" inputmode="decimal" type="number" min="30" max="250" step="0.1" placeholder="kg"></label><label class="weightOneField" for="goalWeightInput"><span>目标体重</span><input id="goalWeightInput" inputmode="decimal" type="number" min="30" max="250" step="0.1" placeholder="kg"></label><div class="weightOneGap" id="goalWeightInline" role="status" aria-live="polite"><span id="goalWeightResultLabel">还差</span><strong id="goalWeightRemaining">—</strong></div><button class="weightOneSave" type="button" aria-label="保存今日体重和目标体重" onclick="saveWeightAndGoal()">保存</button></div></section><section class="card"><h2>趋势</h2><div class="summaryGrid"><div class="summaryBox">最近体重<b id="latestWeight">—</b><small>kg</small></div><div class="summaryBox">7日平均<b id="avgWeight">—</b><small>kg</small></div></div><div id="weightList" class="list"></div><button id="weightHistoryToggle" class="weightHistoryToggle" type="button" onclick="toggleWeightHistory()" hidden>查看全部</button></section><section class="card"><h2>日常活动</h2><div class="summaryGrid"><div class="summaryBox">7日平均步数<b id="avgSteps">—</b><small>步/天</small></div><div class="summaryBox">当前目标<b id="progressStepGoal">6,500–7,500</b><small>步/天</small></div></div><div class="row"><input id="stepInput" class="weightinput" inputmode="numeric" type="number" step="100" placeholder="今天步数"><button class="btn dark" style="flex:0 0 auto" onclick="saveSteps()">保存</button></div><div class="sub" id="stepAdvice" style="margin-top:10px"></div></section><section class="card weeklyReport"><h2>训练 × 营养周报</h2><div class="sub">按实际训练周总结：每完成3次力量训练进入下一周，漏练会顺延，不再按日历7天硬切。</div><div id="weeklyReportBox"></div><details class="wrHistory"><summary>历史周报</summary><div id="weeklyReportHistory"></div></details></section><section class="card"><h2>阶段目标</h2><div class="sub" id="stageTargetText"></div></section><section class="card"><h2>目标设置</h2><div class="formGrid"><input id="targetKcalInput" type="number" inputmode="numeric" placeholder="每日 kcal"><input id="targetProteinInput" type="number" inputmode="numeric" placeholder="蛋白质 g"></div><button class="btn dark" style="width:100%;margin-top:12px" onclick="saveTargets()">保存目标</button></section><section class="card"><h2>数据安全</h2><div class="sub">未开通云同步前，数据仍只保存在当前设备。登录后也会先核验本机与云端，遇到记录冲突不会自动覆盖。</div><div class="formGrid" style="margin-top:12px"><button class="btn dark" onclick="exportDataBackup()">导出完整备份</button><button class="btn" onclick="document.getElementById('restoreBackupInput').click()">恢复备份</button></div><input id="restoreBackupInput" type="file" accept=".json,application/json" style="display:none" onchange="restoreDataBackup(this.files&&this.files[0]);this.value=''"><div class="sub" id="backupStatus" style="margin-top:10px"></div>
 <details class="fitnessCloudPanel" id="fitnessCloudPanel"><summary>账号登录 · 云端同步</summary>
@@ -726,7 +749,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 </main>
 <nav class="nav"><button class="active" data-view="today" onclick="showView('today',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="m8.5 16 2.2 2 4.8-4.5"/></svg></span>今天</button><button data-view="diet" onclick="showView('diet',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3v6.5a3 3 0 0 0 6 0V3M6.5 3v18"/><path d="M19 21V4.5c0-1.6-1.2-2-2.4-.6-2 1.8-2.3 6.3-2.3 9.1H19"/></svg></span>饮食</button><button data-view="training" onclick="showView('training',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M9 10h6M15 10h0M18 6.5v11M21 9v6M6 12h12"/></svg></span>训练</button><button data-view="progress" onclick="showView('progress',this)"><span class="icon"><svg class="navSvg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-6M12 20V9M19 20V4"/></svg></span>进度</button></nav>
 <script>
-const APP_BUILD="20261110-widget-read-detection-v104",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
+const APP_BUILD="20261110-retroactive-training-repair-v105",UPGRADE_BACKUP_PREFIX="ckUpgradeBackup-";
 function safeJsonParse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
 function snapshotBeforeUpgrade(){const prev=localStorage.getItem("ckAppBuild");if(prev===APP_BUILD)return;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("ck")&&!k.startsWith(UPGRADE_BACKUP_PREFIX)&&k!=="ckAppBuild")data[k]=localStorage.getItem(k)}try{const stamp=Date.now(),key=UPGRADE_BACKUP_PREFIX+stamp;localStorage.setItem(key,JSON.stringify({from:prev||"legacy",to:APP_BUILD,time:stamp,data}));const backups=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(UPGRADE_BACKUP_PREFIX))backups.push(k)}backups.sort().slice(0,-3).forEach(k=>localStorage.removeItem(k));localStorage.setItem("ckAppBuild",APP_BUILD)}catch(e){/* 备份未成功时不写版本标记，下次启动继续尝试；绝不清空现有数据。 */}}
 snapshotBeforeUpgrade();
@@ -1272,6 +1295,165 @@ function shouldPassOptionalCardio(ds,index){
  const previous=shiftDate(ds,-1),load=integratedTrainingLoad(ds);
  return load.days.some(d=>d.date===previous&&d.strength&&d.rideMinutes>=60&&d.maxRpe>=2)||(typeof readActualWorkout==="function"&&!!readActualWorkout(previous)&&actualRecentMuscleLoad(shiftDate(previous,1),"legs").some(x=>x.gap===1&&x.heavy));
 }
+/* V105: retrospectively reconcile a truly completed session without inventing
+   per-exercise weight, sets, reps, or an unperformed Zone 2 ride. */
+const RETRO_TRAINING_DAYS=21,RETRO_VALID_INDEX=[0,1,2,4,5];
+let retroLastMessage="";
+function retroTrainingKey(ds){return "ckRetroTraining-"+ds}
+function readRetroTraining(ds){
+ const r=safeJsonParse(localStorage.getItem(retroTrainingKey(ds)),null);
+ return r&&r.version===1&&r.status&&RETRO_VALID_INDEX.includes(r.index)?r:null;
+}
+function validRetroDate(ds,today=localDate()){
+ return typeof ds==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(ds)&&
+  shiftDate(ds,0)===ds&&ds<today&&dayDiff(ds,today)>=1&&dayDiff(ds,today)<=RETRO_TRAINING_DAYS;
+}
+function retroFinishedOn(ds,index,replacedDate="",override=null){
+ if(ds===replacedDate)return override==="completed"||override==="partial";
+ return index===3||index===6||localStorage.getItem("ckTrain-"+ds)==="1"||
+  !!readRetroTraining(ds)||meaningfulPartialWorkout(ds)||hasExtraStrengthSession(ds)||
+  shouldPassOptionalCardio(ds,index);
+}
+function retroReplay(start,firstIndex,replaceStatus=null){
+ const today=localDate();
+ let idx=firstIndex;
+ for(let date=start;date<today;date=shiftDate(date,1)){
+  if(date!==start){
+   const adj=readDayAdjustment(date);
+   if(adj?.choice==="next-strength"&&[0,2,4].includes(adj.selectedIndex))idx=adj.selectedIndex;
+   else{
+    const recorded=localStorage.getItem("ckTrain-"+date)==="1"||!!readActualWorkout(date)||
+     !!readRetroTraining(date)||hasExtraStrengthSession(date);
+    const recordedIdx=Number(localStorage.getItem("ckTrainPlanIndex-"+date));
+    if(recorded&&localStorage.getItem("ckTrainPlanIndex-"+date)!==null&&Number.isInteger(recordedIdx)&&recordedIdx>=0&&recordedIdx<=6)idx=recordedIdx;
+   }
+  }
+  if(retroFinishedOn(date,idx,start,replaceStatus))idx=(idx+1)%7;
+ }
+ return idx;
+}
+function updateRetroTrainingForm(dateChanged=false){
+ const date=document.getElementById("retroTrainingDate"),index=document.getElementById("retroTrainingIndex"),
+  strength=document.getElementById("retroStrengthFields"),cardio=document.getElementById("retroCardioFields");
+ if(!date||!index)return;
+ if(dateChanged)retroLastMessage="";
+ if(dateChanged&&validRetroDate(date.value)){
+  const saved=localStorage.getItem("ckTrainPlanIndex-"+date.value);
+  const original=saved!==null?Number(saved):trainingIndex();
+  if(RETRO_VALID_INDEX.includes(original))index.value=String(original);
+ }
+ const ride=[1,5].includes(Number(index.value));
+ if(strength)strength.hidden=ride;
+ if(cardio)cardio.hidden=!ride;
+ const alignBtn=document.getElementById("retroAlignTodayBtn"),entry=readRetroTraining(date.value);
+ if(alignBtn){
+  const possible=Number.isInteger(entry?.pendingTarget)&&entry.pendingForDate===localDate()&&
+   !trainDone&&!readActualWorkout()&&!storedRide()&&!readStartedExercisePlan()&&!readPartialWorkout()&&!hasExtraStrengthSession()&&!Object.values(exerciseDone).some(Boolean);
+  alignBtn.hidden=!possible;
+  if(possible)alignBtn.textContent="确认校准为训练日"+(entry.pendingTarget+1)+" · "+({0:"全身力量 A",1:"骑车",2:"腿背 B",3:"休息",4:"胸部",5:"骑车",6:"休息"}[entry.pendingTarget]);
+ }
+ const notice=document.getElementById("retroTrainingStatusText");
+ if(notice){
+  const completed=date.value&&(localStorage.getItem("ckTrain-"+date.value)==="1"||!!readActualWorkout(date.value)||
+   !!storedRide(date.value)||hasExtraStrengthSession(date.value)||!!readRetroTraining(date.value));
+  if(retroLastMessage)notice.textContent=retroLastMessage;
+  else if(completed)notice.textContent="该日期已有训练完成记录，请勿重复补记。";
+  else notice.textContent="补记的力量训练只计一次真实训练，不自动补造各动作组数；只完成部分时不算整堂完成。";
+ }
+}
+function renderRetroTrainingForm(){
+ const date=document.getElementById("retroTrainingDate"),index=document.getElementById("retroTrainingIndex");
+ if(!date||!index)return;
+ const today=localDate();
+ date.max=shiftDate(today,-1);date.min=shiftDate(today,-RETRO_TRAINING_DAYS);
+ if(!validRetroDate(date.value,today)){
+  date.value=shiftDate(today,-1);
+  const saved=localStorage.getItem("ckTrainPlanIndex-"+date.value);
+  const candidate=saved!==null?Number(saved):trainingIndex();
+  index.value=String(RETRO_VALID_INDEX.includes(candidate)?candidate:2);
+ }
+ updateRetroTrainingForm(false);
+}
+function alignRetroTrainingToday(){
+ const ds=String(document.getElementById("retroTrainingDate")?.value||""),
+  entry=readRetroTraining(ds),today=localDate(),target=entry?.pendingTarget;
+ if(!validRetroDate(ds)||entry?.pendingForDate!==today||!Number.isInteger(target)||target<0||target>6)
+  return alert("补记日期已过期或无待修复排程，请重新核对。");
+ if(trainDone||readActualWorkout()||storedRide()||readStartedExercisePlan()||readPartialWorkout()||
+    hasExtraStrengthSession()||Object.values(exerciseDone).some(Boolean))
+  return alert("今天已有实际训练或部分动作记录，已保护当前计划，不允许覆盖。");
+ const current=trainingIndex();
+ if(!confirm("确认按 "+ds+" 的补记结果，将今天从训练日"+(current+1)+"调整到训练日"+(target+1)+
+  "？这会撤销今日尚未开始的手动选课，但不更改任何已完成训练记录。"))return;
+ const cursor="ckTrainingCursorIndex",todayIndex="ckTrainPlanIndex-"+today,
+  adjustment=dayAdjustmentKey(today),key=retroTrainingKey(ds),keys=[cursor,todayIndex,adjustment,key],
+  old=keys.map(k=>localStorage.getItem(k));
+ try{
+  localStorage.setItem(cursor,String(target));localStorage.setItem(todayIndex,String(target));
+  localStorage.removeItem(adjustment);
+  localStorage.setItem(key,JSON.stringify({...entry,pendingTarget:null,alignedAt:new Date().toISOString(),
+   appliedCursor:target,manualAlignment:true}));
+ }catch(e){
+  keys.forEach((k,i)=>{try{if(old[i]===null)localStorage.removeItem(k);else localStorage.setItem(k,old[i])}catch(_){}});
+  return alert("校准未成功，已尝试恢复当前计划。");
+ }
+ retroLastMessage="训练日已按 "+ds+" 的真实补记结果校准至训练日"+(target+1)+"；既有完成记录未改动。";
+ refreshAfterDayChange();
+}
+
+function saveRetroTraining(){
+ const ds=String(document.getElementById("retroTrainingDate")?.value||""),
+  index=Number(document.getElementById("retroTrainingIndex")?.value),
+  status=String(document.getElementById("retroTrainingStatus")?.value||"completed"),
+  kind=planKind(index);
+ if(!validRetroDate(ds))return alert("只能补记最近21天的过去日期，不能提前标记今天或未来训练。");
+ if(!RETRO_VALID_INDEX.includes(index))return alert("请选择实际执行的训练日。");
+ if(readRetroTraining(ds)||localStorage.getItem("ckTrain-"+ds)==="1"||readActualWorkout(ds)||
+    storedRide(ds)||hasExtraStrengthSession(ds))return alert("该日期已有训练完成记录，已阻止重复或覆盖。");
+ if(kind==="strength"&&!["completed","partial"].includes(status))return alert("请选择真实完成情况。");
+ const rideMinutes=Number(document.getElementById("retroRideMinutes")?.value),
+  rideRpe=Number(document.getElementById("retroRideRpe")?.value);
+ if(kind==="cardio"&&(!Number.isInteger(rideMinutes)||rideMinutes<5||rideMinutes>240||
+    !Number.isInteger(rideRpe)||rideRpe<1||rideRpe>10))
+  return alert("补记有氧必须填写实际骑行分钟数（5–240）与 RPE（1–10），不会虚构骑车完成。");
+ const isPartial=kind==="strength"&&status==="partial",
+  confirmation=ds+"实际"+(kind==="cardio"?"骑行"+rideMinutes+"分钟、RPE "+rideRpe:
+   "完成"+(isPartial?"部分":"整堂")+"「"+({0:"全身力量 A",2:"腿部 + 背部 B",4:"胸部专项"}[index])+"」")+
+   "？\n系统只补记真实训练日期，不生成任何没填过的动作、组数或重量。";
+ if(!confirm(confirmation))return;
+ const today=localDate(),current=trainingIndex(),original=trainingIndexForDate(ds),
+  before=retroReplay(ds,original,null),after=retroReplay(ds,index,isPartial?"partial":"completed");
+ const todayStarted=trainDone||!!readActualWorkout()||!!storedRide()||
+  !!readStartedExercisePlan()||!!readPartialWorkout()||hasExtraStrengthSession()||
+  Object.values(exerciseDone).some(Boolean);
+ const todayChoice=readDayAdjustment();
+ const currentProtected=todayStarted||!!(todayChoice&&todayChoice.choice&&todayChoice.choice!=="auto-recovery");
+ const align=!currentProtected&&(current===before||current===index);
+ const key=retroTrainingKey(ds),train="ckTrain-"+ds,dayIndex="ckTrainPlanIndex-"+ds,
+  rideKey=rideStorageKey(ds),cursor="ckTrainingCursorIndex",todayIndex="ckTrainPlanIndex-"+today,
+  keys=[key,train,dayIndex,rideKey,cursor,todayIndex],old=keys.map(k=>localStorage.getItem(k));
+ const now=new Date().toISOString();
+ try{
+  localStorage.setItem(key,JSON.stringify({version:1,status:isPartial?"partial":"completed",
+   kind,index,date:ds,rideMinutes:kind==="cardio"?rideMinutes:null,rideRpe:kind==="cardio"?rideRpe:null,
+   recordedAt:now,source:"confirmed-historical-backfill",previousCursor:current,
+   appliedCursor:align?after:null,pendingTarget:!align&&!todayStarted?after:null,pendingForDate:today}));
+  localStorage.setItem(dayIndex,String(index));
+  if(!isPartial)localStorage.setItem(train,"1");
+  if(kind==="cardio")localStorage.setItem(rideKey,JSON.stringify({
+   minutes:rideMinutes,rpe:rideRpe,planIndex:index,completedAt:now,actualDate:ds,backfilled:true}));
+  if(align){localStorage.setItem(cursor,String(after));localStorage.setItem(todayIndex,String(after))}
+ }catch(e){
+  keys.forEach((k,i)=>{try{if(old[i]===null)localStorage.removeItem(k);else localStorage.setItem(k,old[i])}catch(_){}});
+  return alert("保存失败，已尝试恢复原排程与历史记录，请检查设备剩余空间。");
+ }
+ retroLastMessage="已补记 "+ds+" · "+(kind==="cardio"?"真实骑行":isPartial?"部分力量训练":"力量训练完成")+
+  (align?"。今日计划已从训练日"+(current+1)+"重新对齐到训练日"+(after+1)+"；后续按实际记录继续。":
+   "。为保护当前计划未自动改变；如果今天尚未开始训练，可点下方「确认重新对齐今日训练日」。")+
+  " 此次未生成任何动作、重量或组数。";
+ refreshAfterDayChange();
+}
+
 function syncTrainingCursor(){const today=localDate();let idx=+(localStorage.getItem("ckTrainingCursorIndex")),ds=localStorage.getItem("ckTrainingCursorDate");if(!Number.isInteger(idx)||idx<0||idx>6||!ds){idx=dayDiff(trainingStartDate,today)%7;ds=today}while(ds<today){const autoPass=shouldPassOptionalCardio(ds,idx);
 if(autoPass&&!readDayAdjustment(ds)){try{localStorage.setItem(dayAdjustmentKey(ds),JSON.stringify({choice:"auto-recovery",status:"unlogged",originalIndex:idx,reason:"strength-plus-ride"}))}catch(e){}}
 if(idx===3||idx===6||localStorage.getItem("ckTrain-"+ds)==="1"||(typeof meaningfulPartialWorkout==="function"&&meaningfulPartialWorkout(ds))||(typeof hasExtraStrengthSession==="function"&&hasExtraStrengthSession(ds))||autoPass)idx=(idx+1)%7;ds=shiftDate(ds,1)}localStorage.setItem("ckTrainingCursorIndex",idx);localStorage.setItem("ckTrainingCursorDate",today);return idx}
@@ -2753,7 +2935,7 @@ if(window.dailyDecisionWhy){
  dailyDecisionWhy.hidden=!meaningful;
  dailyDecisionWhy.textContent=meaningful?(decision.missed?"今天已记录未训练（"+MISSED_TRAINING_REASONS[decision.missed.reason]+"）。原计划顺延到下一次，不记为完成，也不会额外加课。 ":"")+decision.title+"。"+decision.reason:"";
 }
-trainingAdjustment.textContent="";trainingAdjustment.hidden=true;todayPlanDetails.className="planDetails todayPlan "+planKind(d);todayExerciseList.innerHTML=actual?actualWorkoutSummaryHtml(actual):strengthHeldToday()?'<div class="restDayCard"><h3>今天恢复 · 原力量训练顺延</h3><p>今天不计作力量训练完成，明天仍保留当前训练日。恢复原安排后可以继续完成原动作。</p></div>':kind==="cardio"?cardioDayHtml(p[3]):kind==="rest"?restDayHtml(p[3]):renderExerciseList(p[3],true);renderExtraActivity();renderTrainingSummaryForExtra();weekRealLoadContext.textContent=weeklyRealTrainingContext();renderHistoricalActivityEditor();weekPlan.innerHTML=plans.map((x,i)=>`<details class="planDetails ${planKind(i)}"><summary><span class="planSummaryMain"><b>${x[0]} · ${i===d&&actual?x[1]+" → 实际"+actualSessionTitle(actual)+"力量":x[1]}${i===d?'<span class="todayBadge">当前</span>':''}</b><small>${x[2]}${deload&&planKind(i)==="strength"?" · 减量周":""}</small></span><span class="chev">⌄</span></summary><div class="planBody">${i===d&&actual?actualWorkoutSummaryHtml(actual):renderExerciseList(x[3],false,"week-"+i)}</div></details>`).join("");renderDayAdjustmentPanel();renderPartialTrainingReview(todayList);renderActualWorkoutHistory();if(typeof renderTrainingAdaptation==="function")renderTrainingAdaptation();}
+trainingAdjustment.textContent="";trainingAdjustment.hidden=true;todayPlanDetails.className="planDetails todayPlan "+planKind(d);todayExerciseList.innerHTML=actual?actualWorkoutSummaryHtml(actual):strengthHeldToday()?'<div class="restDayCard"><h3>今天恢复 · 原力量训练顺延</h3><p>今天不计作力量训练完成，明天仍保留当前训练日。恢复原安排后可以继续完成原动作。</p></div>':kind==="cardio"?cardioDayHtml(p[3]):kind==="rest"?restDayHtml(p[3]):renderExerciseList(p[3],true);renderExtraActivity();renderTrainingSummaryForExtra();weekRealLoadContext.textContent=weeklyRealTrainingContext();renderHistoricalActivityEditor();weekPlan.innerHTML=plans.map((x,i)=>`<details class="planDetails ${planKind(i)}"><summary><span class="planSummaryMain"><b>${x[0]} · ${i===d&&actual?x[1]+" → 实际"+actualSessionTitle(actual)+"力量":x[1]}${i===d?'<span class="todayBadge">当前</span>':''}</b><small>${x[2]}${deload&&planKind(i)==="strength"?" · 减量周":""}</small></span><span class="chev">⌄</span></summary><div class="planBody">${i===d&&actual?actualWorkoutSummaryHtml(actual):renderExerciseList(x[3],false,"week-"+i)}</div></details>`).join("");renderDayAdjustmentPanel();renderPartialTrainingReview(todayList);renderActualWorkoutHistory();if(typeof renderTrainingAdaptation==="function")renderTrainingAdaptation();if(typeof renderRetroTrainingForm==="function")renderRetroTrainingForm();}
 function toggleTodayTraining(){if(planKind(trainingIndex())!=="strength")return;trainDone=!trainDone;localStorage.setItem(trainKey,trainDone?"1":"0");const list=currentPlans()[trainingIndex()][3];list.forEach(x=>exerciseDone[exerciseName(x)]=trainDone);localStorage.setItem(exerciseDoneKey,JSON.stringify(exerciseDone));renderTraining();refreshNutritionGuidance()}
 /* V85: Scriptable cannot read Safari/PWA localStorage. Export only a small factual
    on-device snapshot on explicit user action; no server storage or silent upload. */
