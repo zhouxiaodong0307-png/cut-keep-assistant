@@ -13,7 +13,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  const inputs={
   retroTrainingDate:{value:day},retroTrainingIndex:{value:String(index)},
   retroTrainingStatus:{value:kind},retroRideMinutes:{value:minutes},retroRideRpe:{value:rpe},
-  retroTrainingStatusText:{textContent:""},retroStrengthFields:{hidden:false},retroCardioFields:{hidden:false}
+  retroTrainingStatusText:{textContent:""},retroStrengthFields:{hidden:false},retroCardioFields:{hidden:false},retroAlignTodayBtn:{hidden:true,textContent:""}
  };
  const storage={getItem:key=>store.has(key)?store.get(key):null,setItem:(k,v)=>store.set(k,String(v)),
   removeItem:k=>store.delete(k)};
@@ -32,7 +32,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  exerciseDone:{},trainDone:todayStarted,confirm:prompt=>{confirmations.push(prompt);return confirmAnswer},
  alert:msg=>alerts.push(msg),refreshAfterDayChange:()=>{refreshed++},safeJsonParse:(raw,def)=>{try{return JSON.parse(raw||"null")||def}catch(_){return def}}
  };
- const mod=new Function(...Object.keys(globals),code+";return {saveRetroTraining,readRetroTraining,retroReplay,validRetroDate,renderRetroTrainingForm,updateRetroTrainingForm};")(...Object.values(globals));
+ const mod=new Function(...Object.keys(globals),code+";return {saveRetroTraining,alignRetroTrainingToday,readRetroTraining,retroReplay,validRetroDate,renderRetroTrainingForm,updateRetroTrainingForm};")(...Object.values(globals));
  return {mod,store,storage,inputs,alerts,confirmations,get refreshed(){return refreshed}};
 }
 assert(html.includes('id="retroTrainingDetails"')&&html.includes("忘记打卡？补记过去训练并校准后续安排"),"UI is discoverable");
@@ -68,8 +68,16 @@ assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"4","historical Day3→D
 x=env({day:"2026-11-09",index:2,current:2,todayStarted:true});x.mod.saveRetroTraining();
 assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"2","never replace current started strength training");
 assert.equal(x.storage.getItem("ckTrain-2026-11-09"),"1","still accurately record the past session");
+assert.equal(x.mod.readRetroTraining("2026-11-09").pendingTarget,null,"already-started current day must not offer realignment");
 x=env({day:"2026-11-09",index:2,current:2,manualChoice:{choice:"next-strength",selectedIndex:4}});x.mod.saveRetroTraining();
 assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"2","manual choice protected");
+assert.equal(x.mod.readRetroTraining("2026-11-09").pendingTarget,3,"a user-approved realignment remains available");
+x.mod.updateRetroTrainingForm();
+assert.equal(x.inputs.retroAlignTodayBtn.hidden,false,"visible manual reconcile action when safe");
+x.mod.alignRetroTrainingToday();
+assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"3","explicit confirmation aligns a previously protected current day");
+assert.equal(x.mod.readRetroTraining("2026-11-09").pendingTarget,null,"successful alignment clears pending action");
+assert.equal(x.storage.getItem("ckTrain-2026-11-10"),null,"manual align does not mark today as trained");
 x=env({day:"2026-11-09",index:2,current:2,existing:{"ckActualWorkout-2026-11-09":'{"status":"completed"}', "ckTrain-2026-11-09":"1"}});
 x.mod.saveRetroTraining();assert.equal(x.storage.getItem("ckRetroTraining-2026-11-09"),null,"previously completed date must not be overwritten");
 x=env({day:"2026-11-10"});x.mod.saveRetroTraining();
