@@ -9,7 +9,7 @@ const SESSION="fitnessCloudAuth-v1",BASE="fitnessCloudBaseline-v1:",URL=enabled?
 const OMIT=new Set(["ckAppBuild","ckWeeklyReportLogicVersion","ckLastManualBackup","ckLastRestoreAt","ckWidgetScriptName"]);
 let session=null,revision=0,baseline=null,state="disabled",busy=false,alarm=null, lastError="",lastErrorCode="",lastSync=0;
 let refreshFlight=null,persistenceWarn=false,syncTimer=null,localSyncDeferred=false;
-let widgetProbe=null;
+let widgetProbe=null,widgetReadState=null,widgetReadCheckedAt=0,widgetReadFlight=null;
 let lastRemoteArchiveAt=null,lastRemoteWidgetAt=null;
 const DEVICE_META_KEY="fitnessCloudDeviceState-v1";
 function hasMeaningfulLocalRecords(records){
@@ -35,20 +35,75 @@ function scheduleSync(){
  if(syncTimer)clearTimeout(syncTimer);
  syncTimer=setTimeout(()=>{syncTimer=null;void tick(true)},850);
 }
+/* V104: compare server-generated widget summary update with the real last
+   successful Scriptable read. This is not the iOS home screen render time. */
+function widgetFreshness(row){
+ if(!row||row.paired!==true)return "unpaired";
+ const updated=Date.parse(row.widget_updated_at||"");
+ if(!Number.isFinite(updated))return "unknown";
+ const read=Date.parse(row.last_widget_read_at||"");
+ return !Number.isFinite(read)||read<updated?"pending":"read";
+}
+function widgetClock(raw){
+ const date=new Date(raw||"");
+ return Number.isNaN(date.getTime())?"从未读取":date.toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+function renderWidgetReadNotice(){
+ const el=$("widgetRefreshNotice");if(!el)return;
+ const pending=state==="ready"&&widgetFreshness(widgetReadState)==="pending";
+ el.hidden=!pending;
+ if(!pending)return;
+ const note=el.querySelector(".widgetRefreshNote span");
+ if(note)note.textContent="云端摘要更新："+widgetClock(widgetReadState.widget_updated_at)+
+  " · Scriptable 最近读取："+widgetClock(widgetReadState.last_widget_read_at)+
+  "。点击刷新可打开原脚本，iOS 桌面实际显示时间仍由系统决定。";
+}
+async function refreshWidgetStatus(force=false){
+ if(!session||state!=="ready"||!revision){
+  widgetReadState=null;renderWidgetReadNotice();return null;
+ }
+ if(widgetReadFlight)return widgetReadFlight;
+ if(!force&&widgetReadState&&Date.now()-widgetReadCheckedAt<45000){
+  renderWidgetReadNotice();return widgetReadState;
+ }
+ widgetReadFlight=(async()=>{
+  try{
+   if(!await refreshAuth())throw Error("云端会话需重新登录");
+   const rows=await request("/rest/v1/rpc/fitness_widget_status",{method:"POST",body:{},token:session.access});
+   widgetReadState=Array.isArray(rows)?rows[0]||null:null;
+   widgetReadCheckedAt=Date.now();
+   renderWidgetReadNotice();
+   return widgetReadState;
+  }catch(e){
+   // Secondary read diagnostics never interrupt signed-in fitness uploads.
+   widgetReadState=null;widgetReadCheckedAt=Date.now();renderWidgetReadNotice();
+   return null;
+  }
+ })();
+ try{return await widgetReadFlight}
+ finally{widgetReadFlight=null}
+}
+function openWidgetRefresh(){
+ if(state!=="ready"||!session){openSettings();return}
+ // Do not use the existing mode=sync URL: that mode reads the clipboard and
+ // could import an old manual snapshot. Ordinary cloud read needs no clipboard.
+ const name=typeof configuredIosWidgetScriptName==="function"?configuredIosWidgetScriptName():"减脂保肌小组件";
+ const clean=String(name||"").trim();
+ if(!clean||clean.length>80)return window.iosWidgetStatus?.("小组件脚本名称不正确，请检查 Scriptable 原脚本名称");
+ window.iosWidgetStatus?.("即将打开 Scriptable 读取最新云端摘要。完成后返回这里即可核验；iOS 桌面显示可能延迟。");
+ location.href="scriptable:///run?scriptName="+encodeURIComponent(clean)+"&mode=refresh";
+}
 async function checkWidgetFeed(){
  if(!session||state!=="ready")return window.iosWidgetStatus?.("请先登录账号并完成云同步。");
- try{
-  if(!await refreshAuth())throw Error("云端会话需重新登录");
-  const rows=await request("/rest/v1/rpc/fitness_widget_status",{method:"POST",body:{},token:session.access});
-  const row=Array.isArray(rows)?rows[0]:null;
-  if(!row)throw Error("云端尚无同步记录");
-  const updated=row.widget_updated_at?new Date(row.widget_updated_at).toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"尚未生成";
-  const read=row.last_widget_read_at?new Date(row.last_widget_read_at).toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"从未读取";
-  const detail=row.paired?"已配对":"未配对";
-  window.iosWidgetStatus?.("云端摘要更新："+updated+" · 授权："+detail+" · 小组件实际读取："+read+
-    (!row.paired?"。请先更新脚本并连接自动更新。":!row.last_widget_read_at?"。云端从未收到小组件读取，请检查 Scriptable 脚本是否已覆盖为新版并运行。":"。iOS 决定桌面刷新时间，可以打开 Scriptable 原脚本手动运行一次验证。"));
-  return row;
- }catch(e){window.iosWidgetStatus?.("检测失败："+errorMessage(e))}
+ const row=await refreshWidgetStatus(true);
+ if(!row)return window.iosWidgetStatus?.("暂时无法读取小组件状态；原有数据未改动，请稍后再试。");
+ const updated=widgetClock(row.widget_updated_at),read=widgetClock(row.last_widget_read_at);
+ const freshness=widgetFreshness(row);
+ window.iosWidgetStatus?.("云端摘要更新："+updated+" · 授权："+(row.paired?"已配对":"未配对")+" · Scriptable 最后读取："+read+
+  (freshness==="pending"?"。小组件尚未读取这次更新，可点击「刷新小组件」打开原脚本。":
+   freshness==="read"?"。已检测到读取最新云端摘要；iOS 桌面显示可能仍有延迟。":
+   freshness==="unpaired"?"。请先连接自动更新。":"。尚无法确定读取是否为最新。"));
+ return row;
 }
 const AUTH_CACHE_DB="fitnessCloudSessionBackup",AUTH_CACHE_STORE="auth";
 function validSession(v){
@@ -169,7 +224,7 @@ function openSettings(){
 }
 function show(){
  const ready=!!session&&state==="ready";const link=!!session;
- renderSyncAttention();
+ renderSyncAttention();renderWidgetReadNotice();
  const auth=$("fitnessCloudAuth"),pending=$("fitnessCloudChoices"),info=$("fitnessCloudIdentity");
  if(auth)auth.hidden=link;if(info)info.hidden=!link;
  if($("fitnessCloudLoginName"))$("fitnessCloudLoginName").textContent=session?.email||"";
@@ -384,7 +439,7 @@ async function connect(){
 }
 async function tick(force=false){
  if(!session||state!=="ready"||busy||(!force&&document.visibilityState==="hidden"))return;
- busy=true;
+ busy=true;let widgetChanged=false;
  try{
   const remote=await readCloud(),local=snapshot(),cloud=remote?.snapshot||{},rev=remote?.revision||0;
   const localChanged=!equal(local,baseline||{});
@@ -397,16 +452,16 @@ async function tick(force=false){
   }
   if(localChanged){
    const newRev=await writeCloud(local,rev);
-   saveBaseline(newRev,local);lastRemoteArchiveAt=new Date().toISOString();lastRemoteWidgetAt=lastRemoteArchiveAt;
+   saveBaseline(newRev,local);lastRemoteArchiveAt=new Date().toISOString();lastRemoteWidgetAt=lastRemoteArchiveAt;widgetChanged=true;
   }else if(remote && summaryIdentity(remote.widget_summary)!==summaryIdentity(widgetSummary())){
    // No changed ck* records? Refresh display data on new days/plan changes
    // without incrementing the archive revision or overwriting another device.
-   await touchWidget(widgetSummary(),rev);lastRemoteWidgetAt=new Date().toISOString();
+   await touchWidget(widgetSummary(),rev);lastRemoteWidgetAt=new Date().toISOString();widgetChanged=true;
   }
   revision=revision||rev;lastSync=Date.now();state="ready";show();
   if(!equal(snapshot(),baseline||{}))localSyncDeferred=true;
  }catch(e){lastError=errorMessage(e);state=(e.code==="P0001"||lastError.includes("SYNC_CONFLICT"))?"review":"error";show()}
- finally{busy=false;if(localSyncDeferred){localSyncDeferred=false;scheduleSync()}}
+ finally{busy=false;if(state==="ready"&&(widgetChanged||!widgetReadState))void refreshWidgetStatus(widgetChanged);if(localSyncDeferred){localSyncDeferred=false;scheduleSync()}}
 }
 async function login(kind){
  if(!enabled||busy)return;
@@ -454,7 +509,7 @@ async function upload(){
   // Local snapshot always taken before a manual reconciliation.
   safety();
   const newRev=await writeCloud(local,rev);
-  saveBaseline(newRev,local);lastRemoteArchiveAt=new Date().toISOString();lastRemoteWidgetAt=lastRemoteArchiveAt;state="ready";lastError="";lastSync=Date.now();
+  saveBaseline(newRev,local);lastRemoteArchiveAt=new Date().toISOString();lastRemoteWidgetAt=lastRemoteArchiveAt;state="ready";lastError="";lastSync=Date.now();void refreshWidgetStatus(true);
  }catch(e){lastError=errorMessage(e);state="review"}
  finally{busy=false;show()}
 }
@@ -471,7 +526,7 @@ async function download(){
 async function logout(){
  if(!session)return;
  if(!confirm("退出此设备的云同步账号？本机记录将完整保留。"))return;
- session=null;await storeSession();state="auth";revision=0;baseline=null;show();
+ session=null;await storeSession();state="auth";revision=0;baseline=null;widgetReadState=null;show();
 }
 async function retry(){
  if(!session||busy)return;try{await connect()}catch(e){lastError=errorMessage(e);state="error";show()}
@@ -485,16 +540,18 @@ async function initial(){
   try{await connect()}catch(e){lastError=errorMessage(e);state="error"}
  }
  show();
+ if(state==="ready")void refreshWidgetStatus();
  alarm=setInterval(()=>{if(state==="ready")void tick();else if(state==="error")void retry()},12000);
  document.addEventListener("visibilitychange",()=>{
   if(state==="ready")void tick(true); // flush before iOS suspends the app
   else if(!document.hidden&&state==="error")void retry();
+  if(!document.hidden&&state==="ready")void refreshWidgetStatus(true);
  });
  window.addEventListener?.("pagehide",()=>{if(state==="ready")void tick(true)});
- window.addEventListener?.("pageshow",()=>{if(state==="ready")void tick(true)});
+ window.addEventListener?.("pageshow",()=>{if(state==="ready"){void tick(true);void refreshWidgetStatus(true)}});
 }
-window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,pairWidget,revokeWidget,checkWidgetFeed,scheduleSync,openSettings,enabled,
- status:()=>({state,revision,lastError,lastSync,lastRemoteArchiveAt,lastRemoteWidgetAt,persistenceWarn,hasSession:!!session})};
+window.FitnessCloudSync={login,resendVerification,upload,download,logout,retry,pairWidget,revokeWidget,checkWidgetFeed,refreshWidgetStatus,openWidgetRefresh,scheduleSync,openSettings,enabled,
+ status:()=>({state,revision,lastError,lastSync,lastRemoteArchiveAt,lastRemoteWidgetAt,widgetReadFreshness:widgetFreshness(widgetReadState),persistenceWarn,hasSession:!!session})};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{void initial()});
 else void initial();
 })();
