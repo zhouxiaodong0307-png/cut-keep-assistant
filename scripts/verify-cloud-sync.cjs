@@ -13,7 +13,7 @@ assert(!/\bhidden\b/.test(entry[1]),"Permanent sync entry cannot be hidden by cl
 assert(html.includes('id="fitnessCloudNoticeProgress"')===false,"Do not duplicate old incorrect ID");
 assert(html.includes("progressSyncButton"),"Permanent sync control must use mobile-friendly layout");
 
-assert(html.includes('<script defer src="./cloud-sync.js?v=102"></script>'));
+assert(html.includes('<script defer src="./cloud-sync.js?v=104"></script>'));
 assert(config.includes('url:"https://ampixosqbgqbsckmrhog.supabase.co"')&&
  config.includes('anonKey:"sb_publishable_')&&
  !config.includes('service_role')&&
@@ -24,7 +24,7 @@ assert(sql.includes('p_expected')&&sql.includes('where user_id=uid and revision=
 assert(!sql.includes('service_role')&&!js.includes('SUPABASE_SERVICE_ROLE_KEY'));
 const cloud=new Map();
 const accounts=new Map([['owner@example.com',{id:'user-1',email:'owner@example.com',password:'safe-password'}],['unverified@example.com',{id:'user-2',email:'unverified@example.com',password:'safe-password',unverified:true}]]);
-const calls=[];
+const calls=[],widgetReadTimes=new Map();
 let clock=1000;
 const wait=()=>new Promise(r=>setImmediate(r));
 function env(initial={},account='owner@example.com',configured=true){
@@ -44,6 +44,9 @@ function env(initial={},account='owner@example.com',configured=true){
   }});
  }
  elements.set("fitnessCloudPanel",{open:false,scrollIntoView:()=>navEvents.push("scrolled")});
+ const widgetNote={textContent:""};
+ elements.set("widgetRefreshNotice",{hidden:true,querySelector(sel){return sel===".widgetRefreshNote span"?widgetNote:null},note:widgetNote});
+
  elements.get("fitnessCloudEmail").value=account;
  elements.get("fitnessCloudPassword").value="safe-password";
  let reload=0,snapshots=0,failKey=null,failed=false;
@@ -106,7 +109,7 @@ function env(initial={},account='owner@example.com',configured=true){
   }
   if(endpoint.pathname==="/rest/v1/rpc/fitness_widget_status"){
    const row=cloud.get(userId);
-   return response(200,row?[{paired:true,last_widget_read_at:null,widget_updated_at:row.updated_at,widget_summary_date:"2026-10-17"}]:[]);
+   return response(200,row?[{paired:true,last_widget_read_at:widgetReadTimes.get(userId)||null,widget_updated_at:row.updated_at,widget_summary_date:"2026-10-17"}]:[]);
   }
   if(endpoint.pathname==="/rest/v1/rpc/fitness_widget_revoke")return response(200,true);
   return response(404,{error:"Not found"});
@@ -123,7 +126,7 @@ function env(initial={},account='owner@example.com',configured=true){
  context.window.window=context.window;
  context.window.showView=(name)=>navEvents.push("view:"+name);
  vm.runInNewContext(js,context,{filename:"cloud-sync.js"});
- return {app:context.window.FitnessCloudSync,data,messages,logs,navEvents,elements,fetch,
+ return {app:context.window.FitnessCloudSync,data,messages,logs,navEvents,elements,fetch,getLaunchUrl:()=>context.location.href,
    failOnce:k=>{failKey=k;failed=false},get reload(){return reload},get snapshots(){return snapshots},
    snapshot:()=>Object.fromEntries([...data].filter(([k])=>k.startsWith("ck")&&!k.startsWith("ckUpgradeBackup-"))),
    status:()=>context.window.FitnessCloudSync.status()};
@@ -185,6 +188,20 @@ function messagesSafe(v){return Array.isArray(v)?v:[]}
  assert.equal(cloud.size,0,"Logging in must NOT silently upload private health history");
  await phone.app.upload();
  assert.equal(phone.status().state,"ready");
+ await phone.app.refreshWidgetStatus(true);
+ assert.equal(phone.status().widgetReadFreshness,"pending","fresh cloud snapshot not yet read by Scriptable");
+ assert.equal(phone.elements.get("widgetRefreshNotice").hidden,false,"show compact refresh prompt when server read predates cloud update");
+ assert.match(phone.elements.get("widgetRefreshNotice").note.textContent,/Scriptable 最近读取/);
+ const clipboardBefore=phone.messages.length;
+ phone.app.openWidgetRefresh();
+ assert.match(phone.getLaunchUrl(),/^scriptable:\/\/\/run\?scriptName=.*&mode=refresh$/,"open the original script in cloud-read mode");
+ assert(!phone.getLaunchUrl().includes("mode=sync"),"avoid manual clipboard import");
+ assert.equal(phone.messages.length,clipboardBefore+1,"refresh should only show a short status notice, not copy health data");
+ widgetReadTimes.set("user-1",cloud.get("user-1").updated_at);
+ await phone.app.refreshWidgetStatus(true);
+ assert.equal(phone.status().widgetReadFreshness,"read","newest cloud read resolves pending indicator");
+ assert.equal(phone.elements.get("widgetRefreshNotice").hidden,true,"hide after server confirms Scriptable read");
+ widgetReadTimes.delete("user-1");
  assert.equal(phone.elements.get("cloudSyncNoticeProgress").hidden,true,"successful verified upload hides recovery alert");
  assert.equal(cloud.get("user-1").revision,1);
  assert.equal(cloud.get("user-1").snapshot["ckTrain-2026-10-16"],"1");

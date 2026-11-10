@@ -84,7 +84,19 @@ const launch=()=>run(...Object.keys(device).filter(k=>k!=="lastWidget").map(k=>d
  assert(events.some(x=>x.includes("1800 / 2250 kcal")));
  assert(events.includes("读取失败")||events.includes("待更新"),"Offline widget should report a real fetch error");
  backendOnline=true;
+ // V104 deep link launches the unchanged script with mode=refresh.
+ // It must fetch cloud with its existing read-only token, NEVER import clipboard.
  const previous=store.get("/device/cut_keep_widget_cloud_v1.json");
+ const beforeRefresh=requestCount;
+ clipboard='{"app":"cut-keep-widget","version":1,"untrusted":"old clipboard"}';
+ cloudKcal=1820;device.config.runsInWidget=false;device.args.queryParameters={mode:"refresh"};
+ await launch();
+ assert.equal(requestCount,beforeRefresh+1,"mode=refresh fetches the newest cloud summary");
+ assert.equal(JSON.parse(store.get("/device/cut_keep_widget_v1.json")).nutrition.kcal,1820);
+ assert.equal(clipboard,'{"app":"cut-keep-widget","version":1,"untrusted":"old clipboard"}',
+  "refresh must never read or clear old clipboard content");
+ assert.equal(store.get("/device/cut_keep_widget_cloud_v1.json"),previous,"refresh must preserve the existing pairing");
+
  clipboard="f".repeat(64);device.args.queryParameters={mode:"pair"};device.config.runsInWidget=false;
  events.length=0;await launch();
  assert.equal(store.get("/device/cut_keep_widget_cloud_v1.json"),previous,"invalid pairing must not revoke working one");
