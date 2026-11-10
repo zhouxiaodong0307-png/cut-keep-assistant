@@ -1295,6 +1295,130 @@ function shouldPassOptionalCardio(ds,index){
  const previous=shiftDate(ds,-1),load=integratedTrainingLoad(ds);
  return load.days.some(d=>d.date===previous&&d.strength&&d.rideMinutes>=60&&d.maxRpe>=2)||(typeof readActualWorkout==="function"&&!!readActualWorkout(previous)&&actualRecentMuscleLoad(shiftDate(previous,1),"legs").some(x=>x.gap===1&&x.heavy));
 }
+/* V105: retrospectively reconcile a truly completed session without inventing
+   per-exercise weight, sets, reps, or an unperformed Zone 2 ride. */
+const RETRO_TRAINING_DAYS=21,RETRO_VALID_INDEX=[0,1,2,4,5];
+let retroLastMessage="";
+function retroTrainingKey(ds){return "ckRetroTraining-"+ds}
+function readRetroTraining(ds){
+ const r=safeJsonParse(localStorage.getItem(retroTrainingKey(ds)),null);
+ return r&&r.version===1&&r.status&&RETRO_VALID_INDEX.includes(r.index)?r:null;
+}
+function validRetroDate(ds,today=localDate()){
+ return typeof ds==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(ds)&&
+  shiftDate(ds,0)===ds&&ds<today&&dayDiff(ds,today)>=1&&dayDiff(ds,today)<=RETRO_TRAINING_DAYS;
+}
+function retroFinishedOn(ds,index,replacedDate="",override=null){
+ if(ds===replacedDate)return override==="completed"||override==="partial";
+ return index===3||index===6||localStorage.getItem("ckTrain-"+ds)==="1"||
+  !!readRetroTraining(ds)||meaningfulPartialWorkout(ds)||hasExtraStrengthSession(ds)||
+  shouldPassOptionalCardio(ds,index);
+}
+function retroReplay(start,firstIndex,replaceStatus=null){
+ const today=localDate();
+ let idx=firstIndex;
+ for(let date=start;date<today;date=shiftDate(date,1)){
+  if(date!==start){
+   const adj=readDayAdjustment(date);
+   if(adj?.choice==="next-strength"&&[0,2,4].includes(adj.selectedIndex))idx=adj.selectedIndex;
+   else{
+    const recorded=localStorage.getItem("ckTrain-"+date)==="1"||!!readActualWorkout(date)||
+     !!readRetroTraining(date)||hasExtraStrengthSession(date);
+    const recordedIdx=Number(localStorage.getItem("ckTrainPlanIndex-"+date));
+    if(recorded&&localStorage.getItem("ckTrainPlanIndex-"+date)!==null&&Number.isInteger(recordedIdx)&&recordedIdx>=0&&recordedIdx<=6)idx=recordedIdx;
+   }
+  }
+  if(retroFinishedOn(date,idx,start,replaceStatus))idx=(idx+1)%7;
+ }
+ return idx;
+}
+function updateRetroTrainingForm(dateChanged=false){
+ const date=document.getElementById("retroTrainingDate"),index=document.getElementById("retroTrainingIndex"),
+  strength=document.getElementById("retroStrengthFields"),cardio=document.getElementById("retroCardioFields");
+ if(!date||!index)return;
+ if(dateChanged&&validRetroDate(date.value)){
+  const saved=localStorage.getItem("ckTrainPlanIndex-"+date.value);
+  const original=saved!==null?Number(saved):trainingIndex();
+  if(RETRO_VALID_INDEX.includes(original))index.value=String(original);
+ }
+ const ride=[1,5].includes(Number(index.value));
+ if(strength)strength.hidden=ride;
+ if(cardio)cardio.hidden=!ride;
+ const notice=document.getElementById("retroTrainingStatusText");
+ if(notice){
+  const completed=date.value&&(localStorage.getItem("ckTrain-"+date.value)==="1"||!!readActualWorkout(date.value)||
+   !!storedRide(date.value)||hasExtraStrengthSession(date.value)||!!readRetroTraining(date.value));
+  if(completed)notice.textContent="该日期已有训练完成记录，请勿重复补记。";
+  else if(retroLastMessage)notice.textContent=retroLastMessage;
+  else notice.textContent="补记的力量训练只计一次真实训练，不自动补造各动作组数；只完成部分时不算整堂完成。";
+ }
+}
+function renderRetroTrainingForm(){
+ const date=document.getElementById("retroTrainingDate"),index=document.getElementById("retroTrainingIndex");
+ if(!date||!index)return;
+ const today=localDate();
+ date.max=shiftDate(today,-1);date.min=shiftDate(today,-RETRO_TRAINING_DAYS);
+ if(!validRetroDate(date.value,today)){
+  date.value=shiftDate(today,-1);
+  const saved=localStorage.getItem("ckTrainPlanIndex-"+date.value);
+  const candidate=saved!==null?Number(saved):trainingIndex();
+  index.value=String(RETRO_VALID_INDEX.includes(candidate)?candidate:2);
+ }
+ updateRetroTrainingForm(false);
+}
+function saveRetroTraining(){
+ const ds=String(document.getElementById("retroTrainingDate")?.value||""),
+  index=Number(document.getElementById("retroTrainingIndex")?.value),
+  status=String(document.getElementById("retroTrainingStatus")?.value||"completed"),
+  kind=planKind(index);
+ if(!validRetroDate(ds))return alert("只能补记最近21天的过去日期，不能提前标记今天或未来训练。");
+ if(!RETRO_VALID_INDEX.includes(index))return alert("请选择实际执行的训练日。");
+ if(readRetroTraining(ds)||localStorage.getItem("ckTrain-"+ds)==="1"||readActualWorkout(ds)||
+    storedRide(ds)||hasExtraStrengthSession(ds))return alert("该日期已有训练完成记录，已阻止重复或覆盖。");
+ if(kind==="strength"&&!["completed","partial"].includes(status))return alert("请选择真实完成情况。");
+ const rideMinutes=Number(document.getElementById("retroRideMinutes")?.value),
+  rideRpe=Number(document.getElementById("retroRideRpe")?.value);
+ if(kind==="cardio"&&(!Number.isInteger(rideMinutes)||rideMinutes<5||rideMinutes>240||
+    !Number.isInteger(rideRpe)||rideRpe<1||rideRpe>10))
+  return alert("补记有氧必须填写实际骑行分钟数（5–240）与 RPE（1–10），不会虚构骑车完成。");
+ const isPartial=kind==="strength"&&status==="partial",
+  confirmation=ds+"实际"+(kind==="cardio"?"骑行"+rideMinutes+"分钟、RPE "+rideRpe:
+   "完成"+(isPartial?"部分":"整堂")+"「"+({0:"全身力量 A",2:"腿部 + 背部 B",4:"胸部专项"}[index])+"」")+
+   "？\n系统只补记真实训练日期，不生成任何没填过的动作、组数或重量。";
+ if(!confirm(confirmation))return;
+ const today=localDate(),current=trainingIndex(),original=trainingIndexForDate(ds),
+  before=retroReplay(ds,original,null),after=retroReplay(ds,index,isPartial?"partial":"completed");
+ const todayStarted=trainDone||!!readActualWorkout()||!!storedRide()||
+  !!readStartedExercisePlan()||!!readPartialWorkout()||hasExtraStrengthSession()||
+  Object.values(exerciseDone).some(Boolean);
+ const todayChoice=readDayAdjustment();
+ const currentProtected=todayStarted||!!(todayChoice&&todayChoice.choice&&todayChoice.choice!=="auto-recovery");
+ const align=!currentProtected&&(current===before||current===index);
+ const key=retroTrainingKey(ds),train="ckTrain-"+ds,dayIndex="ckTrainPlanIndex-"+ds,
+  rideKey=rideStorageKey(ds),cursor="ckTrainingCursorIndex",todayIndex="ckTrainPlanIndex-"+today,
+  keys=[key,train,dayIndex,rideKey,cursor,todayIndex],old=keys.map(k=>localStorage.getItem(k));
+ const now=new Date().toISOString();
+ try{
+  localStorage.setItem(key,JSON.stringify({version:1,status:isPartial?"partial":"completed",
+   kind,index,date:ds,rideMinutes:kind==="cardio"?rideMinutes:null,rideRpe:kind==="cardio"?rideRpe:null,
+   recordedAt:now,source:"confirmed-historical-backfill",previousCursor:current,
+   appliedCursor:align?after:null}));
+  localStorage.setItem(dayIndex,String(index));
+  if(!isPartial)localStorage.setItem(train,"1");
+  if(kind==="cardio")localStorage.setItem(rideKey,JSON.stringify({
+   minutes:rideMinutes,rpe:rideRpe,planIndex:index,completedAt:now,actualDate:ds,backfilled:true}));
+  if(align){localStorage.setItem(cursor,String(after));localStorage.setItem(todayIndex,String(after))}
+ }catch(e){
+  keys.forEach((k,i)=>{try{if(old[i]===null)localStorage.removeItem(k);else localStorage.setItem(k,old[i])}catch(_){}});
+  return alert("保存失败，已尝试恢复原排程与历史记录，请检查设备剩余空间。");
+ }
+ retroLastMessage="已补记 "+ds+" · "+(kind==="cardio"?"真实骑行":isPartial?"部分力量训练":"力量训练完成")+
+  (align?"。今日计划已从训练日"+(current+1)+"重新对齐到训练日"+(after+1)+"；后续按实际记录继续。":
+   "。已有手动安排或其他训练状态，为避免覆盖，今日游标暂不自动改变；可使用「调整今日」核对。")+
+  " 此次未生成任何动作、重量或组数。";
+ refreshAfterDayChange();
+}
+
 function syncTrainingCursor(){const today=localDate();let idx=+(localStorage.getItem("ckTrainingCursorIndex")),ds=localStorage.getItem("ckTrainingCursorDate");if(!Number.isInteger(idx)||idx<0||idx>6||!ds){idx=dayDiff(trainingStartDate,today)%7;ds=today}while(ds<today){const autoPass=shouldPassOptionalCardio(ds,idx);
 if(autoPass&&!readDayAdjustment(ds)){try{localStorage.setItem(dayAdjustmentKey(ds),JSON.stringify({choice:"auto-recovery",status:"unlogged",originalIndex:idx,reason:"strength-plus-ride"}))}catch(e){}}
 if(idx===3||idx===6||localStorage.getItem("ckTrain-"+ds)==="1"||(typeof meaningfulPartialWorkout==="function"&&meaningfulPartialWorkout(ds))||(typeof hasExtraStrengthSession==="function"&&hasExtraStrengthSession(ds))||autoPass)idx=(idx+1)%7;ds=shiftDate(ds,1)}localStorage.setItem("ckTrainingCursorIndex",idx);localStorage.setItem("ckTrainingCursorDate",today);return idx}
