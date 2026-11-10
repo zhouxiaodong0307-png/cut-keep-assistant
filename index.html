@@ -1336,6 +1336,7 @@ function updateRetroTrainingForm(dateChanged=false){
  const date=document.getElementById("retroTrainingDate"),index=document.getElementById("retroTrainingIndex"),
   strength=document.getElementById("retroStrengthFields"),cardio=document.getElementById("retroCardioFields");
  if(!date||!index)return;
+ if(dateChanged)retroLastMessage="";
  if(dateChanged&&validRetroDate(date.value)){
   const saved=localStorage.getItem("ckTrainPlanIndex-"+date.value);
   const original=saved!==null?Number(saved):trainingIndex();
@@ -1355,8 +1356,8 @@ function updateRetroTrainingForm(dateChanged=false){
  if(notice){
   const completed=date.value&&(localStorage.getItem("ckTrain-"+date.value)==="1"||!!readActualWorkout(date.value)||
    !!storedRide(date.value)||hasExtraStrengthSession(date.value)||!!readRetroTraining(date.value));
-  if(completed)notice.textContent="该日期已有训练完成记录，请勿重复补记。";
-  else if(retroLastMessage)notice.textContent=retroLastMessage;
+  if(retroLastMessage)notice.textContent=retroLastMessage;
+  else if(completed)notice.textContent="该日期已有训练完成记录，请勿重复补记。";
   else notice.textContent="补记的力量训练只计一次真实训练，不自动补造各动作组数；只完成部分时不算整堂完成。";
  }
 }
