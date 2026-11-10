@@ -21,7 +21,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  const ride=ds=>parse("ckRide-"+ds);
  const globals={
  localStorage:storage,document:{getElementById:id=>inputs[id]||null},localDate:()=>dateToday,
- shiftDate,dayDiff,readDayAdjustment:ds=>ds===dateToday?manualChoice:null,
+ shiftDate,dayDiff,readDayAdjustment:(ds=dateToday)=>ds===dateToday?manualChoice:null,
  trainingIndexForDate:ds=>{const v=storage.getItem("ckTrainPlanIndex-"+ds);return v===null?index:+v},
  trainingIndex:()=>Number(storage.getItem("ckTrainingCursorIndex")),
  planKind:idx=>[0,2,4].includes(idx)?"strength":[1,5].includes(idx)?"cardio":"rest",
