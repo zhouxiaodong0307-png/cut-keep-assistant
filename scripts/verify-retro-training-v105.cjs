@@ -38,7 +38,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  return {mod,store,storage,inputs,alerts,confirmations,get refreshed(){return refreshed}};
 }
 assert(html.includes('id="retroTrainingDetails"')&&html.includes("忘记打卡？补记过去训练并校准后续安排"),"UI is discoverable");
-assert(/APP_BUILD="20261110-retro-form-responsive-v107"/.test(html));
+assert(/APP_BUILD="20261110-compact-retro-select-v108"/.test(html));
 assert(!html.includes("localStorage.clear("));
 let x=env();x.mod.saveRetroTraining();
 assert.equal(x.alerts.length,0);assert.equal(x.refreshed,1);
@@ -99,7 +99,8 @@ assert.equal(x.inputs.retroAuditBtn.hidden,false,"offer independent audit for ex
 assert.equal(x.inputs.retroTrainingIndex.disabled,true,"existing session type is not editable");
 assert.equal(x.inputs.retroTrainingIndex.hidden,true,"disabled select no longer displayed as a broken input");
 assert.equal(x.inputs.retroRecordedPlan.hidden,false,"recorded plan displayed as clearly read-only content");
-assert.match(x.inputs.retroRecordedPlan.textContent,/训练日2.*Zone 2 骑车.*已记录/,"accurate record label");
+assert.match(x.inputs.retroRecordedPlan.textContent,/训练日2.*骑车.*已记录/,"compact recorded label");
+assert.match(x.inputs.retroRecordedPlan.title,/70分钟/,"full existing record retained in title");
 assert.match(x.inputs.retroTrainingStatusText.textContent,/70分钟/);
 assert.match(x.inputs.retroTrainingStatusText.textContent,/RPE 6/);
 const oldRide=x.storage.getItem("ckRide-2026-11-09");
@@ -136,6 +137,22 @@ assert.equal(x.inputs.retroTrainingIndex.hidden,false,"unrecorded day allows pla
 assert.equal(x.inputs.retroTrainingIndex.disabled,false,"unrecorded plan selection enabled");
 assert.equal(x.inputs.retroRecordedPlan.hidden,true,"read-only label not shown for new backfill");
 assert.equal(x.inputs.retroAuditBtn.hidden,true);
+// V108: date selector must keep full ISO values despite compact labels;
+ // initial render selects yesterday and corresponding known training index.
+x=env({day:"2026-11-09",index:1,current:2});
+x.inputs.retroTrainingDate.value="";
+x.inputs.retroTrainingDate.dataset={};
+x.mod.renderRetroTrainingForm();
+assert.equal(x.inputs.retroTrainingDate.value,"2026-11-09","first load defaults to yesterday");
+assert.equal(x.inputs.retroTrainingIndex.value,"1","known Day2 plan remains selected");
+assert.match(x.inputs.retroTrainingDate.innerHTML,/<option value="2026-11-09">11月9日 · 昨天<\/option>/);
+assert.equal((x.inputs.retroTrainingDate.innerHTML.match(/<option value=/g)||[]).length,21,"date choices are bounded to 21 days");
+x.inputs.retroTrainingDate.value="2026-11-08";
+x.mod.renderRetroTrainingForm();
+assert.equal(x.inputs.retroTrainingDate.value,"2026-11-08","render preserves date user selected");
+x.mod.updateRetroTrainingForm(true);
+assert.equal(x.inputs.retroSaveBtn.hidden,false,"another date stays editable");
+
 console.log("PASS V106 existing-session audit: actual ride shown, no double-count, aligned recovery explanation, stale cursor repair only with consent, started/manual protected.");
 
 console.log("PASS V105: strength/cardio/partial historical backfill, 2-day rest replay, no fake exercises or rides, duplicate protection, current/manual training protection, date bounds, cancel, progress repair.");
