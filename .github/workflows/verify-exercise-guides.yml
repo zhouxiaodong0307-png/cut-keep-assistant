@@ -15,6 +15,7 @@ on:
       - scripts/verify-ios-widget.cjs
       - scripts/verify-widget-cloud.cjs
       - scripts/verify-retro-training-v105.cjs
+      - scripts/verify-mobile-retro-v107.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -37,6 +38,7 @@ on:
       - scripts/verify-ios-widget.cjs
       - scripts/verify-widget-cloud.cjs
       - scripts/verify-retro-training-v105.cjs
+      - scripts/verify-mobile-retro-v107.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -69,6 +71,8 @@ jobs:
         run: node scripts/verify-widget-no-first-paint.cjs
       - name: Validate retrospective training completion and schedule alignment
         run: node scripts/verify-retro-training-v105.cjs
+      - name: Validate iPhone retro date and workout selector responsive layout
+        run: node scripts/verify-mobile-retro-v107.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
       - name: Validate automatic widget cloud pairing, offline caching and new calories
