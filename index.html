@@ -1413,7 +1413,7 @@ function updateRetroTrainingForm(dateChanged=false){
   recordedPlan.hidden=!evidence;
   if(evidence)recordedPlan.textContent=evidence.index===null?"已记录 · 待核对":
    "训练日"+(evidence.index+1)+" · "+({0:"力量A",1:"骑车",2:"腿背",3:"休息",4:"胸部",5:"骑车",6:"休息"}[evidence.index]||"待核对")+"（已记录）";
-  recordedPlan.title=evidence.detail||recordedPlan.textContent;
+  recordedPlan.title=evidence?.detail||recordedPlan.textContent;
  }
  if(strength)strength.hidden=!!evidence||ride;
  if(cardio)cardio.hidden=!!evidence||!ride;
