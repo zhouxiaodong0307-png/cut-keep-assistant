@@ -13,7 +13,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  const inputs={
   retroTrainingDate:{value:day},retroTrainingIndex:{value:String(index)},
   retroTrainingStatus:{value:kind},retroRideMinutes:{value:minutes},retroRideRpe:{value:rpe},
-  retroTrainingStatusText:{textContent:""},retroStrengthFields:{hidden:false},retroCardioFields:{hidden:false},retroAlignTodayBtn:{hidden:true,textContent:""}
+  retroTrainingStatusText:{textContent:""},retroStrengthFields:{hidden:false},retroCardioFields:{hidden:false},retroAlignTodayBtn:{hidden:true,textContent:""},retroAuditBtn:{hidden:true},retroSaveBtn:{hidden:false}
  };
  const storage={getItem:key=>store.has(key)?store.get(key):null,setItem:(k,v)=>store.set(k,String(v)),
   removeItem:k=>store.delete(k)};
@@ -23,6 +23,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  localStorage:storage,document:{getElementById:id=>inputs[id]||null},localDate:()=>dateToday,
  shiftDate,dayDiff,readDayAdjustment:(ds=dateToday)=>ds===dateToday?manualChoice:null,
  dayAdjustmentKey:(ds=dateToday)=>"ckDayAdjustment-"+ds,
+ dailyTrainingDecision:()=>({mode:"normal"}),
  trainingIndexForDate:ds=>{const v=storage.getItem("ckTrainPlanIndex-"+ds);return v===null?index:+v},
  trainingIndex:()=>Number(storage.getItem("ckTrainingCursorIndex")),
  planKind:idx=>[0,2,4].includes(idx)?"strength":[1,5].includes(idx)?"cardio":"rest",
@@ -33,11 +34,11 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  exerciseDone:{},trainDone:todayStarted,confirm:prompt=>{confirmations.push(prompt);return confirmAnswer},
  alert:msg=>alerts.push(msg),refreshAfterDayChange:()=>{refreshed++},safeJsonParse:(raw,def)=>{try{return JSON.parse(raw||"null")||def}catch(_){return def}}
  };
- const mod=new Function(...Object.keys(globals),code+";return {saveRetroTraining,alignRetroTrainingToday,readRetroTraining,retroReplay,validRetroDate,renderRetroTrainingForm,updateRetroTrainingForm};")(...Object.values(globals));
+ const mod=new Function(...Object.keys(globals),code+";return {saveRetroTraining,alignRetroTrainingToday,readRetroTraining,retroReplay,validRetroDate,renderRetroTrainingForm,updateRetroTrainingForm,auditRecordedTraining,recordedRetroEvidence};")(...Object.values(globals));
  return {mod,store,storage,inputs,alerts,confirmations,get refreshed(){return refreshed}};
 }
 assert(html.includes('id="retroTrainingDetails"')&&html.includes("忘记打卡？补记过去训练并校准后续安排"),"UI is discoverable");
-assert(/APP_BUILD="20261110-retroactive-training-repair-v105"/.test(html));
+assert(/APP_BUILD="20261110-recorded-session-audit-v106"/.test(html));
 assert(!html.includes("localStorage.clear("));
 let x=env();x.mod.saveRetroTraining();
 assert.equal(x.alerts.length,0);assert.equal(x.refreshed,1);
@@ -87,4 +88,48 @@ x=env({day:"2026-10-15"});x.mod.saveRetroTraining();
 assert.equal(x.storage.getItem("ckRetroTraining-2026-10-15"),null,"cannot change older than 21 days without history UI");
 x=env({confirmAnswer:false});x.mod.saveRetroTraining();
 assert.equal(x.store.size,3,"cancel must leave all records untouched");
+
+// V106: an already-recorded ride is not a new workout; audit it separately.
+const recordedRide=JSON.stringify({minutes:70,rpe:6,planIndex:1,completedAt:"2026-11-09T08:20:41.982Z"});
+x=env({day:"2026-11-09",index:1,current:2,existing:{"ckTrain-2026-11-09":"1",
+ "ckRide-2026-11-09":recordedRide}});
+x.mod.updateRetroTrainingForm(true);
+assert.equal(x.inputs.retroSaveBtn.hidden,true,"do not offer a duplicate backfill for completed cardio");
+assert.equal(x.inputs.retroAuditBtn.hidden,false,"offer independent audit for existing session");
+assert.equal(x.inputs.retroTrainingIndex.disabled,true,"existing session type is read only in the backfill form");
+assert.match(x.inputs.retroTrainingStatusText.textContent,/70分钟/);
+assert.match(x.inputs.retroTrainingStatusText.textContent,/RPE 6/);
+const oldRide=x.storage.getItem("ckRide-2026-11-09");
+const oldKeys=[...x.store.keys()];
+x.mod.auditRecordedTraining();
+assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"2","Day2 cardio already yields Day3: don't move again");
+assert.match(x.inputs.retroTrainingStatusText.textContent,/已经|已是训练日3/);
+assert.equal(x.storage.getItem("ckRide-2026-11-09"),oldRide);
+assert.deepEqual([...x.store.keys()],oldKeys,"no extra completion record generated on audit");
+// If the user has not yet started today's plan and the cursor is genuinely stuck,
+// a separate explicit confirmation corrects the plan but not the history.
+x=env({day:"2026-11-09",index:1,current:1,existing:{"ckTrain-2026-11-09":"1","ckRide-2026-11-09":recordedRide}});
+x.mod.auditRecordedTraining();
+assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"2","reconcile existing Day2 ride without a second completion");
+assert.equal(x.storage.getItem("ckTrainPlanIndex-2026-11-10"),"2");
+assert.equal(x.storage.getItem("ckRide-2026-11-09"),recordedRide);
+assert.equal(x.storage.getItem("ckRetroTraining-2026-11-09"),null);
+assert.equal(x.storage.getItem("ckActualWorkout-2026-11-09"),null);
+assert.equal(x.confirmations.length,1,"must ask before changing today plan");
+x=env({day:"2026-11-09",index:1,current:1,todayStarted:true,
+ existing:{"ckTrain-2026-11-09":"1","ckRide-2026-11-09":recordedRide}});
+x.mod.auditRecordedTraining();
+assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"1","already-started today's session remains protected");
+assert.match(x.inputs.retroTrainingStatusText.textContent,/保护当前安排/);
+x=env({day:"2026-11-09",index:1,current:1,manualChoice:{choice:"hold"},
+ existing:{"ckTrain-2026-11-09":"1","ckRide-2026-11-09":recordedRide}});
+x.mod.auditRecordedTraining();
+assert.equal(x.storage.getItem("ckTrainingCursorIndex"),"1","manual hold remains protected");
+assert.equal(x.confirmations.length,0);
+x=env({day:"2026-11-09",index:2,current:2});
+x.mod.updateRetroTrainingForm();
+assert.equal(x.inputs.retroSaveBtn.hidden,false,"unrecorded day remains eligible for backfill");
+assert.equal(x.inputs.retroAuditBtn.hidden,true);
+console.log("PASS V106 existing-session audit: actual ride shown, no double-count, aligned recovery explanation, stale cursor repair only with consent, started/manual protected.");
+
 console.log("PASS V105: strength/cardio/partial historical backfill, 2-day rest replay, no fake exercises or rides, duplicate protection, current/manual training protection, date bounds, cancel, progress repair.");
