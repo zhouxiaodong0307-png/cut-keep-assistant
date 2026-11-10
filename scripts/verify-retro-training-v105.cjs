@@ -13,7 +13,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  const inputs={
   retroTrainingDate:{value:day},retroTrainingIndex:{value:String(index)},
   retroTrainingStatus:{value:kind},retroRideMinutes:{value:minutes},retroRideRpe:{value:rpe},
-  retroTrainingStatusText:{textContent:""},retroStrengthFields:{hidden:false},retroCardioFields:{hidden:false},retroAlignTodayBtn:{hidden:true,textContent:""},retroAuditBtn:{hidden:true},retroSaveBtn:{hidden:false}
+  retroTrainingStatusText:{textContent:""},retroStrengthFields:{hidden:false},retroCardioFields:{hidden:false},retroAlignTodayBtn:{hidden:true,textContent:""},retroAuditBtn:{hidden:true},retroSaveBtn:{hidden:false},retroRecordedPlan:{hidden:true,textContent:""}
  };
  const storage={getItem:key=>store.has(key)?store.get(key):null,setItem:(k,v)=>store.set(k,String(v)),
   removeItem:k=>store.delete(k)};
@@ -38,7 +38,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  return {mod,store,storage,inputs,alerts,confirmations,get refreshed(){return refreshed}};
 }
 assert(html.includes('id="retroTrainingDetails"')&&html.includes("忘记打卡？补记过去训练并校准后续安排"),"UI is discoverable");
-assert(/APP_BUILD="20261110-recorded-session-audit-v106"/.test(html));
+assert(/APP_BUILD="20261110-retro-form-responsive-v107"/.test(html));
 assert(!html.includes("localStorage.clear("));
 let x=env();x.mod.saveRetroTraining();
 assert.equal(x.alerts.length,0);assert.equal(x.refreshed,1);
@@ -96,7 +96,10 @@ x=env({day:"2026-11-09",index:1,current:2,existing:{"ckTrain-2026-11-09":"1",
 x.mod.updateRetroTrainingForm(true);
 assert.equal(x.inputs.retroSaveBtn.hidden,true,"do not offer a duplicate backfill for completed cardio");
 assert.equal(x.inputs.retroAuditBtn.hidden,false,"offer independent audit for existing session");
-assert.equal(x.inputs.retroTrainingIndex.disabled,true,"existing session type is read only in the backfill form");
+assert.equal(x.inputs.retroTrainingIndex.disabled,true,"existing session type is not editable");
+assert.equal(x.inputs.retroTrainingIndex.hidden,true,"disabled select no longer displayed as a broken input");
+assert.equal(x.inputs.retroRecordedPlan.hidden,false,"recorded plan displayed as clearly read-only content");
+assert.match(x.inputs.retroRecordedPlan.textContent,/训练日2.*Zone 2 骑车.*已记录/,"accurate record label");
 assert.match(x.inputs.retroTrainingStatusText.textContent,/70分钟/);
 assert.match(x.inputs.retroTrainingStatusText.textContent,/RPE 6/);
 const oldRide=x.storage.getItem("ckRide-2026-11-09");
@@ -129,6 +132,9 @@ assert.equal(x.confirmations.length,0);
 x=env({day:"2026-11-09",index:2,current:2});
 x.mod.updateRetroTrainingForm();
 assert.equal(x.inputs.retroSaveBtn.hidden,false,"unrecorded day remains eligible for backfill");
+assert.equal(x.inputs.retroTrainingIndex.hidden,false,"unrecorded day allows plan editing");
+assert.equal(x.inputs.retroTrainingIndex.disabled,false,"unrecorded plan selection enabled");
+assert.equal(x.inputs.retroRecordedPlan.hidden,true,"read-only label not shown for new backfill");
 assert.equal(x.inputs.retroAuditBtn.hidden,true);
 console.log("PASS V106 existing-session audit: actual ride shown, no double-count, aligned recovery explanation, stale cursor repair only with consent, started/manual protected.");
 
