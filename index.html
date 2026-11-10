@@ -1437,7 +1437,7 @@ function updateRetroTrainingForm(dateChanged=false){
 function renderRetroTrainingForm(){
  const date=document.getElementById("retroTrainingDate"),index=document.getElementById("retroTrainingIndex");
  if(!date||!index)return;
- const today=localDate(),previous=date.value,oldDay=date.dataset?.calendarDay;
+ const today=localDate(),previous=date.value,oldDay=date.dataset?.calendarDay,selectingDefault=!validRetroDate(previous,today);
  if(oldDay!==today){
   const options=[];
   for(let offset=1;offset<=RETRO_TRAINING_DAYS;offset++){
@@ -1450,7 +1450,7 @@ function renderRetroTrainingForm(){
   if(date.dataset)date.dataset.calendarDay=today;
   date.value=validRetroDate(previous,today)?previous:shiftDate(today,-1);
  }
- if(!validRetroDate(date.value,today)){
+ if(selectingDefault||!validRetroDate(date.value,today)){
   date.value=shiftDate(today,-1);
   const saved=localStorage.getItem("ckTrainPlanIndex-"+date.value);
   const candidate=saved!==null?Number(saved):trainingIndex();
