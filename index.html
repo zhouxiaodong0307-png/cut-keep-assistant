@@ -408,7 +408,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
    The reveal grows stronger with horizontal swipe progress but stays soft. */
 #view-training .iosWeekList>.planDetails{
  position:relative;isolation:isolate;
- --swipe-reveal:0;
+ --swipe-reveal:0;--swipe-opacity:.48;
  background:linear-gradient(105deg,#eef7f1 0%,#d6efdf 100%);
 }
 #view-training .iosWeekList>.planDetails.swipeUndoDragging,
@@ -426,7 +426,7 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
  position:absolute;top:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
  width:86px;height:100%;max-height:74px;padding:5px 4px;border:0;border-radius:0;
  z-index:1;font-weight:730;line-height:1.2;text-align:center;
- opacity:calc(.48 + var(--swipe-reveal)*.52);
+ opacity:var(--swipe-opacity,.48);
  transition:opacity .12s linear,box-shadow .15s ease,background-color .15s ease;
 }
 #view-training .iosWeekList>.planDetails>.weekSwipeAction{
@@ -1738,6 +1738,7 @@ function weekSwipeReset(summary){
  const row=summary.parentElement;
  row?.classList.remove("swipeDragging","swipeReady","swipeUndoDragging");
  row?.style?.setProperty?.("--swipe-reveal","0");
+ row?.style?.setProperty?.("--swipe-opacity",".48");
  setTimeout(()=>{if(summary.isConnected){summary.style.removeProperty("transform");summary.style.removeProperty("transition")}},220);
 }
 function weekSwipeAnimate(index,undo=false){
@@ -1758,6 +1759,7 @@ function weekSwipeAnimate(index,undo=false){
   row.classList.add("swipeFinishing");
   if(undo)row.classList.add("swipeUndoFinishing");
   row.style?.setProperty?.("--swipe-reveal","1");
+  row.style?.setProperty?.("--swipe-opacity","1");
   const action=undo?row.querySelector(".weekSwipeUndoCue"):row.querySelector(".weekSwipeAction");
   if(action)action.textContent=undo?"↶ 已撤销":"✓ 已完成";
   summary.style.transition="transform .22s cubic-bezier(.16,1,.3,1)";
@@ -1799,8 +1801,9 @@ function installWeekSwipeGestures(){
   row?.classList.add("swipeDragging");
   row?.classList.toggle("swipeUndoDragging",dx>0&&allowRight);
   row?.classList.toggle("swipeReady",Math.abs(dx)>=65&&(dx<0||allowRight));
-  row?.style?.setProperty?.("--swipe-reveal",
-   String(Math.min(1,Math.abs(offset)/86)));
+  const progress=Math.min(1,Math.abs(offset)/86);
+  row?.style?.setProperty?.("--swipe-reveal",String(progress));
+  row?.style?.setProperty?.("--swipe-opacity",String(.48+.52*progress));
  },{passive:false});
  root.addEventListener("touchend",e=>{
   const touch=weekSwipeTouch;weekSwipeTouch=null;
