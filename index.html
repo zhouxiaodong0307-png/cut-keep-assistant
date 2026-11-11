@@ -428,7 +428,9 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 #view-training .iosWeekList>.planDetails.swipeFinishing>.weekSwipeAction{background:#33343c}
 #view-training .iosWeekList>.planDetails.swipeFinishing>.weekSwipeUndoCue{background:#55565e}
 #view-training .iosWeekList .weekDoneBadge{display:inline-flex;margin-left:7px;font-size:10px;padding:3px 6px;border-radius:6px;background:#f0f1f3;color:#66676d;font-weight:650}
-#view-training .iosWeekList>.planDetails.swipeNewCurrent>summary{
+#view-training .iosWeekList>.planDetails.swipeNewCurrent>summary::before{
+ content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ border-left:3px solid #81a5cb;background:rgba(114,164,222,.12);
  animation:weekSwipeNextGlow .58s cubic-bezier(.18,.8,.25,1) both;
 }
 #view-training .weekSwipeFeedback{
@@ -438,9 +440,8 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 }
 #view-training .weekSwipeFeedback[hidden]{display:none!important}
 @keyframes weekSwipeNextGlow{
- 0%{background:#e9f2ff;box-shadow:inset 3px 0 0 #6f9ed0}
- 65%{background:#f2f7ff}
- 100%{background:#fff;box-shadow:inset 0 0 0 transparent}
+ 0%{opacity:1}
+ 100%{opacity:0}
 }
 @keyframes weekSwipeMessageIn{
  from{opacity:.15;transform:translateY(-5px)}
@@ -449,8 +450,8 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 @media(max-width:420px){#view-training .iosWeekList>.planDetails>.weekSwipeAction,#view-training .iosWeekList>.planDetails>.weekSwipeUndoCue{max-height:72px}}
 @media(prefers-reduced-motion:reduce){
  #view-training .iosWeekList>.planDetails>summary{transition:none!important;will-change:auto}
- #view-training .iosWeekList>.planDetails.swipeNewCurrent>summary,
- #view-training .weekSwipeFeedback{animation:none!important}
+ #view-training .iosWeekList>.planDetails.swipeNewCurrent>summary::before,
+ #view-training .weekSwipeFeedback{animation:none!important;opacity:0}
 }
 
 /* V72: match diet and progress screens to V71 training's neutral iOS grouped visual system */
@@ -1716,12 +1717,13 @@ function weekSwipeAnimate(index,undo=false){
   summary.style.transition="transform .22s cubic-bezier(.16,1,.3,1)";
   summary.style.transform="translateX("+delta+"px)";
  }
- const title=(typeof planTemplates!=="undefined"&&planTemplates[weekSwipeHighlightIndex])?
-  planTemplates[weekSwipeHighlightIndex][1]:"下一训练日";
+ const nextIndex=weekSwipeHighlightIndex;
+ const title=(typeof planTemplates!=="undefined"&&planTemplates[nextIndex])?
+  planTemplates[nextIndex][1]:"下一训练日";
  const finish=()=>{
   weekSwipeAnimating=false;weekSwipeTouch=null;
   refreshAfterDayChange();
-  weekSwipeMessage((undo?"已撤销，当前为":"已完成，接下来：")+"训练日"+(weekSwipeHighlightIndex+1)+" · "+title);
+  weekSwipeMessage((undo?"已撤销，当前为":"已完成，接下来：")+"训练日"+(nextIndex+1)+" · "+title);
  };
  if(fast)finish();else setTimeout(finish,240);
 }
