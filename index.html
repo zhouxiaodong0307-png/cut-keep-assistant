@@ -451,8 +451,8 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 @media(max-width:420px){#view-training .iosWeekList>.planDetails>.weekSwipeAction,#view-training .iosWeekList>.planDetails>.weekSwipeUndoCue{max-height:72px}}
 @media(prefers-reduced-motion:reduce){
  #view-training .iosWeekList>.planDetails>summary{transition:none!important;will-change:auto}
- #view-training .iosWeekList>.planDetails.swipeNewCurrent>summary::before,
- #view-training .weekSwipeFeedback{animation:none!important;opacity:0}
+ #view-training .iosWeekList>.planDetails.swipeNewCurrent>summary::before{animation:none!important;opacity:0}
+ #view-training .weekSwipeFeedback{animation:none!important}
 }
 
 /* V72: match diet and progress screens to V71 training's neutral iOS grouped visual system */
