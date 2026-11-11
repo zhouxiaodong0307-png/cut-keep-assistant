@@ -7,7 +7,7 @@ assert(css.includes("linear-gradient(105deg,#eef7f1 0%,#d6efdf 100%)"),"under-ca
 assert(css.includes("linear-gradient(125deg,#d5efde 0%,#b7e4c7 100%)"),"right reveal action uses green gradient");
 assert(css.includes("linear-gradient(125deg,#cbd3df 0%,#e7eaf1 100%)"),"left undo reveal action is muted slate");
 assert(css.includes("box-shadow:inset 5px 0 12px rgba(28,113,65,.14)"),"subtle depth on completion reveal");
-assert(css.includes("opacity:calc(.48 + var(--swipe-reveal)*.52)"),"drag intensity gradually reveals text");
+assert(css.includes("opacity:var(--swipe-opacity,.48)"),"Safari-compatible drag intensity gradually reveals text");
 assert(css.includes(".swipeReady>.weekSwipeAction")&&css.includes(".swipeUndoDragging.swipeReady>.weekSwipeUndoCue"),"strong visual signal at swipe threshold");
 assert(css.includes(".swipeUndoFinishing>.weekSwipeUndoCue"),"release leaves visible gray undo confirmation");
 assert(css.includes(".weekSwipeFeedback.undo"),"settled undo feedback is gray rather than green");
@@ -15,7 +15,8 @@ assert(html.includes('<span class="weekSwipeIcon">✓</span><span>已完成</spa
 assert(html.includes('<span class="weekSwipeIcon">↶</span><span>撤销</span><small class="weekSwipeHint">松手撤销</small>'),"right swipe exposes cancel cue");
 assert(script.includes('row?.style?.setProperty?.("--swipe-reveal","0")'),"rebound clears reveal tint");
 assert(script.includes('row?.style?.setProperty?.("--swipe-reveal",'),"finger motion updates status tint");
-assert(script.includes('String(Math.min(1,Math.abs(offset)/86))'),"saturation follows finger travel");
+assert(script.includes("const progress=Math.min(1,Math.abs(offset)/86)"),"saturation follows finger travel");
+assert(script.includes('setProperty?.("--swipe-opacity",String(.48+.52*progress))'),"progress drives opacity without unsupported CSS calc multiplication");
 assert(script.includes('row?.classList.toggle("swipeReady",Math.abs(dx)>=65'),"highlight only after deliberate threshold");
 assert(script.includes('row?.classList.toggle("swipeUndoDragging",dx>0&&allowRight)'),"undo direction changes the underlay color");
 assert(script.includes('if(undo)row.classList.add("swipeUndoFinishing")'),"releasing an undo shows gray confirmation");
