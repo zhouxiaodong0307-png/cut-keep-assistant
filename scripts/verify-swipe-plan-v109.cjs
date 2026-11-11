@@ -1,14 +1,16 @@
 const fs=require("node:fs"),assert=require("node:assert/strict"),path=require("node:path");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
 function sec(a,b){const start=html.indexOf(a),end=html.indexOf(b,start+a.length);assert(start>=0&&end>start,"missing "+a);return html.slice(start,end);}
-assert(html.includes('APP_BUILD="20261111-week-swipe-complete-v109"'));
+assert(html.includes('APP_BUILD="20261111-fluid-week-swipe-v110"'));
 assert(!html.includes('<details id="retroTrainingDetails"'),"obsolete backfill form is no longer shown");
 assert(html.includes('class="weekSwipeAction')&&html.includes('class="weekSwipeSummary"'),"swipe action is inside the seven-day plan list");
 assert(html.includes('installWeekSwipeGestures()'),"touch handlers are installed after the week renders");
 const touchCode=sec("function installWeekSwipeGestures(){","function syncTrainingCursor(){");
-assert(touchCode.includes("if(dx<0)swipeCompleteWeekDay(index);"),"a single left swipe completes immediately without a second tap");
-assert(touchCode.includes("else if(swipeCanUndo(index))swipeUndoWeekDay(index);"),"right swipe reverses the latest swipe");
-assert(touchCode.includes("Math.abs(dx)<72"),"intentional 72px gesture threshold avoids casual vertical touches");
+assert(touchCode.includes("touchmove"),"finger tracking must react while dragging");
+assert(touchCode.includes('touch.summary.style.transform="translateX("+offset+"px)"'),"card follows finger");
+assert(touchCode.includes("if(dx<0){weekSwipeAnimate(touch.index,false);return}"),"left swipe animates one-touch completion");
+assert(touchCode.includes("if(swipeCanUndo(touch.index)){weekSwipeAnimate(touch.index,true);return}"),"right swipe animates undo");
+assert(touchCode.includes("Math.abs(dx)>=65"),"65px threshold avoids accidental completion during scrolling");
 
 assert(html.includes('swipeStepLog(ds).some(x=>x.index===idx)'),"next-day replay recognizes swipe-completed current step");
 assert(!html.includes("localStorage.clear("),"historical records never globally cleared");
