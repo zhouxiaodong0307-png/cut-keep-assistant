@@ -87,8 +87,10 @@ assert.deepEqual(a.api.swipeProgress().done,[]);
 // Duplicate completion or recent already logged day cannot count twice.
 a=testApp();
 a.api.swipeCompleteWeekDay(3);const before=a.ses().length;
-a.api.swipeCompleteWeekDay(3); // last swipe undoes, not a duplicate
+a.api.swipeCompleteWeekDay(3); // repeated left swipe never silently undoes the previous task
 assert.equal(a.ses().length,before);
+assert.equal(a.localStorage.getItem("ckTrainingCursorIndex"),"4","repeat swipe does not move cursor backwards");
+assert.equal(a.api.swipeStepLog().length,1,"no duplicate ledger entry");
 a=testApp({current:4,started:true});a.api.swipeCompleteWeekDay(5);
 assert.equal(a.localStorage.getItem("ckTrainingCursorIndex"),"4","do not replace started session");
 assert.equal(a.alerts.length,1);
