@@ -8,5 +8,5 @@ assert(html.includes('class="weekSwipeAction'),"swipe completion attached to exi
 assert(html.includes('class="weekSwipeSummary"'),"training summary remains available for opening exercises");
 assert(html.includes('class="weekDoneBadge"'),"completed steps are visually distinguishable");
 assert(/\.iosWeekList>\.planDetails\.swipeOpen>summary\{transform:translateX\(-86px\)/.test(html),"revealed action uses bounded swipe distance");
-assert(/\.weekSwipeAction\{[^}]*width:86px[^}]*height:100%[^}]*max-height:74px/.test(html),"action stays bounded in a standard phone list row");
+assert(/\.weekSwipeAction,\s*#view-training \.iosWeekList>\.planDetails>\.weekSwipeUndoCue\{[^}]*width:86px;height:100%;max-height:74px/.test(html),"completion and undo buttons stay bounded in a standard phone list row");
 console.log("PASS V109: obsolete retro date form removed; seven-day training rows offer iOS-style swipe action without horizontal overflow.");
