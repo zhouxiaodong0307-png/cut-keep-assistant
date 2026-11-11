@@ -4,7 +4,7 @@ const begin=html.indexOf("/* V109: swipe confirmation advances the sequence"),
  end=html.indexOf("function syncTrainingCursor(){",begin);
 assert(begin>=0&&end>begin,"V109/V110 swipe code exists");
 const code=html.slice(begin,end);
-assert(/APP_BUILD="20261111-fluid-week-swipe-v110"/.test(html));
+assert(/APP_BUILD="20261112-swipe-colored-status-v111"/.test(html));
 assert(html.includes('id="weekSwipeFeedback"')&&html.includes('aria-live="polite"'),
  "after-swipe status is accessible");
 assert(html.includes("weekSwipeNextGlow")&&html.includes("swipeNewCurrent"),
@@ -21,7 +21,9 @@ function test({index=3,reducedMotion=false,started=false}={}){
  const storage={getItem:k=>store.has(k)?store.get(k):null,
   setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
  const classes=new Set(),style={removeProperty(name){delete this[name]}};
- const row={dataset:{weekIndex:String(index)},classList:{
+ const row={dataset:{weekIndex:String(index)},style:{
+   setProperty(k,v){this[k]=String(v)},getPropertyValue(k){return this[k]||""}
+  },classList:{
   add:n=>classes.add(n),remove:n=>classes.delete(n),
   toggle:(n,on)=>on?classes.add(n):classes.delete(n)
  }};
@@ -33,7 +35,9 @@ function test({index=3,reducedMotion=false,started=false}={}){
   contains:el=>el===summary,
   querySelector:s=>s.includes('[data-week-index="'+index+'"]')?row:null,
   querySelectorAll:s=>s===".planDetails"?[row]:[]};
- const feedback={textContent:"",hidden:true};
+ const feedback={textContent:"",hidden:true,classes:new Set(),classList:{
+  toggle(name,on){if(on)feedback.classes.add(name);else feedback.classes.delete(name)}
+ }};
  const document={getElementById:name=>name==="weekPlan"?root:
   name==="weekSwipeFeedback"?feedback:null};
  let refreshes=0;
@@ -69,7 +73,7 @@ function test({index=3,reducedMotion=false,started=false}={}){
   const selected=timers.filter(t=>t.ms<=ms);
   selected.forEach(t=>{const i=timers.indexOf(t);if(i>=0)timers.splice(i,1);t.fn()});
  }
- return {api,store,style,summary,feedback,classes,action,undo,handlers,dispatch,flush,
+ return {api,store,style,row,summary,feedback,classes,action,undo,handlers,dispatch,flush,
   get refreshes(){return refreshes},alerts};
 }
 // Finger moves with the card before the pointer is released.
@@ -79,6 +83,10 @@ let prevented=0;
 x.handlers.touchmove({touches:[{clientX:174,clientY:43}],preventDefault:()=>prevented++});
 assert.equal(prevented,1,"horizontal move prevents Safari horizontal navigation");
 assert.equal(x.style.transform,"translateX(-86px)","card tracks exact finger distance");
+assert.equal(x.row.style.getPropertyValue("--swipe-reveal"),"1","drag exposes fully saturated green status background");
+assert.equal(x.row.style.getPropertyValue("--swipe-opacity"),"1","at full drag status text is fully opaque");
+assert.equal(x.classes.has("swipeReady"),true,"after threshold completion text/underlay is strongly emphasized");
+assert.equal(x.classes.has("swipeUndoDragging"),false,"leftward reveal uses green instead of gray");
 assert.equal(x.store.get("ckTrainingCursorIndex"),"3","dragging alone never counts as completed");
 x.handlers.touchend({changedTouches:[{clientX:157,clientY:43}],preventDefault:()=>prevented++});
 assert.equal(x.store.get("ckTrainingCursorIndex"),"4","state saved immediately on release");
@@ -98,12 +106,15 @@ assert.equal(x.feedback.hidden,false);
 x.handlers.touchstart({target:x.summary,touches:[{clientX:120,clientY:42}]});
 x.handlers.touchmove({touches:[{clientX:210,clientY:43}],preventDefault:()=>{}});
 assert.equal(x.style.transform,"translateX(90px)","undo tracks finger to the right");
+assert.equal(x.classes.has("swipeUndoDragging"),true,"undo direction displays gray underlay");
+assert.equal(x.row.style.getPropertyValue("--swipe-reveal"),"1","undo fully reveals gray status");
 x.handlers.touchend({changedTouches:[{clientX:215,clientY:43}],preventDefault:()=>{}});
 assert.equal(x.store.get("ckTrainingCursorIndex"),"3");
 assert.equal(x.api.swipeStepLog().length,0);
 assert.equal(x.undo.textContent,"↶ 已撤销");
 x.flush(240);
 assert.match(x.feedback.textContent,/已撤销.*训练日4/);
+assert.equal(x.feedback.classes.has("undo"),true,"undo feedback uses gray styling");
 // Vertical scroll must not trigger the gesture.
 x=test();assert.equal(x.dispatch("vertical",{startX:240,endX:236,startY:40,endY:160}),0);
 assert.equal(x.store.get("ckTrainingCursorIndex"),"3");
@@ -113,6 +124,22 @@ x=test();x.dispatch("short",{startX:245,endX:199});
 assert.equal(x.store.get("ckTrainingCursorIndex"),"3");
 assert.equal(x.style.transform,"translateX(0px)");
 x.flush(220);assert.equal(x.refreshes,0);
+assert.equal(x.row.style.getPropertyValue("--swipe-reveal"),"0","short drag returns tinted background to idle state");
+// Progressive reveal should be noticeably different before and after threshold.
+x=test();
+x.handlers.touchstart({target:x.summary,touches:[{clientX:250,clientY:41}]});
+x.handlers.touchmove({touches:[{clientX:224,clientY:42}],preventDefault:()=>{}});
+const faint=Number(x.row.style.getPropertyValue("--swipe-reveal"));
+assert(faint>0&&faint<.5,"early drag shows a gentle background tint");
+assert(Number(x.row.style.getPropertyValue("--swipe-opacity"))>.48,"tint begins increasing with drag");
+assert.equal(x.classes.has("swipeReady"),false);
+x.handlers.touchmove({touches:[{clientX:175,clientY:42}],preventDefault:()=>{}});
+const strong=Number(x.row.style.getPropertyValue("--swipe-reveal"));
+assert(strong>faint&&strong>.8,"strong drag gradually increases reveal intensity");
+assert(Number(x.row.style.getPropertyValue("--swipe-opacity"))>.9,"strong drag produces readable green status");
+assert.equal(x.classes.has("swipeReady"),true);
+x.handlers.touchcancel();
+assert.equal(x.row.style.getPropertyValue("--swipe-reveal"),"0","cancel restores base shade");
 // Reduced motion commits instantly without visual hold or CSS animation.
 x=test({reducedMotion:true});x.api.weekSwipeAnimate(3,false);
 assert.equal(x.store.get("ckTrainingCursorIndex"),"4");
@@ -125,4 +152,4 @@ assert.equal(x.api.swipeStepLog().length,0);
 assert.equal(x.api.state().weekSwipeAnimating,false);
 assert.equal(x.classes.has("swipeFinishing"),false);
 assert.equal(x.alerts.length,1);
-console.log("PASS V110: iPhone touchmove follows finger, persisted release+220ms finish, new-current feedback, right undo, short/vertical rejection, reduced motion, no false success.");
+console.log("PASS V111: iPhone touchmove follows finger, persisted release+220ms finish, new-current feedback, right undo, short/vertical rejection, reduced motion, no false success.");
