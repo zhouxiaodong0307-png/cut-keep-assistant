@@ -17,6 +17,7 @@ on:
       - scripts/verify-retro-training-v105.cjs
       - scripts/verify-mobile-retro-v107.cjs
       - scripts/verify-swipe-plan-v109.cjs
+      - scripts/verify-week-swipe-animation-v110.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -41,6 +42,7 @@ on:
       - scripts/verify-retro-training-v105.cjs
       - scripts/verify-mobile-retro-v107.cjs
       - scripts/verify-swipe-plan-v109.cjs
+      - scripts/verify-week-swipe-animation-v110.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -77,6 +79,8 @@ jobs:
         run: node scripts/verify-mobile-retro-v107.cjs
       - name: Validate seven-day swipe completion and truthful workout progression
         run: node scripts/verify-swipe-plan-v109.cjs
+      - name: Validate finger-tracking swipe animation and reduced motion
+        run: node scripts/verify-week-swipe-animation-v110.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
       - name: Validate automatic widget cloud pairing, offline caching and new calories
