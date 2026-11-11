@@ -476,6 +476,10 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
  font-size:12px;line-height:1.4;animation:weekSwipeMessageIn .3s ease;
  box-shadow:inset 0 0 0 1px rgba(31,115,69,.09);
 }
+#view-training .weekSwipeFeedback.undo{
+ background:#eef0f4;color:#4f596b;
+ box-shadow:inset 0 0 0 1px rgba(67,78,95,.09);
+}
 #view-training .weekSwipeFeedback[hidden]{display:none!important}
 @keyframes weekSwipeNextGlow{0%{opacity:1}100%{opacity:0}}
 @keyframes weekSwipeMessageIn{from{opacity:.15;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
@@ -1719,10 +1723,11 @@ function openWeekSwipe(i){
 function weekSwipeReducedMotion(){
  return !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 }
-function weekSwipeMessage(text){
+function weekSwipeMessage(text,undo=false){
  const el=document.getElementById("weekSwipeFeedback");
  if(!el)return;
  el.textContent=text;el.hidden=false;
+ el.classList?.toggle?.("undo",undo);
  if(weekSwipeFeedbackTimer)clearTimeout(weekSwipeFeedbackTimer);
  weekSwipeFeedbackTimer=setTimeout(()=>{el.hidden=true;weekSwipeFeedbackTimer=null},1900);
 }
@@ -1764,7 +1769,7 @@ function weekSwipeAnimate(index,undo=false){
  const finish=()=>{
   weekSwipeAnimating=false;weekSwipeTouch=null;
   refreshAfterDayChange();
-  weekSwipeMessage((undo?"已撤销，当前为":"已完成，接下来：")+"训练日"+(nextIndex+1)+" · "+title);
+  weekSwipeMessage((undo?"已撤销，当前为":"已完成，接下来：")+"训练日"+(nextIndex+1)+" · "+title,undo);
  };
  if(fast)finish();else setTimeout(finish,240);
 }
