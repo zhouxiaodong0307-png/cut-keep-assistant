@@ -37,8 +37,8 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  const mod=new Function(...Object.keys(globals),code+";return {saveRetroTraining,alignRetroTrainingToday,readRetroTraining,retroReplay,validRetroDate,renderRetroTrainingForm,updateRetroTrainingForm,auditRecordedTraining,recordedRetroEvidence};")(...Object.values(globals));
  return {mod,store,storage,inputs,alerts,confirmations,get refreshed(){return refreshed}};
 }
-assert(html.includes('id="retroTrainingDetails"')&&html.includes("忘记打卡？补记过去训练并校准后续安排"),"UI is discoverable");
-assert(/APP_BUILD="20261110-compact-retro-select-v108"/.test(html));
+assert(!html.includes('id="retroTrainingDetails"'),"obsolete form removed; legacy records and API remain readable");
+assert(/APP_BUILD="20261111-week-swipe-complete-v109"/.test(html));
 assert(!html.includes("localStorage.clear("));
 let x=env();x.mod.saveRetroTraining();
 assert.equal(x.alerts.length,0);assert.equal(x.refreshed,1);
