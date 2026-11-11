@@ -5,6 +5,11 @@ assert(html.includes('APP_BUILD="20261111-week-swipe-complete-v109"'));
 assert(!html.includes('<details id="retroTrainingDetails"'),"obsolete backfill form is no longer shown");
 assert(html.includes('class="weekSwipeAction')&&html.includes('class="weekSwipeSummary"'),"swipe action is inside the seven-day plan list");
 assert(html.includes('installWeekSwipeGestures()'),"touch handlers are installed after the week renders");
+const touchCode=sec("function installWeekSwipeGestures(){","function syncTrainingCursor(){");
+assert(touchCode.includes("if(dx<0)swipeCompleteWeekDay(index);"),"a single left swipe completes immediately without a second tap");
+assert(touchCode.includes("else if(swipeCanUndo(index))swipeUndoWeekDay(index);"),"right swipe reverses the latest swipe");
+assert(touchCode.includes("Math.abs(dx)<72"),"intentional 72px gesture threshold avoids casual vertical touches");
+
 assert(html.includes('swipeStepLog(ds).some(x=>x.index===idx)'),"next-day replay recognizes swipe-completed current step");
 assert(!html.includes("localStorage.clear("),"historical records never globally cleared");
 const swipes=sec("/* V109: swipe confirmation advances the sequence","function syncTrainingCursor(){");
