@@ -429,10 +429,11 @@ input,select,textarea{font-family:inherit;accent-color:var(--tint);border-radius
 #view-training .iosWeekList>.planDetails.swipeFinishing>.weekSwipeUndoCue{background:#55565e}
 #view-training .iosWeekList .weekDoneBadge{display:inline-flex;margin-left:7px;font-size:10px;padding:3px 6px;border-radius:6px;background:#f0f1f3;color:#66676d;font-weight:650}
 #view-training .iosWeekList>.planDetails.swipeNewCurrent>summary::before{
- content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
  border-left:3px solid #81a5cb;background:rgba(114,164,222,.12);
  animation:weekSwipeNextGlow .58s cubic-bezier(.18,.8,.25,1) both;
 }
+#view-training .iosWeekList>.planDetails.swipeNewCurrent>summary>*{position:relative;z-index:1}
 #view-training .weekSwipeFeedback{
  margin-top:9px;min-height:30px;display:flex;align-items:center;gap:7px;
  padding:8px 11px;border-radius:10px;background:#f4f4f7;color:#464751;
