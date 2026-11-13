@@ -38,7 +38,7 @@ function env({day="2026-11-09",index=2,current=index,kind="completed",minutes=""
  return {mod,store,storage,inputs,alerts,confirmations,get refreshed(){return refreshed}};
 }
 assert(!html.includes('id="retroTrainingDetails"'),"obsolete form removed; legacy records and API remain readable");
-assert(/APP_BUILD="20261112-swipe-colored-status-v111"/.test(html));
+assert(/APP_BUILD="20261113-swipe-visible-summary-v112"/.test(html));
 assert(!html.includes("localStorage.clear("));
 let x=env();x.mod.saveRetroTraining();
 assert.equal(x.alerts.length,0);assert.equal(x.refreshed,1);
