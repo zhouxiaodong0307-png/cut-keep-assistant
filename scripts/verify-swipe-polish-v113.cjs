@@ -1,0 +1,18 @@
+const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
+const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
+assert(html.includes('APP_BUILD="20261113-swipe-refined-pill-v113"'),"V113 build");
+const a=html.indexOf("/* V112: native closed details"),b=html.indexOf("#view-training .iosWeekList .weekDoneBadge{",a);
+assert(a>0&&b>a,"styles exist");
+const css=html.slice(a,b),begin=html.indexOf("weekPlan.innerHTML=plans.map((x,i)=>");
+const end=html.indexOf(').join("");installWeekSwipeGestures();',begin),row=html.slice(begin,end);
+assert(/<summary class="weekSwipeSummary">[\s\S]*?weekSwipeVisualComplete[\s\S]*?weekSwipeVisualUndo[\s\S]*?<\/summary>/.test(row),"native summary keeps both closed-details cues");
+assert(css.includes("background:transparent")&&!css.includes("linear-gradient("),"avoid full colored gradient action slab");
+assert(css.includes("content:\"\";position:absolute;inset:7px")&&css.includes("border-radius:13px"),"rounded inset pill with whitespace");
+assert(css.includes("border:1px solid #e3f0e8;background:#f3faf6"),"subtle mint surface");
+assert(css.includes("background:#f5f6f9;border-color:#e7eaf0"),"subtle slate undo");
+assert(css.includes("width:26px;height:26px;border-radius:50%"),"compact circular check");
+assert(css.includes("opacity:0;transition:opacity .14s ease")&&css.includes(".swipeReady>summary>.weekSwipeVisual .weekSwipeHint"),"hint appears only at threshold");
+assert(row.includes('<span class="weekSwipeText">完成</span><small class="weekSwipeHint">松手确认</small>'),"short completion text");
+assert(row.includes('<span class="weekSwipeText">撤销</span><small class="weekSwipeHint">松手确认</small>'),"short undo text");
+assert(css.includes("@media(prefers-reduced-motion:reduce)"),"reduced motion preserved");
+console.log("PASS V113: inset minimalist action pills, compact icons and subtle swipe-ready cues.");

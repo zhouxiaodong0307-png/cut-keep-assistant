@@ -2,7 +2,7 @@ const fs=require("node:fs"),path=require("node:path"),assert=require("node:asser
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
 const css=html.slice(html.indexOf("/* V111: readable colored underlay"),html.indexOf("/* V72: match diet"));
 const script=html.slice(html.indexOf("/* V109: swipe confirmation advances"),html.indexOf("function syncTrainingCursor(){",html.indexOf("/* V109: swipe confirmation advances")));
-assert(/APP_BUILD="20261113-swipe-visible-summary-v112"/.test(html),"V111 deployed marker");
+assert(/APP_BUILD="20261113-swipe-refined-pill-v113"/.test(html),"V111 deployed marker");
 assert(css.includes("linear-gradient(105deg,#eef7f1 0%,#d6efdf 100%)"),"under-card completion shade is pale green, not white");
 assert(css.includes("linear-gradient(125deg,#d5efde 0%,#b7e4c7 100%)"),"right reveal action uses green gradient");
 assert(css.includes("linear-gradient(125deg,#cbd3df 0%,#e7eaf1 100%)"),"left undo reveal action is muted slate");

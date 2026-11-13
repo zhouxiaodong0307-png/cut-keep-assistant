@@ -1,6 +1,6 @@
 const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-assert(html.includes('APP_BUILD="20261113-swipe-visible-summary-v112"'),"V112 build");
+assert(html.includes('APP_BUILD="20261113-swipe-refined-pill-v113"'),"V112 build");
 const begin=html.indexOf('weekPlan.innerHTML=plans.map((x,i)=>');
 const end=html.indexOf(').join("");installWeekSwipeGestures();',begin);
 assert(begin>0&&end>begin,"weekly template");

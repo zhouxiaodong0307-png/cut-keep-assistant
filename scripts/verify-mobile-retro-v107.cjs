@@ -1,6 +1,6 @@
 const fs=require("node:fs"),assert=require("node:assert/strict"),path=require("node:path");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-assert(/APP_BUILD="20261113-swipe-visible-summary-v112"/.test(html));
+assert(/APP_BUILD="20261113-swipe-refined-pill-v113"/.test(html));
 assert(!html.includes('<details id="retroTrainingDetails"'),"complex history form removed, not merely hidden");
 assert(!html.includes('<select id="retroTrainingDate"'),"no date picker clutter");
 assert(html.includes('id="weekPlan" class="iosWeekList"'),"original compact seven-day plan remains");
