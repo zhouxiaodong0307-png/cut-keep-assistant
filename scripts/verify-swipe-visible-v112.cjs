@@ -10,7 +10,7 @@ assert(row.indexOf('<details class="planDetails')<summary,"native details wrappe
 assert(!row.slice(row.indexOf('<details class="planDetails'),summary).includes('weekSwipeUndoCue'),"summary must be first child; no hidden underlay before it");
 assert(row.indexOf('class="weekSwipeVisual weekSwipeVisualComplete"')>summary&&row.indexOf('class="weekSwipeVisual weekSwipeVisualComplete"')<closing,"green cue is visible inside closed summary");
 assert(row.indexOf('class="weekSwipeVisual weekSwipeVisualUndo"')>summary&&row.indexOf('class="weekSwipeVisual weekSwipeVisualUndo"')<closing,"gray cue inside summary");
-const css=html.slice(html.indexOf('/* V112: native closed details'),html.indexOf('#view-training .iosWeekList .weekDoneBadge{'));
+const css=html.slice(html.indexOf('/* V114: native closed'),html.indexOf('#view-training .iosWeekList .weekDoneBadge{'));
 assert(css.includes('>summary{overflow:visible!important}'),"title can paint cue beyond own box");
 assert(css.includes('left:100%')&&css.includes('right:100%'),"off-edge green/gray positions follow translation");
 assert(css.includes('width:var(--swipe-distance,0px);height:100%'),"closed-summary reveal follows actual finger distance");
