@@ -21,6 +21,7 @@ on:
       - scripts/verify-swipe-reveal-v111.cjs
       - scripts/verify-swipe-visible-v112.cjs
       - scripts/verify-swipe-polish-v113.cjs
+      - scripts/verify-swipe-fluid-v114.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -49,6 +50,7 @@ on:
       - scripts/verify-swipe-reveal-v111.cjs
       - scripts/verify-swipe-visible-v112.cjs
       - scripts/verify-swipe-polish-v113.cjs
+      - scripts/verify-swipe-fluid-v114.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -91,8 +93,10 @@ jobs:
         run: node scripts/verify-swipe-reveal-v111.cjs
       - name: Validate closed-details Safari swipe reveal visibility
         run: node scripts/verify-swipe-visible-v112.cjs
-      - name: Validate minimalist inset swipe action pill
+      - name: Validate prior swipe visual compatibility
         run: node scripts/verify-swipe-polish-v113.cjs
+      - name: Validate finger-proportional swipe color fill
+        run: node scripts/verify-swipe-fluid-v114.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
       - name: Validate automatic widget cloud pairing, offline caching and new calories

@@ -1,6 +1,6 @@
 const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-assert(html.includes('APP_BUILD="20261113-swipe-refined-pill-v113"'),"V112 build");
+assert(html.includes('APP_BUILD="20261113-swipe-fluid-fill-v114"'),"V112 build");
 const begin=html.indexOf('weekPlan.innerHTML=plans.map((x,i)=>');
 const end=html.indexOf(').join("");installWeekSwipeGestures();',begin);
 assert(begin>0&&end>begin,"weekly template");
@@ -13,9 +13,9 @@ assert(row.indexOf('class="weekSwipeVisual weekSwipeVisualUndo"')>summary&&row.i
 const css=html.slice(html.indexOf('/* V112: native closed details'),html.indexOf('#view-training .iosWeekList .weekDoneBadge{'));
 assert(css.includes('>summary{overflow:visible!important}'),"title can paint cue beyond own box");
 assert(css.includes('left:100%')&&css.includes('right:100%'),"off-edge green/gray positions follow translation");
-assert(css.includes('width:86px;height:100%'),"one-row reveal size");
+assert(css.includes('width:var(--swipe-distance,0px);height:100%'),"closed-summary reveal follows actual finger distance");
 assert(css.includes('pointer-events:none'),"no accidental summary clicks");
-assert(css.includes('.swipeReady:not(.swipeUndoDragging)>summary>.weekSwipeVisualComplete'),"threshold green feedback");
+assert(css.includes('background:rgba(48,147,83,var(--swipe-fill-alpha,0))'),"green intensity follows distance");
 assert(css.includes('.swipeUndoFinishing>summary>.weekSwipeVisualUndo'),"undo release feedback");
 assert(css.includes('@media(prefers-reduced-motion:reduce)'),"accessible reduced motion");
 const code=html.slice(html.indexOf('function weekSwipeAnimate(index,undo=false)'),html.indexOf('function installWeekSwipeGestures(){'));

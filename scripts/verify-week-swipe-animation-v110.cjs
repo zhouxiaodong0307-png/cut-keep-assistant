@@ -4,7 +4,7 @@ const begin=html.indexOf("/* V109: swipe confirmation advances the sequence"),
  end=html.indexOf("function syncTrainingCursor(){",begin);
 assert(begin>=0&&end>begin,"V109/V110 swipe code exists");
 const code=html.slice(begin,end);
-assert(/APP_BUILD="20261113-swipe-refined-pill-v113"/.test(html));
+assert(/APP_BUILD="20261113-swipe-fluid-fill-v114"/.test(html));
 assert(html.includes('id="weekSwipeFeedback"')&&html.includes('aria-live="polite"'),
  "after-swipe status is accessible");
 assert(html.includes("weekSwipeNextGlow")&&html.includes("swipeNewCurrent"),
@@ -84,6 +84,7 @@ x.handlers.touchmove({touches:[{clientX:174,clientY:43}],preventDefault:()=>prev
 assert.equal(prevented,1,"horizontal move prevents Safari horizontal navigation");
 assert.equal(x.style.transform,"translateX(-86px)","card tracks exact finger distance");
 assert.equal(x.row.style.getPropertyValue("--swipe-reveal"),"1","drag exposes fully saturated green status background");
+assert.equal(x.row.style.getPropertyValue("--swipe-distance"),"86px","86px drag fills 86px");
 assert.equal(x.row.style.getPropertyValue("--swipe-opacity"),"1","at full drag status text is fully opaque");
 assert.equal(x.classes.has("swipeReady"),true,"after threshold completion text/underlay is strongly emphasized");
 assert.equal(x.classes.has("swipeUndoDragging"),false,"leftward reveal uses green instead of gray");
@@ -94,6 +95,7 @@ assert.equal(x.api.swipeStepLog().length,1,"one ledger entry for gesture");
 assert.equal(x.refreshes,0,"keep old DOM for visible 220ms release animation");
 assert.equal(x.action.textContent,"✓ 已完成");
 assert.equal(x.style.transform,"translateX(-100px)");
+assert.equal(x.row.style.getPropertyValue("--swipe-distance"),"100px","release paints final gap");
 assert.equal(x.api.state().weekSwipeAnimating,true,"prevent duplicate gestures mid-transition");
 x.flush(239);
 assert.equal(x.refreshes,0,"no premature instant replacement");
@@ -106,6 +108,7 @@ assert.equal(x.feedback.hidden,false);
 x.handlers.touchstart({target:x.summary,touches:[{clientX:120,clientY:42}]});
 x.handlers.touchmove({touches:[{clientX:210,clientY:43}],preventDefault:()=>{}});
 assert.equal(x.style.transform,"translateX(90px)","undo tracks finger to the right");
+assert.equal(x.row.style.getPropertyValue("--swipe-distance"),"90px","rightward undo fills 90px");
 assert.equal(x.classes.has("swipeUndoDragging"),true,"undo direction displays gray underlay");
 assert.equal(x.row.style.getPropertyValue("--swipe-reveal"),"1","undo fully reveals gray status");
 x.handlers.touchend({changedTouches:[{clientX:215,clientY:43}],preventDefault:()=>{}});
@@ -125,6 +128,7 @@ assert.equal(x.store.get("ckTrainingCursorIndex"),"3");
 assert.equal(x.style.transform,"translateX(0px)");
 x.flush(220);assert.equal(x.refreshes,0);
 assert.equal(x.row.style.getPropertyValue("--swipe-reveal"),"0","short drag returns tinted background to idle state");
+assert.equal(x.row.style.getPropertyValue("--swipe-distance"),"0px","short drag hides all green");
 // Progressive reveal should be noticeably different before and after threshold.
 x=test();
 x.handlers.touchstart({target:x.summary,touches:[{clientX:250,clientY:41}]});
