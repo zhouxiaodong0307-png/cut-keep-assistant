@@ -1,0 +1,12 @@
+const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
+const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
+assert(html.includes('APP_BUILD="20261114-clip-swipe-fill-to-summary-v116"'),"V116 build");
+const start=html.indexOf("/* V116: anchor the reveal"),end=html.indexOf("#view-training .iosWeekList .weekDoneBadge{",start);
+assert(start>0&&end>start,"V116 clipping rules exist");
+const css=html.slice(start,end);
+assert(css.includes("summary.weekSwipeSummary{")&&css.includes("position:relative!important"),"summary is containing block for absolute reveal");
+assert(css.includes("overflow:visible!important"),"horizontal fill may extend outside summary while card tracks finger");
+assert(css.includes(">.weekSwipeVisual{")&&css.includes("top:0!important")&&css.includes("height:100%!important"),"reveal height matches summary row, not details body");
+const base=html.slice(html.indexOf(".planDetails{"),html.indexOf(".planDetails:first-child"));
+assert(base.includes("overflow:hidden"),"outer details card clips any vertical overflow to rounded card");
+console.log("PASS V116: absolute swipe reveal is anchored to summary row and vertically clipped by card boundary.");

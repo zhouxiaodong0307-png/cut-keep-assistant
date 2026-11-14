@@ -4,7 +4,7 @@ const begin=html.indexOf("/* V109: swipe confirmation advances the sequence"),
  end=html.indexOf("function syncTrainingCursor(){",begin);
 assert(begin>=0&&end>begin,"V109/V110 swipe code exists");
 const code=html.slice(begin,end);
-assert(/APP_BUILD="20261114-restore-interactive-week-actions-v115"/.test(html));
+assert(/APP_BUILD="20261114-clip-swipe-fill-to-summary-v116"/.test(html));
 assert(html.includes('id="weekSwipeFeedback"')&&html.includes('aria-live="polite"'),
  "after-swipe status is accessible");
 assert(html.includes("weekSwipeNextGlow")&&html.includes("swipeNewCurrent"),

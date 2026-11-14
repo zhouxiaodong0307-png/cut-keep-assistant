@@ -1,6 +1,6 @@
 const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-assert(html.includes('APP_BUILD="20261114-restore-interactive-week-actions-v115"'),"V115 build");
+assert(html.includes('APP_BUILD="20261114-clip-swipe-fill-to-summary-v116"'),"V115 build");
 const a=html.indexOf("function toggleExerciseGuide("),b=html.indexOf("function exerciseGuideHtml(",a);
 assert(a>0&&b>a,"guide handler exists");const code=html.slice(a,b);
 assert(code.includes('button?.closest?.(".exerciseRow")'),"guide targets its own row");
