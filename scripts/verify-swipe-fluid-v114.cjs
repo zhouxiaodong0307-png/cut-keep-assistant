@@ -1,6 +1,6 @@
 const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-assert(html.includes('APP_BUILD="20261113-swipe-fluid-fill-v114"'),"V114 build");
+assert(html.includes('APP_BUILD="20261114-restore-interactive-week-actions-v115"'),"V114 build");
 const css=html.slice(html.indexOf("/* V114: native closed"),html.indexOf("#view-training .iosWeekList .weekDoneBadge{"));
 assert(css.includes('width:var(--swipe-distance,0px)'),"fill width is a CSS custom pixel value");
 assert(css.includes("left:100%")&&css.includes("right:100%"),"both directions anchored to summary edge");

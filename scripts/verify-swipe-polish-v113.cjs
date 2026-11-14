@@ -1,6 +1,6 @@
 const fs=require("node:fs"),path=require("node:path"),assert=require("node:assert/strict");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-assert(html.includes('APP_BUILD="20261113-swipe-fluid-fill-v114"'),"latest build");
+assert(html.includes('APP_BUILD="20261114-restore-interactive-week-actions-v115"'),"latest build");
 const start=html.indexOf("/* V114: native closed"),end=html.indexOf("#view-training .iosWeekList .weekDoneBadge{",start);
 assert(start>=0&&end>start,"swipe styles");
 const css=html.slice(start,end),i=html.indexOf("weekPlan.innerHTML=plans.map((x,i)=>"),j=html.indexOf(').join("");installWeekSwipeGestures();',i);

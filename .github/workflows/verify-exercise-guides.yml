@@ -22,6 +22,7 @@ on:
       - scripts/verify-swipe-visible-v112.cjs
       - scripts/verify-swipe-polish-v113.cjs
       - scripts/verify-swipe-fluid-v114.cjs
+      - scripts/verify-week-action-interaction-v115.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -51,6 +52,7 @@ on:
       - scripts/verify-swipe-visible-v112.cjs
       - scripts/verify-swipe-polish-v113.cjs
       - scripts/verify-swipe-fluid-v114.cjs
+      - scripts/verify-week-action-interaction-v115.cjs
       - cloud-sync.js
       - cloud-config.js
       - supabase/**
@@ -97,6 +99,8 @@ jobs:
         run: node scripts/verify-swipe-polish-v113.cjs
       - name: Validate finger-proportional swipe color fill
         run: node scripts/verify-swipe-fluid-v114.cjs
+      - name: Validate exercise guides stay open and current strength actions can be completed
+        run: node scripts/verify-week-action-interaction-v115.cjs
       - name: Validate actual iOS widget snapshot and Scriptable offline renderer
         run: node scripts/verify-ios-widget.cjs
       - name: Validate automatic widget cloud pairing, offline caching and new calories

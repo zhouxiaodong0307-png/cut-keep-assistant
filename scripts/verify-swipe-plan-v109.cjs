@@ -1,7 +1,7 @@
 const fs=require("node:fs"),assert=require("node:assert/strict"),path=require("node:path");
 const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
 function sec(a,b){const start=html.indexOf(a),end=html.indexOf(b,start+a.length);assert(start>=0&&end>start,"missing "+a);return html.slice(start,end);}
-assert(html.includes('APP_BUILD="20261113-swipe-fluid-fill-v114"'));
+assert(html.includes('APP_BUILD="20261114-restore-interactive-week-actions-v115"'));
 assert(!html.includes('<details id="retroTrainingDetails"'),"obsolete backfill form is no longer shown");
 assert(html.includes('class="weekSwipeAction')&&html.includes('class="weekSwipeSummary"'),"swipe action is inside the seven-day plan list");
 assert(html.includes('installWeekSwipeGestures()'),"touch handlers are installed after the week renders");
