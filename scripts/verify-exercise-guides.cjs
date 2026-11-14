@@ -215,9 +215,9 @@ else console.log('PASS: '+cases+' scenarios, '+mappings+' image mappings, 14 uni
  if(active.includes('exerciseRow isDone')||!active.includes('>完成</button>')||
    active.includes('完成反馈'))throw Error('Unfinished training card changed');
  const weekly=row('杠铃卧推｜正式组 2组 × 6–8次｜推荐重量：45 kg｜休2–3分钟',1,false,'week-4');
- if(!weekly.includes("toggleExerciseGuide('杠铃卧推','week-4')")||weekly.includes('>完成</button>')||weekly.includes('完成反馈'))
+ if(!weekly.includes("toggleExerciseGuide('杠铃卧推','week-4',this)")||weekly.includes('>完成</button>')||weekly.includes('完成反馈'))
   throw Error('Historical week image guide must expand independently, without completing or changing weight feedback');
- if(!active.includes("toggleExerciseGuide('杠铃卧推','today')"))throw Error('Today guide must use a separate session scope');
+ if(!active.includes("toggleExerciseGuide('杠铃卧推','today',this)"))throw Error('Today guide must use a separate session scope');
  const listCode=sect('function completeAllExercises(){','function planKind(').slice(0,-'function planKind('.length);
  const list=new Function('exerciseDone','exerciseName','exerciseHtml',listCode+'return renderExerciseList;')(
   {'杠铃卧推':true},v=>v.split('｜')[0],v=>'<article>'+v+'</article>');
